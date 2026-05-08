@@ -357,17 +357,34 @@ export default function PaidDailyChallengeFlow({ open, onClose, onPlayed }) {
             ⏱ {secondsLeft}s
           </span>
         </div>
-        <div className="text-[10px] uppercase tracking-widest mb-1"
+        <div className="text-[10px] uppercase tracking-widest mb-2"
              style={{ color: 'var(--jp-text-muted)' }}>
-          {q.category}
+          {(q.category || '').replace(/_/g, ' ')}
         </div>
-        <h3 className="font-['Outfit'] font-bold text-base mb-3"
-            data-testid={`paid-question-${qIdx}`}>
-          {q.question}
-        </h3>
+        {/* iter237aa — Question rendue dans un conteneur à fort contraste
+            avec couleur forcée inline (var(--jp-text) inheritance ne marche
+            pas sur iOS Safari production — texte invisible sur fond blanc).
+            min-height garantit qu'un texte vide ne casse pas le layout. */}
+        <div className="p-4 rounded-2xl mb-4"
+             style={{
+               background: 'rgba(15, 5, 107, 0.04)',
+               border: '1px solid rgba(15, 5, 107, 0.10)',
+               minHeight: '72px',
+             }}>
+          <p className="font-['Outfit'] font-bold text-base leading-relaxed"
+             data-testid={`paid-question-${qIdx}`}
+             style={{
+               color: 'var(--jp-text)',
+               WebkitTextFillColor: 'var(--jp-text)',
+               margin: 0,
+             }}>
+            {q.question || '⚠️ Question manquante — réessaie ou contacte le support.'}
+          </p>
+        </div>
         <div className="space-y-2" data-testid="paid-options">
           {q.options.map((opt, i) => {
-            let bg = 'rgba(255,255,255,0.04)';
+            // iter237aa — Options bg darker so they stand out on white modal.
+            let bg = 'rgba(15, 5, 107, 0.04)';
             let border = 'var(--jp-border)';
             let color = 'var(--jp-text)';
             if (revealed) {
@@ -383,7 +400,12 @@ export default function PaidDailyChallengeFlow({ open, onClose, onPlayed }) {
                       disabled={!!revealed}
                       data-testid={`paid-option-${i}`}
                       className="w-full text-left p-3 rounded-xl transition-all disabled:cursor-not-allowed"
-                      style={{ background: bg, border: `1px solid ${border}`, color }}>
+                      style={{
+                        background: bg,
+                        border: `1px solid ${border}`,
+                        color,
+                        WebkitTextFillColor: color,
+                      }}>
                 <span className="font-bold mr-2">{String.fromCharCode(65 + i)}.</span> {opt}
               </button>
             );

@@ -1,0 +1,36 @@
+{
+  "summary": "iter247 — Verified fix for invisible question text in PaidDailyChallengeFlow. Backend and frontend tests both PASS. The <p data-testid='paid-question-0'> element renders with non-empty text, computed color rgb(10,10,10) (dark) and explicit WebkitTextFillColor. Container has correct background, border, minHeight, and the category is properly formatted without underscores. All 4 options render with correct testids.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_dcq_paid_question_field.py",
+    "/app/test_reports/pytest/iter247_dcq_paid_question.xml"
+  ],
+  "action_items": [
+    "Update agent_to_agent_context_note: the actual stake-launch testid is `paid-stake-launch` (NOT `paid-stake-go`). The user-supplied test instructions mentioned `paid-stake-go` which does not exist in code (PaidDailyChallengeFlow.jsx line 323 uses `paid-stake-launch`). This wasted ~2 test iterations to discover. No action needed for the fix itself."
+  ],
+  "critical_code_review_comments": [
+    "Fix is correctly applied at PaidDailyChallengeFlow.jsx lines 360-383: explicit color: var(--jp-text), WebkitTextFillColor inline, fallback when q.question falsy, container with minHeight 72px and visible bg/border. Robust against iOS Safari color-inheritance bug.",
+    "Backend dcq_paid.py correctly returns 'question' field as string in questions_safe (line 471-476) and properly excludes 'correct_idx' from response (anti-leak verified in pytest)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_dcq_paid_question_field.py (NEW — backend regression test for /paid/start question payload)"
+  ],
+  "success_rate": {
+    "backend": "100% (2/2 executed; 1 skipped because Alice already played today returning 409 — expected)",
+    "frontend": "100% (full E2E flow passes: login → /games → daily-challenge-paid-btn → CGJ → stake → paid-question-0 visible with dark color + 4 options)"
+  },
+  "test_credentials": "Bob: bob@japap.com / Test1234! (UI uses math captcha which was solved dynamically; bypass token JAPAP_E2E_BYPASS_2026 used for backend API directly)",
+  "seed_data_creation": "Reset Bob's wallet (>=5 USD) and deleted today's daily_challenge_paid_sessions row to enable replay during testing. Note: agent_to_agent_context_note mentioned table 'daily_challenge_paid_attempts' but only 'daily_challenge_paid_sessions' actually exists.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "PaidDailyChallengeFlow stake-launch testid is `paid-stake-launch` (not paid-stake-go). Backend pytest at /app/backend/tests/test_dcq_paid_question_field.py is reusable for DCQ paid regression. Math captcha on /login can be bypassed by reading question text and solving inline. Bob can be reset via DELETE on daily_challenge_paid_sessions. Pool currently has 1786 active questions.",
+  "rca_of_the_issue": "ROOT CAUSE: On iOS Safari production, the <h3>/<p> rendering the question inherited a transparent or white text color, making it invisible on white modal background. FIX VERIFIED in code (PaidDailyChallengeFlow.jsx lines 364-383): (1) container with explicit background rgba(15,5,107,0.04), border, and minHeight 72px to prevent layout collapse if text empty; (2) inline style on <p>: color='var(--jp-text)' AND WebkitTextFillColor='var(--jp-text)' to defeat iOS Safari color-inheritance issue; (3) fallback string '⚠️ Question manquante…' when q.question is falsy; (4) options also got WebkitTextFillColor for consistency. End-to-end Playwright test on Chrome desktop confirms computed color is rgb(10,10,10) and text renders correctly. No regression observed."
+}

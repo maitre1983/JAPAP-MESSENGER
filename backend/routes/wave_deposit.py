@@ -70,7 +70,7 @@ async def wave_dep_info(request: Request):
         return {
             "receiver_name":   await get_setting(conn, WAVE_KEYS["receiver_name"], "JAPAP Wave"),
             "receiver_number": await get_setting(conn, WAVE_KEYS["receiver_num"], ""),
-            "ref_pattern_hint": "T_XXXXX-YYYYY",
+            "ref_pattern_hint": "Ex: T_ABC123-XYZ789 (Sénégal) ou xot-24p35p8qg22d0 (CI). Le format varie selon ton pays.",
         }
 
 
@@ -101,10 +101,13 @@ class _SubmitIn(BaseModel):
 @router.post("/deposits/wave/submit")
 async def wave_dep_submit(req: _SubmitIn, request: Request):
     user = await get_current_user(request)
-    reference = req.reference.strip().upper()[:120]
-    if not WAVE_REF_PATTERN.match(reference):
+    # iter237z — Preserve the user's original casing (Wave Côte d'Ivoire IDs
+    # are lowercase, e.g. xot-24p35p8qg22d0). Only trim + length-check.
+    reference = req.reference.strip()[:120]
+    if len(reference) < 6 or not WAVE_REF_PATTERN.match(reference):
         raise HTTPException(status_code=400,
-            detail="Référence Wave invalide (format T_XXXXX-YYYYY).")
+            detail="Référence Wave trop courte ou invalide (min. 6 caractères, "
+                   "lettres/chiffres/tirets/underscores).")
     try:
         date_tx = datetime.strptime(req.date_tx[:10], "%Y-%m-%d").date()
         hh, mm = req.heure_tx[:5].split(":")

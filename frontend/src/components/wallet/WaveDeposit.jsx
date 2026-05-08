@@ -1,8 +1,10 @@
 /**
  * iter235 — Wave (Afrique de l'Ouest) — Dépôt utilisateur.
  * iter237i — Wizard 2 étapes : (1) infos virement, (2) référence Wave.
- * Strictement additif. Numéro masqué si vide. Regex T_XXXXX-YYYYY
- * validée client + serveur (inchangée).
+ * iter237z — Validation référence assouplie : chaque pays Wave a son
+ * propre format (T_XXX-YYY pour SN, xot-XXXXXX pour CI, etc.). On
+ * accepte tout identifiant >= 6 caractères, l'agent vérifie ensuite
+ * dans le dashboard Wave.
  */
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
@@ -10,7 +12,10 @@ import { toast } from 'sonner';
 import { ArrowDown, ArrowLeft, X, Copy, CheckCircle } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-const WAVE_REF_REGEX = /^T_[A-Z0-9]+-[A-Z0-9]+$/;
+// iter237z — Loose reference: alphanumeric + underscore + dash, >= 6 chars,
+// case-preserving. Covers Sénégal (T_ABC-XYZ), Côte d'Ivoire (xot-...),
+// Burkina/Mali/Niger (varies) and forward-compat with future Wave countries.
+const WAVE_REF_REGEX = /^[\w-]{6,120}$/;
 
 export default function WaveDeposit({ onSuccess }) {
   const [open, setOpen] = useState(false);
@@ -47,8 +52,10 @@ export default function WaveDeposit({ onSuccess }) {
     return () => clearTimeout(t);
   }, [montant, open, step]);
 
-  const refUpper = (form.reference || '').trim().toUpperCase();
-  const refValid = !refUpper || WAVE_REF_REGEX.test(refUpper);
+  // iter237z — Preserve user casing. Côte d'Ivoire IDs are lowercase
+  // (e.g. xot-24p35p8qg22d0), Sénégal IDs are uppercase (T_AB123-XYZ).
+  const refTrim = (form.reference || '').trim();
+  const refValid = !refTrim || WAVE_REF_REGEX.test(refTrim);
 
   // iter237i — Validation pour passage étape 1 → 2.
   const step1Valid = parseFloat(montant) > 0
@@ -74,8 +81,8 @@ export default function WaveDeposit({ onSuccess }) {
     e?.preventDefault?.();
     const m = parseFloat(montant);
     if (!m || m <= 0) { toast.error('Montant invalide.'); return; }
-    if (!refUpper || !WAVE_REF_REGEX.test(refUpper)) {
-      toast.error('Référence Wave invalide. Format : T_XXXXX-YYYYY'); return;
+    if (!refTrim || !WAVE_REF_REGEX.test(refTrim)) {
+      toast.error('Référence Wave trop courte ou invalide (min. 6 caractères).'); return;
     }
     if (!form.numero_expediteur || !form.nom_expediteur || !form.date_tx || !form.heure_tx) {
       toast.error('Tous les champs sont requis.'); return;
@@ -88,7 +95,7 @@ export default function WaveDeposit({ onSuccess }) {
         nom_expediteur: form.nom_expediteur.trim(),
         date_tx: form.date_tx,
         heure_tx: form.heure_tx,
-        reference: refUpper,
+        reference: refTrim,
       }, { withCredentials: true });
       toast.success('Dépôt Wave soumis ! En attente de vérification.');
       // iter237i — track submitted (best-effort).
@@ -219,7 +226,7 @@ export default function WaveDeposit({ onSuccess }) {
                 <ul className="text-xs opacity-80 space-y-1" style={{ color: '#063D4F' }}>
                   <li>• Dans le <strong>SMS de confirmation</strong> reçu après le virement</li>
                   <li>• Dans ton <strong>application Wave</strong> → Historique → détails de la transaction</li>
-                  <li>• Format : <code style={{ background: 'rgba(0,0,0,0.06)', padding: '1px 4px', borderRadius: 3 }}>T_XXXXX-YYYYY</code></li>
+                  <li>• Le <strong>format varie selon ton pays</strong> (ex. <code style={{ background: 'rgba(0,0,0,0.06)', padding: '1px 4px', borderRadius: 3 }}>T_ABC123-XYZ789</code> au Sénégal, <code style={{ background: 'rgba(0,0,0,0.06)', padding: '1px 4px', borderRadius: 3 }}>xot-24p35p8qg22d0</code> en Côte d'Ivoire).</li>
                 </ul>
               </div>
               <div>
@@ -227,29 +234,27 @@ export default function WaveDeposit({ onSuccess }) {
                   Référence Wave
                   <span className="text-xs opacity-60 ml-1 font-normal">(reçue par SMS ou app Wave)</span>
                 </label>
-                <input data-testid="wave-deposit-reference" required minLength="4" maxLength="120"
+                <input data-testid="wave-deposit-reference" required minLength="6" maxLength="120"
                   value={form.reference} onChange={e => setForm(f => ({ ...f, reference: e.target.value }))}
-                  className="jp-input text-sm uppercase" placeholder="T_ABC123-XYZ789"
-                  pattern="T_[A-Z0-9]+-[A-Z0-9]+"
+                  className="jp-input text-sm" placeholder="Ex: T_ABC123-XYZ789 ou xot-24p35p8qg22d0"
                   style={{ borderColor: refValid ? undefined : 'var(--jp-error)' }} />
                 {!refValid && (
                   <p className="text-xs mt-1" style={{ color: 'var(--jp-error)' }} data-testid="wave-ref-error">
-                    Format invalide. Attendu : T_XXXXX-YYYYY (lettres/chiffres en majuscules, séparés par un tiret).
+                    Référence trop courte ou invalide (min. 6 caractères, lettres/chiffres/tirets/underscores).
                   </p>
                 )}
                 {refValid && (
                   <p className="text-xs mt-1.5" style={{ color: 'var(--jp-text-muted)' }}>
-                    Cette référence nous permet de vérifier ton virement.
-                    Sans elle, ton dépôt ne pourra pas être validé.
+                    Copie l'ID exact depuis ton SMS ou ton app Wave. Le format varie selon ton pays — c'est normal.
                   </p>
                 )}
               </div>
               <button type="button" onClick={submit}
-                disabled={submitting || !refUpper || !refValid}
+                disabled={submitting || !refTrim || !refValid}
                 data-testid="wave-deposit-submit"
                 className="jp-btn jp-btn-full"
                 style={{ background: '#1DC8FA', color: 'white',
-                         opacity: (submitting || !refUpper || !refValid) ? 0.6 : 1 }}>
+                         opacity: (submitting || !refTrim || !refValid) ? 0.6 : 1 }}>
                 {submitting ? 'Envoi…' : '✅ Confirmer mon dépôt'}
               </button>
               <button type="button" onClick={() => setStep(1)} data-testid="wave-deposit-step2-back"

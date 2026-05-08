@@ -123,8 +123,11 @@ def test_wave_quote_country_gate(alice):
         assert "montant_xof" in body and body["montant_xof"] > 0
 
 
-# ───────────── P0 — Wave reference regex ─────────────
+# ───────────── P0 — Wave reference validation (loose, iter237z) ─────────────
 def test_wave_invalid_reference_rejected(alice):
+    """iter237z — Reference validation is loose (each Wave country has its
+    own format) but still rejects empty or too-short inputs (< 6 chars).
+    """
     info = alice.get(f"{BASE}/api/deposits/wave/info", timeout=20)
     if info.status_code != 200:
         pytest.skip("Alice not allowed for Wave — skip regex test.")
@@ -134,11 +137,35 @@ def test_wave_invalid_reference_rejected(alice):
         "nom_expediteur": "Alice Test",
         "date_tx": "2026-02-01",
         "heure_tx": "12:00",
-        "reference": "BAD_REF_NO_PREFIX",
+        "reference": "abc",  # too short (< 6)
     }
     r = alice.post(f"{BASE}/api/deposits/wave/submit", json=payload, timeout=20)
     assert r.status_code == 400
-    assert "format" in r.text.lower() or "invalide" in r.text.lower()
+    assert "court" in r.text.lower() or "invalide" in r.text.lower()
+
+
+def test_wave_loose_reference_accepted(alice):
+    """iter237z — Côte d'Ivoire format (lowercase, no T_ prefix) must pass
+    the new validation. We don't actually want to commit a real deposit, so
+    we only verify the request gets past the regex layer (any non-400 with
+    the message 'invalide/court' counts).
+    """
+    info = alice.get(f"{BASE}/api/deposits/wave/info", timeout=20)
+    if info.status_code != 200:
+        pytest.skip("Alice not allowed for Wave — skip regex test.")
+    payload = {
+        "montant_usd": 5,
+        "numero_expediteur": "+221700000001",
+        "nom_expediteur": "Alice Test",
+        "date_tx": "2026-02-01",
+        "heure_tx": "12:00",
+        "reference": "xot-24p35p8qg22d0",  # CI lowercase format
+    }
+    r = alice.post(f"{BASE}/api/deposits/wave/submit", json=payload, timeout=20)
+    # Must NOT be rejected as "format invalide" — either 200 (accepted),
+    # 409 (duplicate), or any non-format error.
+    assert r.status_code != 400 or "court" not in r.text.lower(), \
+        f"Expected loose CI reference accepted, got 400: {r.text}"
 
 
 # ───────────── P0 — Auth gate on admin endpoints ─────────────

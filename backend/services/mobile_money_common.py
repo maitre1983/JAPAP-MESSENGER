@@ -25,7 +25,11 @@ from database import get_pool
 OM_ALLOWED_COUNTRIES = {"CM"}              # withdrawal-only gate (legacy)
 OM_DEPOSIT_BLOCKED_COUNTRIES = {"GH"}      # iter236 — deposit gate
 WAVE_ALLOWED_COUNTRIES_DEFAULT = ["BF", "CI", "ML", "NE", "SN", "GM", "UG"]
-WAVE_REF_PATTERN = re.compile(r"^T_[A-Z0-9]+-[A-Z0-9]+$")
+# iter237z — Wave reference format varies by country (e.g. SN: T_ABC123-XYZ789,
+# CI: xot-24p35p8qg22d0, others have their own formats). We only enforce a
+# minimum length + non-empty constraint and let the agent verify the actual
+# transaction in the Wave dashboard. Accept any printable chars >= 6 long.
+WAVE_REF_PATTERN = re.compile(r"^[\w\-]{6,120}$")
 
 
 # --- Settings keys (all server-side, never exposed in user responses) -------

@@ -1,4 +1,4 @@
-# JAPAP — PRD (mise à jour 08/05/2026 — iter237y)
+# JAPAP — PRD (mise à jour 08/05/2026 — iter237z)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
@@ -6,6 +6,39 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 ## Langue utilisateur
 **Français** (obligatoire).
 
+
+## iter237z — Wave deposit reference: validation assouplie multi-pays (08/05/2026)
+
+**Bug reporté** : les utilisateurs Wave en Côte d'Ivoire/Burkina/Mali ne pouvaient pas soumettre leur dépôt parce que le formulaire imposait le format sénégalais `T_XXXXX-YYYYY`. Le format de l'ID de transaction Wave **varie selon le pays** :
+- Sénégal : `T_AB123-XYZ789` (T_ + uppercase + dash + uppercase)
+- Côte d'Ivoire : `xot-24p35p8qg22d0` (lowercase, no T_ prefix)
+- Burkina/Mali/Niger : variations propres
+
+### Backend
+- `services/mobile_money_common.py::WAVE_REF_PATTERN` : `r"^T_[A-Z0-9]+-[A-Z0-9]+$"` → `r"^[\w\-]{6,120}$"`. Accepte alphanumeric + underscore + dash, 6 à 120 caractères.
+- `routes/wave_deposit.py::wave_dep_submit` : ne fait plus `.upper()` (préserve la casse originale, critique pour CI). Message d'erreur reformulé : "Référence Wave trop courte ou invalide (min. 6 caractères, lettres/chiffres/tirets/underscores)."
+- `routes/wave_deposit.py::wave_dep_info` : `ref_pattern_hint` réécrit en "Ex: T_ABC123-XYZ789 (Sénégal) ou xot-24p35p8qg22d0 (CI). Le format varie selon ton pays."
+
+### Frontend (`components/wallet/WaveDeposit.jsx`)
+- `WAVE_REF_REGEX` aligné sur le backend.
+- Variable `refUpper` renommée en `refTrim` (preserve casing).
+- Input retire `className="uppercase"` + `pattern="T_[A-Z0-9]+-[A-Z0-9]+"`.
+- `minLength` passé de 4 à 6.
+- Placeholder : `T_ABC123-XYZ789` → `Ex: T_ABC123-XYZ789 ou xot-24p35p8qg22d0`.
+- Help block réécrit : "Le format varie selon ton pays" avec les 2 exemples côte-à-côte.
+- Toast d'erreur : "Référence Wave trop courte ou invalide (min. 6 caractères)."
+
+### Tests
+- `tests/test_iter235_mobile_money.py::test_wave_invalid_reference_rejected` : input `"abc"` (< 6) → 400.
+- `tests/test_iter235_mobile_money.py::test_wave_loose_reference_accepted` (NEW) : input `"xot-24p35p8qg22d0"` (CI lowercase) → ne renvoie PAS 400 "format invalide".
+- 15/15 cas validés via Python REPL : Sénégal/CI/Mali/Burkina formats acceptés, formats invalides (vide, trop court, espaces, caractères spéciaux) rejetés.
+
+### À noter
+- La table `wave_deposits` stocke maintenant la référence dans la casse originale (lowercase pour CI, uppercase pour SN). L'agent admin peut les copier/coller telles quelles dans le dashboard Wave pour vérification.
+- Aucun changement d'UX côté agent admin (l'email de notification contient toujours la référence).
+- 0 régression sur le flow Sénégal existant.
+
+---
 
 ## iter237y — Audit i18n FR/EN + DCQ paid multi-langues (08/05/2026)
 

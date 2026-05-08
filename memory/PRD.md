@@ -1,4 +1,4 @@
-# JAPAP — PRD (mise à jour 08/05/2026 — iter237z)
+# JAPAP — PRD (mise à jour 08/05/2026 — iter237aa)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
@@ -6,6 +6,33 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 ## Langue utilisateur
 **Français** (obligatoire).
 
+
+## iter237aa — Fix bug : texte de question invisible dans le Défi du Jour payant (08/05/2026)
+
+**Bug critique remonté de PRODUCTION** (capture utilisateur fournie) : dans le modal `PaidDailyChallengeFlow`, les utilisateurs voyaient la catégorie (`TECHNOLOGIE_IA`), un grand espace blanc, puis les options A/B/C/D. **Le texte de la question était invisible** sur iOS Safari.
+
+### Root cause
+- Le `<h3>` qui rendait `{q.question}` n'avait **pas de couleur explicite**. Sur iOS Safari production, l'héritage de `color` depuis le parent rendait le texte transparent ou blanc sur fond blanc.
+- Bug latent depuis iter237k (création du composant). Aggravé par le fait que le data était correct côté backend (`question` field bien retourné).
+
+### Fix `components/games/PaidDailyChallengeFlow.jsx`
+- Conteneur visuel à fort contraste autour de la question : `bg: rgba(15,5,107,0.04)`, `border: 1px solid rgba(15,5,107,0.10)`, `minHeight: 72px` (évite l'effondrement du layout si question vide).
+- `<p data-testid='paid-question-{N}'>` avec **couleur forcée inline** : `color: var(--jp-text)` + `WebkitTextFillColor: var(--jp-text)` — la 2e propriété défait spécifiquement le bug iOS Safari où `color` inherit échoue.
+- Fallback : `'⚠️ Question manquante — réessaie ou contacte le support.'` si `q.question` est falsy → l'utilisateur voit immédiatement qu'il y a un problème data plutôt qu'un écran cassé.
+- Catégorie reformatée : `q.category` → `q.category.replace(/_/g, ' ')` → `TECHNOLOGIE_IA` devient `TECHNOLOGIE IA`.
+- Options A/B/C/D : ajout `WebkitTextFillColor` pour consistance, et `bg: rgba(15,5,107,0.04)` (au lieu de `rgba(255,255,255,0.04)`) pour qu'elles soient lisibles sur le modal blanc.
+
+### Validation iter247 (testing agent)
+- **Backend pytest 2/2 PASS** (`test_dcq_paid_question_field.py`) : le payload `/paid/start` retourne bien `question` non-vide pour les 5 questions, `correct_idx` correctement masqué.
+- **Frontend Playwright E2E PASS** : login → /games → `daily-challenge-paid-btn` → CGJ acceptance → stake input + `paid-stake-launch` → modal de jeu → `paid-question-0` visible avec `getComputedStyle().color = rgb(10,10,10)` + textContent.length > 5 + 4 options rendues.
+- 0 régression sur la phase result (score, partage WhatsApp).
+
+### Note d'archivage
+- Le testid de lancement du quiz est `paid-stake-launch` (PAS `paid-stake-go` comme indiqué dans certaines anciennes notes).
+- La table d'historique est `daily_challenge_paid_sessions` (PAS `daily_challenge_paid_attempts`).
+- Pool actuel : 1786 questions actives (FR + EN, le worker iter237y a tourné depuis et alimenté l'EN).
+
+---
 
 ## iter237z — Wave deposit reference: validation assouplie multi-pays (08/05/2026)
 

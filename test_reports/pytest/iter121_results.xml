@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="iter121_quiz_brute_force_lock" tests="17" failures="0">
+  <testcase classname="iter121" name="revealed_options column exists in quiz_user_runs">
+  </testcase>
+  <testcase classname="iter121" name="Bob login + wipe">
+  </testcase>
+  <testcase classname="iter121" name="/quiz/start 200 + 5 questions">
+  </testcase>
+  <testcase classname="iter121" name="first reveal q0 opt0 → 200 with {correct,question_idx}">
+  </testcase>
+  <testcase classname="iter121" name="idempotent same opt → 200 same correct">
+  </testcase>
+  <testcase classname="iter121" name="different opt=1 → 409 with French detail">
+  </testcase>
+  <testcase classname="iter121" name="different opt=2 → 409 with French detail">
+  </testcase>
+  <testcase classname="iter121" name="different opt=3 → 409 with French detail">
+  </testcase>
+  <testcase classname="iter121" name="q=1 reveal independent → 200">
+  </testcase>
+  <testcase classname="iter121" name="q=1 then different opt → 409">
+  </testcase>
+  <testcase classname="iter121" name="revealed_options DB has {'0':0,'1':2}">
+  </testcase>
+  <testcase classname="iter121" name="/quiz/submit ok after reveals">
+  </testcase>
+  <testcase classname="iter121" name="after submit q=0 opt=0 → 409 'Run déjà soumis'">
+  </testcase>
+  <testcase classname="iter121" name="after submit q=2 opt=1 → 409 'Run déjà soumis'">
+  </testcase>
+  <testcase classname="iter121" name="after submit q=3 opt=3 → 409 'Run déjà soumis'">
+  </testcase>
+  <testcase classname="iter121" name="admin config has quiz_auto_advance_delays_ms list">
+  </testcase>
+  <testcase classname="iter121" name="delays match documented default [900,800,700,550,400]">
+  </testcase>
+</testsuite>

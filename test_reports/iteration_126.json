@@ -1,0 +1,33 @@
+{
+  "summary": "Phase 3.C backend testing — 37/37 tests passed across 4 areas: (1) /api/games/toggles exposes the 6 new quiz_challenge_* keys with expected defaults; (2) /api/quiz/champion/leaderboard/challengers default + scoped (CM, window=30, limit=5) + lowercase-normalization all return well-formed {window_days, country_code, free[], paid[]} payloads with proper user public-info hydration; Alice from iter125 residue appears in paid with wins_paid=2 and earnings=1800.0 (= 2×1000×0.9); (3) POST /api/quiz/champion/challenge inserts a notifications row of kind='quiz_champion_challenge' for the champion (Bob) with title+message; best-effort push/email fan-out does not block the request (~2.9s end-to-end after warm-up); (4) regression — GET /api/quiz/champion/CM still returns Bob; free-mode challenge creates with no wallet movement and status='pending'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/quiz/champion/challenge (free)", "issue": "First (cold) request took 9.07s due to push/email fan-out best-effort timeouts (re-run after warm-up: 2.91s). Consider making the push/email side-effects truly fire-and-forget via asyncio.create_task() / BackgroundTasks to keep p99 latency <2s even on cold starts."},
+      {"endpoint": "GET /api/games/toggles & /api/quiz/champion/leaderboard/challengers", "issue": "Preview environment returned 502 on first cold-start request — likely the kube ingress warm-up rather than an app bug. All endpoints succeed on retry."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter126_quiz_champion_phase3c.py",
+    "/app/test_reports/pytest/iter126_results.xml"
+  ],
+  "action_items": [
+    "OPTIONAL perf: Wrap the OneSignal push and Resend email calls inside _notify with asyncio.create_task() (or FastAPI BackgroundTasks) so the HTTP response returns within ~200ms even when the third-party endpoints are slow/unreachable. Currently the request waits for both side-effects to time out before returning (observed 9s on cold start)."
+  ],
+  "critical_code_review_comments": [
+    "_notify in /app/backend/routes/quiz_champion.py runs the OneSignal + Resend HTTP calls inline within the request handler. While wrapped in try/except (best-effort), the network round-trip itself (or its timeout) does block the request. For Phase 3.C this is acceptable but should be hardened to background tasks in 3.D.",
+    "leaderboard_challengers SQL uses GROUP BY winner_user_id, mode then aggregates client-side — fine for top-3 but consider pushing the LIMIT into SQL once volumes grow.",
+    "earnings calculation = total_pot × 0.9 is an approximation hard-coded to commission_pct=10. If admins change quiz_challenge_commission_pct at runtime, leaderboard earnings will drift from ledger truth. Consider deriving from quiz_challenge_release ledger rows instead."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter126_quiz_champion_phase3c.py (new)"
+  ],
+  "success_rate": {"backend": "100% (37/37)", "frontend": "not tested (out-of-scope per request)"},
+  "test_credentials": "alice@japap.com / Alice2026!  ;  bob@japap.com / Test1234!  ;  Turnstile bypass token JAPAP_E2E_BYPASS_2026 (read from backend/.env TURNSTILE_TEST_BYPASS_TOKEN)",
+  "seed_data_creation": "No new seed. Reused iter125 paid-challenge residue (Alice's 2 paid wins in last 7d).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 3.C backend is solid (toggles, leaderboard, notification fan-out row insertion, regression). Frontend (QuizChampionPage, QuizChallengesPage, QuizChallengePage, DefyChampionModal at /games/quiz/champion[/{country}], /games/quiz/challenges, /games/quiz/challenges/{id}) was NOT tested per the testing_type=backend only directive — Turnstile blocks Playwright. Webpack reportedly compiles clean. If 3.D adds frontend tests, use the API to seed login state via document.cookie injection or hit /api/auth/login first then keep the JSESSIONID/csrf cookies before navigating. The only RFC-worthy improvement for 3.C is moving _notify's push+email HTTP calls to a true BackgroundTask (currently 9s p99 on cold starts).",
+  "rca of the issue": "N/A — no failing tests after warm-up. Cold-start 502s and the 9s first-request latency stem from the preview kube ingress wake-up + inline best-effort fan-out that still awaits HTTP timeouts. Mitigation: BackgroundTasks for push/email."
+}

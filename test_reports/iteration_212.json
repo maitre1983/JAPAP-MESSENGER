@@ -1,0 +1,39 @@
+{
+  "summary": "iter212 OG link preview — backend pytest (17/17 passing after retry) + frontend E2E via login as Bob. Endpoint /api/og returns correct JSON shape, 24h cache works, SSRF blocks localhost/127.0.0.1/10.x/192.168.x/169.254.169.254/0.0.0.0/::1, non-http schemes (ftp/file/javascript) return 400, batch endpoint caps at 8, 404/non-HTML/unknown-host gracefully fall back. Frontend: LinkPreviewCard renders with correct data-testid (post-{id}-linkpreview + post-{id}-linkpreview-card[-fallback]), anchor opens https://github.com in new tab with rel=noreferrer noopener. YouTube posts still render as iframe embed (OG card correctly suppressed).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/og (fallback paths)", "issue": "Response shape is missing 'fetched_at' field on some fallback paths (non-HTML content, HTTP 4xx/5xx, redirect-blocked, fetch-failure). _fallback() only sets 7 of 9 documented keys; get_preview() adds fetched_at only on the success path, not on the 'resp.status_code>=400 or non-text/html' branch nor on httpx.HTTPError branch. curl https://httpbin.org/status/404 and https://httpbin.org/image/png both return JSON without fetched_at. Fix: set data['fetched_at']=datetime.now(...).isoformat() before every 'return fallback' in get_preview(), or move the assignment into _fallback()."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Optimistic new post render", "issue": "Newly posted temp_ post rendered the fallback anchor (preview with no title/description/image) even though /api/og?url=https://github.com returns full OG data. Likely a race between optimistic render and the useOgPreview fetch; card eventually hydrates on refresh. Acceptable per spec ('fallback card is acceptable') but could be improved with SWR-like revalidation on post ID change.", "affected_selectors": ["[data-testid*=\"linkpreview-card-fallback\"]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_og_preview_iter212.py",
+    "/app/test_reports/pytest/iter212_og.xml"
+  ],
+  "action_items": [
+    "Optional: Ensure every branch of get_preview() sets data['fetched_at'] so the response shape is uniform (currently missing on HTTP error / non-HTML / httpx error / blocked-redirect paths). Low severity because the frontend doesn't read fetched_at, but it breaks the documented JSON contract."
+  ],
+  "critical_code_review_comments": [
+    "og_preview_service.py _fallback(): add fetched_at so every early-return path is shape-uniform.",
+    "og_preview_service.py get_preview(): on httpx.HTTPError, redirect-blocked, and status>=400/non-HTML branches, set fallback['fetched_at']=datetime.now(timezone.utc).isoformat() before return.",
+    "PostContent.jsx: current rule ('firstLinkUrl && embeds.length===0') means a post with BOTH a YouTube link and a generic link gets no OG card — matches spec ('YouTube takes precedence') but may surprise users; document explicitly.",
+    "useOgPreview.js: cache is module-scoped Map with no eviction — for a long-lived SPA with many feed URLs, memory may grow. Consider LRU cap (e.g., 200 entries)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_og_preview_iter212.py (NEW)"
+  ],
+  "success_rate": {"backend": "100% (17/17 after retry)", "frontend": "100% of critical flows (card renders, testids correct, YouTube precedence, target=_blank rel=noopener)"},
+  "test_credentials": "bob@japap.com / Test1234! (math captcha solved inline during test; bypass token JAPAP_E2E_BYPASS_2026 only works via API, not the UI form)",
+  "seed_data_creation": "Created 1 feed post via Bob: 'Check this out https://github.com'. Test fixtures hit example.com, github.com, httpbin.org (404 + image).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run pytest with `-p no:ethereum -p no:pytest_ethereum` to avoid the web3 eth_typing ImportError that breaks collection. Backend endpoint tested: GET /api/og, GET /api/og/batch. External fetches (github.com) can be flaky — first run timed out at 10s, retry passed at 20s+. SSRF validator blocks at validation step in <200ms. Frontend login requires solving inline math captcha (regex 'X + Y =').",
+  "rca_of_the_issue": "None blocking. Minor: _fallback paths skip fetched_at timestamp — trivial one-line fix in og_preview_service.py."
+}

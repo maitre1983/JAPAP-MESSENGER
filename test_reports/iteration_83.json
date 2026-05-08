@@ -1,0 +1,56 @@
+{
+  "summary": "Iter83 end-to-end test of JAPAP registration rebuild + superadmin dynamic URL + 2FA + admin management. 15/15 backend tests passing. Frontend critical surfaces validated: /register (no Google, new fintech form with all required data-testids, collapsible referral), /login (no Google), /admin{DDMMYY} (SUPERADMIN PORTAL pill + French copy), /admin000000 (branded 404). Superadmin 2FA flow verified end-to-end via Neon DB OTP lookup.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/admin/super/admins",
+        "issue": "Response shape is {admin: {...}} but the identifier returned is only `user_id` (string, e.g. 'admin_xxx'). No numeric `id` alias. Tests had to rely on admin.user_id. Consistent but undocumented in PRD."
+      },
+      {
+        "endpoint": "POST /api/auth/login (SA branch)",
+        "issue": "60s cooldown blocks a second SA login within the same window. Tests that rerun quickly see 429 'Please wait 60 seconds before requesting another code'. Expected behaviour, but complicates retests."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "/register",
+        "issues": [
+          "Header copy renders in English ('Create your account', 'Join JAPAP in a few seconds') — i18n not applying French by default as the brief asked. Only the superadmin portal and the 404 page are in French. Labels are also English (First name, Last name, Country, Phone number, Email, Password, Confirm password, I accept the Terms & Conditions, Create my account). Please verify i18n fallback/initial language is set to FR."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration83_superadmin.py",
+    "/app/test_reports/pytest/iter83_results.xml"
+  ],
+  "action_items": [
+    "i18n: Force default language to FR on /register/login (user explicitly requested French). Currently all labels render in English.",
+    "Consider documenting that create-admin returns {admin:{user_id}} (string) and not a numeric id — helps future testers/agents.",
+    "Consider relaxing SA login 60s cooldown to something shorter (e.g., 15s) to simplify manual retesting, or exempt failed-password tries."
+  ],
+  "critical_code_review_comments": [
+    "routes/auth.py is 985 lines — exceeds the 700 line guideline. Suggest splitting into auth_register.py, auth_login.py, auth_superadmin_2fa.py, auth_password.py.",
+    "CSRF middleware requires X-Requested-With on POST/PATCH/DELETE — verified, works correctly and returns 400/403 when missing.",
+    "Audit log correctly records admin.create, admin.update_roles, admin.reset_password, admin.demote, superadmin.login (DB-verified).",
+    "All superadmin endpoints properly enforced via require_superadmin — admin@japap.com correctly receives 403 when hitting /api/admin/super/*.",
+    "Regular admin login is NOT forced through 2FA — confirmed.",
+    "url-check is rate-limit friendly and leaks no info beyond today-token truth — good design.",
+    "Register payload MUST include terms_accepted:true (not accept_terms) — PRD docs should use the real field name."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration83_superadmin.py"
+  ],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "100% on smoke-tested flows (register form/no-Google, login no-Google, superadmin portal render, 404 branded)"},
+  "test_credentials": "Superadmin emileparfait2003@gmail.com / Gerard0103@ (2FA via email_otps purpose=login_2fa). Admin admin@japap.com / JapapAdmin2024!. User bob@japap.com / Test1234!.",
+  "seed_data_creation": "Created transient TEST_iter83_*@japap.com users for register/OTP + admin-create tests. Demoted admin targets at end of flow via DELETE /api/admin/super/admins/{user_id}.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reusable regression suite: /app/backend/tests/test_iteration83_superadmin.py. Run with `python -m pytest backend/tests/test_iteration83_superadmin.py -v -p no:ethereum`. Wait 60+ seconds between runs due to SA login 2FA cooldown. OTPs are fetched directly from Neon (DATABASE_URL in backend/.env) — table email_otps, filter by purpose in ('register','login_2fa'). Create-admin response uses admin.user_id, not numeric id.",
+  "rca of the issue": "Initial test failures resolved during run: (1) register payload uses terms_accepted (not accept_terms); (2) SA login has a 60s per-email cooldown enforced server-side, so module-scoped fixture now reuses a single SA session for all SA tests; (3) OTP stored lower-cased — DB lookup now LOWER(email); (4) /admins PATCH/DELETE use user_id (string) from the response, not numeric id; (5) reset-password requires {new_password}. No backend code changes were needed."
+}

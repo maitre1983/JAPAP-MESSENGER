@@ -1,0 +1,58 @@
+{
+  "summary": "iter215 — full backend (pytest 6/6 PASS) + frontend (Playwright iPhone 13 viewport) coverage of MediaFilterEditor AI removal, composer focus-preservation (onPointerDown), and Reels comments/share/like. All bugs verified fixed EXCEPT BUG 3b (share): on Playwright headless Chrome the shareReel handler throws non-AbortError on navigator.share() and never falls back to clipboard, so POST /api/feed/reels/{reel_id}/share is never fired and the optimistic counter does not increment. Backend share endpoint itself is fully functional (idempotent, 200/404 verified via pytest).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/feed/reels (GET list)", "issue": "Does not expose shares_count in response payload, even though shares_count column is now populated by /share endpoint. Frontend can only show local optimistic counter — server-side count is invisible after page reload. Consider adding shares_count to the SELECT in feed_extended.py:list_reels."},
+      {"endpoint": "/api/auth/login", "issue": "Cold-start hits 502 'preview environment not responding' for ~30-60s on first request. Same regression noted in iter214. Pytest now retries 5x with backoff to handle this."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "ReelsPage.shareReel (ReelsPage.js:222-257)",
+        "issue": "If navigator.share throws ANY non-AbortError (NotAllowedError, SecurityError, TypeError on insecure / headless / non-PWA contexts), the function shows 'Échec du partage' toast and EARLY-RETURNs without trying the clipboard fallback and without calling POST /share. As a result, optimistic increment never runs, backend never tracks the share. Should chain: try navigator.share → on non-AbortError catch try navigator.clipboard.writeText → only error if BOTH fail.",
+        "selector": "[data-testid^='reel-share-']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Reels share — Playwright headless / desktop without Web Share",
+        "issue": "POST /api/feed/reels/{reel_id}/share NEVER fired because navigator.share threw and code returned early. shares_count stayed at 0 on the UI badge. On real iOS Safari this works (native share sheet opens), but desktop Chrome and any browser w/o Web Share API in a non-PWA context will silently fail.",
+        "affected_selectors": ["[data-testid^='reel-share-']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_reels_comments_share_iter215.py",
+    "/app/test_reports/pytest/iter215.xml"
+  ],
+  "action_items": [
+    "(HIGH) Fix ReelsPage.shareReel: on non-AbortError from navigator.share, fall back to clipboard (instead of returning). Always call POST /share when user-intent was confirmed (i.e. clipboard succeeded OR native share resolved).",
+    "(LOW) Add shares_count to GET /api/feed/reels SELECT/response so the badge persists across reloads.",
+    "(LOW) Consider lazy-loading list_reels view shares_count server-side anyway (already in DB after /share)."
+  ],
+  "critical_code_review_comments": [
+    "ReelsPage.shareReel error path treats every non-AbortError as fatal and skips both the optimistic increment AND the backend POST. Should be defensive: try-share → catch-non-abort → try-clipboard → catch → toast.",
+    "Backend POST /api/feed/reels/{reel_id}/share runs ALTER TABLE on every request. Idempotent thanks to IF NOT EXISTS, but still adds latency and emits noisy DDL logs under load. Move column-creation to a one-time migration / startup hook (same recommendation as iter214 _ensure_iter172_columns).",
+    "FeedPage.js onPointerDown e.preventDefault() pattern is correct and validated — all 5 composer buttons + publish button stay clickable while textarea retains focus on tap. Emoji insertion verified (textarea value goes from 'a' to 'a 🎉' without losing focus).",
+    "MediaFilterEditor: section 'FILTRES IA' fully removed (no media-filter-ai-presets testid). Apply button visible at y=12px on 390x844 viewport — well within iPhone 13 Pro Max safe area. No /api/media/ai-filter calls observed in console/network."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_reels_comments_share_iter215.py (new)",
+    "/app/test_reports/pytest/iter215.xml (new)",
+    "/app/test_reports/iteration_215.json (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 pytest pass: GET comments, POST comment 200/400/404, share 200/404)",
+    "frontend": "90% (BUG 1, 1b, 2, 2b, 3 create-btn, 3a comments drawer, 3c like all PASS — only BUG 3b share endpoint not fired in Playwright due to navigator.share throwing without fallback to clipboard)"
+  },
+  "test_credentials": "bob@japap.com / Test1234! ; captcha bypass JAPAP_E2E_BYPASS_2026 / 0 (passed in /api/auth/login JSON body)",
+  "seed_data_creation": "1 test reel comment created on reel_b86b57f1c4a8 ('TEST_iter215 hello reel comment') + 1 e2e comment ('TEST_iter215_FE_E2E_uniq_marker_xyz'). Backend ran +2 idempotent share increments on the same reel. No cleanup performed — test data is harmless and clearly TEST_-prefixed.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Captcha bypass via API only (UI form has math captcha). Workflow: page.evaluate() to POST /api/auth/login with captcha_id=JAPAP_E2E_BYPASS_2026, captcha_answer=0; the response sets httpOnly cookie + returns access_token (also stash in localStorage just in case). Then page.goto('/feed' or '/reels'). Sample reel id with content: reel_b86b57f1c4a8 (mirtoken2022ef75 user). For BUG 3b retest after fix: verify on Playwright that POST /api/feed/reels/{reel_id}/share request fires AND data-testid reel-share counter increments by 1. Backend pytest file at /app/backend/tests/test_reels_comments_share_iter215.py reuses login fixture with 5x retry/backoff — handles the cold-start 502 from preview env.",
+  "rca of the issue": "BUG 3b root cause: ReelsPage.js:230-249 — try block contains `await navigator.share()`; catch block returns early on any non-AbortError. In Playwright headless Chrome, navigator.share is defined but the call throws (likely NotAllowedError because of missing user activation in headless context or insecure context for some preview URLs). The code then early-returns BEFORE the success branch (line 250) that would call axios.post(/share). Fix: restructure to: try-share-OR-clipboard sequentially with a single success flag set after EITHER works, then unconditionally fire the optimistic + axios. Also: the backend endpoint itself is correct and tested green (POST returns 200, idempotent ALTER TABLE, 404 on unknown reel)."
+}

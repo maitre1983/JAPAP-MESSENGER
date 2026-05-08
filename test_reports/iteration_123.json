@@ -1,0 +1,59 @@
+{
+  "summary": "iter123 — Quiz Champion par Pays (Phase 3.A FREE mode) backend tests. 38/45 PASS, 7 FAIL revealing 3 distinct backend bugs (1 critical, 1 high, 1 medium) and exposing a security/fairness issue with double /play overwriting run state. Full E2E happy path (create→accept→play→submit→resolve) reaches 'completed' state, options_order shuffled independently per side (DB-verified), winner-bonus +30 points awarded on free-mode win, admin/list/promote-all/set/demote all work and are admin-gated correctly. Refusal flow demotes correctly but re-seeding via admin_set does not clear rolling-30d refusal history.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/quiz/champion/challenge/{cid}/play",
+        "issue": "Challenger can call /play MULTIPLE times before /submit — each call overwrites challenger_run_id and options_order in the DB, leading to mis-scoring (Alice scored 2/5 instead of 5/5 because answers were built against the FIRST perms but submit scored against the SECOND run's perms). The guard at routes/quiz_champion.py:315-318 only fires when status is in (challenger_played, champion_played) AND run_id set, but right after first /play the status is still 'accepted'. Champion side has the correct check (line 319-320: `if is_champion and ch[\"champion_run_id\"]`) — challenger needs the symmetric guard.",
+        "priority": "CRITICAL",
+        "fix": "Add: `if is_challenger and ch[\"challenger_run_id\"]: raise HTTPException(409, 'Vous avez déjà joué.')` mirroring the champion check (line 319-320). Remove the dead status-gated block at 315-318."
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "GET /api/quiz/champion/{country_code}",
+        "issue": "Validation runs AFTER truncation: 'XYZ' is silently truncated to 'XY' which passes len/isalpha checks, then 404s on the lookup. Per test spec, 3-char input must return 400. Fix: validate `len(country_code) != 2` on the RAW input before calling .upper()[:2].",
+        "priority": "HIGH"
+      },
+      {
+        "endpoint": "POST /api/quiz/champion/admin/{cc}/set",
+        "issue": "admin_set_champion resets refusal_count_consecutive to 0 but does NOT clear quiz_champion_refusals rows for that user. If a user was previously demoted by 5 refuses in 30d, re-promoting them and then refusing ONCE triggers immediate re-demotion via rolling_30d_refusals (≥5). This breaks the test scenario 'After 4 refuses consecutive=4 demoted=false; 5th demoted=true with reason=consecutive_refusals' — observed: 1st refuse after re-seed → demoted=true reason=rolling_30d_refusals.",
+        "priority": "MEDIUM",
+        "fix": "Either (a) on admin_set/promote, also `DELETE FROM quiz_champion_refusals WHERE champion_user_id=$1 AND country_code=$2`, or (b) when computing rolling_30d, only count refusals where `refused_at > c.promoted_at` (cleaner, preserves history)."
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter123_quiz_champion.py",
+    "/app/test_reports/pytest/iter123_results.xml"
+  ],
+  "action_items": [
+    "[CRITICAL] Add challenger double-/play guard: in routes/quiz_champion.py around line 319, add `if is_challenger and ch[\"challenger_run_id\"]: raise HTTPException(409, 'Vous avez déjà joué.')`. Without this, a malicious or buggy frontend can re-roll questions/options unlimited times and break scoring.",
+    "[HIGH] Fix country_code length validation in GET /api/quiz/champion/{cc} (and create_challenge `req.country_code` field): reject raw input where len != 2 BEFORE truncating. Currently `country_code.upper()[:2]` masks 3+ char inputs.",
+    "[MEDIUM] On admin_set_champion / promote_champions when promoting a user who was previously demoted, either delete their old quiz_champion_refusals rows OR scope the rolling_30d count to refusals after `promoted_at`. Otherwise a re-promoted champion is one refuse away from re-demotion.",
+    "[INFO] Doc in services/quiz_champion.py docstring mentions column `refusal_count_30d_cached` on quiz_country_champions but DDL never creates it (fresh COUNT() used instead). Update docstring."
+  ],
+  "critical_code_review_comments": [
+    "routes/quiz_champion.py:315-320 — challenger replay check is gated by status that hasn't transitioned yet (status only flips to challenger_played at /submit, not /play). Champion check (319-320) is correct — make challenger symmetric.",
+    "routes/quiz_champion.py:89-93 — country_code validation accepts truncation: 'XYZ' → 'XY'. Validate length on raw input.",
+    "services/quiz_champion.py:300 — admin_set_champion preserves quiz_champion_refusals history; combined with the rolling_30d demotion rule this makes re-promotion brittle.",
+    "routes/quiz_champion.py:151-152 — `SELECT id FROM quiz_sessions ORDER BY random() LIMIT 1` does not verify the picked session has exactly 5 questions; relies on session generator being correct. Consider `WHERE array_length(question_ids,1) = 5`.",
+    "routes/quiz_champion.py:615-618 — pending+is_challenger branch is dead code (always sets can_play=False explicitly). Simplify."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter123_quiz_champion.py (new)",
+    "/app/test_reports/pytest/iter123_results.xml (new)"
+  ],
+  "success_rate": {"backend": "84% (38/45)", "frontend": "n/a (backend-only)"},
+  "test_credentials": "Bob bob@japap.com/Test1234! ; Alice alice@japap.com/Alice2026! ; SuperAdmin emileparfait2003@gmail.com/Gerard0103@ (2FA via DB email_otps).",
+  "seed_data_creation": "Re-seeded Bob as CM champion via admin/CM/set at start AND between refusal-cycle tests. Test wipes any prior open challenges between Alice↔Bob to avoid 409 collisions. Demoted Bob via admin/CM/demote at end of test 11.",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Bob is currently DEMOTED in CM (state at end of test 11). Re-seed via `POST /api/quiz/champion/admin/CM/set {user_id: <bob_uid>}` as superadmin before re-testing. Note: rolling 30d refusals for Bob still contains 6 rows from this test — once root cause #3 fix lands (clear refusals on re-promote OR scope rolling to >promoted_at), the consecutive-only demotion path can be tested cleanly. The other test bugs are independent. Test file is reusable: `python /app/backend/tests/test_iter123_quiz_champion.py`. Re-test priorities: (1) verify challenger double-/play 409 fix; (2) verify XYZ→400; (3) re-run full happy path Alice→Bob with correct scoring (Alice 5/5 vs Bob 4/5 → winner=Alice).",
+  "rca_of_issues": {
+    "challenger_double_play": "play_challenge() in routes/quiz_champion.py at lines 308-320 has asymmetric replay guards. Champion: `if is_champion and ch['champion_run_id']: raise 409` (line 319-320 — works correctly). Challenger: only inside an `if ch['status'] in (STATUS_CHALLENGER_PLAYED, STATUS_CHAMPION_PLAYED)` branch — but those statuses are only set inside /submit (lines 496-511), not /play. So between two consecutive /play calls by challenger, status remains 'accepted' and the guard is skipped. The second /play creates a new run row and OVERWRITES challenger_run_id — old run is orphaned, options_order changes. Reproduction: alice.post(/play) → 200; alice.post(/play) → 200 (should be 409). Mitigation: mirror champion check unconditionally.",
+    "xyz_400_vs_404": "get_champion at lines 89-97 does `cc = country_code.upper()[:2]` BEFORE `if len(cc) != 2 or not cc.isalpha()`, so 'XYZ' becomes 'XY' which passes validation. Reproduction: GET /api/quiz/champion/XYZ → 404 'Aucun champion pour ce pays' (expected 400). Mitigation: `if len(country_code) != 2 or not country_code.isalpha(): raise HTTPException(400, ...)` first.",
+    "admin_set_does_not_clear_rolling_refusals": "admin_set_champion (services/quiz_champion.py:274-300) upserts quiz_country_champions and resets refusal_count_consecutive=0, but quiz_champion_refusals rows persist. count_recent_refusals (line 321-329) reads from that table, so a re-seeded champion with prior refuses in last 30d immediately demotes on the 1st refuse via rolling_30d≥5 path. Reproduction in test [10] refuse #1: rolling_30d=6 demoted=true reason=rolling_30d_refusals. Mitigation: scope rolling count to refused_at > promoted_at (cleaner) OR DELETE old refusals on (re-)promote."
+  }
+}

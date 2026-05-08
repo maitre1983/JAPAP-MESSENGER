@@ -1,0 +1,14 @@
+{
+  "iteration": 136,
+  "summary": "P0 CRITICAL — Bouton Enregistrer Quiz admin → ErrorBoundary screen (React Error #31). Root cause + fix complet.",
+  "root_cause": "Le schéma Pydantic `QuizUpdate` (admin_games.py) avait `extra='forbid'`. Quand le frontend cliquait Enregistrer, il envoyait le draft ENTIER incluant les 10 nouvelles clés Phase 3.E (iter130) : quiz_anti_repeat_days, quiz_dist_*_pct (×4), quiz_daily_challenge_* (×5). Aucune n'était déclarée dans QuizUpdate → 422 Pydantic validation error avec detail = liste d'objets {type, loc, msg, input}. Le frontend faisait `toast.error(e.response?.data?.detail)` → sonner tentait de render l'array d'objets → React Error #31 (Objects are not valid as a React child) → ErrorBoundary global se déclenchait → écran bleu 'Oups — quelque chose a planté'.",
+  "fix_backend": "Ajout des 10 clés Phase 3.E manquantes au schéma `QuizUpdate` Pydantic dans /app/backend/routes/admin_games.py.",
+  "fix_frontend": "Création de `/app/frontend/src/utils/errorMessage.js` avec `extractErrorMessage(error, fallback)` qui handle robustement string | array Pydantic | object | network error → toujours retourne une string lisible. Remplacement des 9 occurrences de `e.response?.data?.detail || ...` par `extractErrorMessage(e, ...)` dans GamesAdminTab.jsx (9 endroits, 0 restant).",
+  "test_e2e": [
+    "GET /api/admin/games/quiz → config 29 keys",
+    "PUT /api/admin/games/quiz avec full config (1019 chars) → HTTP 200, status='ok', 29 keys retournées",
+    "Avant le fix: HTTP 422 + detail=array → React #31 → ErrorBoundary",
+    "Après le fix: HTTP 200 → save normal → toast success"
+  ],
+  "verdict": "FIXÉ DÉFINITIVEMENT — backend accepte tous les champs admin du draft + frontend defensive contre tout futur 422 Pydantic. Frontend yarn build clean en 68s."
+}

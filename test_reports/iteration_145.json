@@ -1,0 +1,48 @@
+{
+  "summary": "iter145 — GO/NO-GO CEO final validation of Crowdfunding P0+P1+P3 on https://japap-refactor.preview.emergentagent.com. Backend: 45/45 regression pytests PASS (iter142 crowdfunding 16/16 + iter142b share 9/9 + iter142d engagement 9/9 + iter142e lifecycle 11/11) PLUS 15/15 new GO/NO-GO smoke tests (test_iter145_gonogo.py). Total 60/60 green. Frontend: Alice MyDashboard renders correctly via /services → Crowdfunding tile: cf-my-project visible, votes=2, velocity widget + share-perf widget both rendered, edit+delete buttons correctly HIDDEN when votes started (CEO security gate respected). Public project page /crowdfunding/p/:slug accessible anonymously with login CTA. VERDICT: GO FOR PRODUCTION — no blocking bug, no auth/security/logic flaw.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/crowdfunding/state", "issue": "Payload nests cycle info under `cycle` key (cycle.votes_open, cycle.threshold_projects, cycle.votes_to_win) while CEO spec text mentions top-level fields. Not a bug — the frontend already consumes the nested shape correctly. Just worth documenting in the API contract."},
+      {"endpoint": "GET /api/crowdfunding/rival", "issue": "When the user is currently rank#1 with no rival, the endpoint returns {rival:null, rank, vote_velocity_10m, reason} instead of the full {rival, rank, gap, my_votes, vote_velocity_10m, trend} shape mentioned in the CEO spec. Graceful degradation is acceptable, but the frontend hook useEngagementState must handle both shapes (it already does)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/crowdfunding/p/:slug (CrowdfundingProjectPage, mobile 390px)", "issues": ["Same cosmetic overlap as iter144: the 3 footer share buttons (Partager / WhatsApp / Copier) overlap — the green WhatsApp circular icon sits ON TOP of the 'Partager' label. Present in anon/locked/owner/voter states. Non-blocking; strictly cosmetic (see /tmp/alice_services.png showing public PP rendering for the vote CTA)."]},
+      {"screen": "Navigation to CrowdfundingModule", "issues": ["There is no direct top-level /crowdfunding route — users must go via /services and click the 'Crowdfunding' tile (CrowdfundingModule is nested inside ServicesPage view-state). Visiting /crowdfunding directly falls through to DynamicAdminOrFallback which interprets the path as a username and renders a profile page. Not a CEO spec violation (spec doesn't mandate the URL), but worth adding a <Route path='/crowdfunding' element={<Navigate to='/services?view=crowdfunding' />} /> for discoverability / sharability."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter145_gonogo.py",
+    "/app/test_reports/pytest/iter145_regression.xml",
+    "/app/test_reports/pytest/iter145_gonogo.xml"
+  ],
+  "action_items": [
+    "[design only, non-blocking] Fix overlap of 3 footer share buttons in /crowdfunding/p/:slug (same as iter144 action item).",
+    "[nice-to-have] Add an /crowdfunding top-level route that redirects to /services + opens the crowdfunding tile, or wires CrowdfundingModule directly to that path. Today /crowdfunding goes to the profile fallback.",
+    "[doc] Document that /api/crowdfunding/state nests cycle details under cycle.* and that /api/crowdfunding/rival may return a reduced payload when user is rank #1."
+  ],
+  "critical_code_review_comments": [
+    "routes/crowdfunding.py vote flow correctly invalidates the owner's engagement cooldown right after vote persistence — the `test_15_vote_invalidates_cooldown` GO/NO-GO assertion confirms the proactive recompute.",
+    "Admin security: /admin/projects/{slug} DELETE and /admin/projects/{slug}/disqualify both return 403 for non-admins (tests 12 + 13 green). Owner security: PUT /projects/{slug} returns 403 for non-owners and 409 after votes start (tests 10 + 11 green).",
+    "Self-vote 400 + double-vote 409 + duplicate-project 409 all validated on the real preview URL, not just local DB.",
+    "Public anon page /crowdfunding/p/:slug renders without auth, exposes login CTA preserving redirect param, and shows the votes counter + share-card download CTA — frontend owner-gate works correctly.",
+    "Hot spots: the preview URL returned 502 transiently once between test runs (cold-start); pytest fixture already has 60s timeouts so it recovered on the next attempt. Not a product bug.",
+    "The MyDashboard in /services correctly hides edit+delete buttons the moment votes_count>=1 OR votes_open=true — confirmed visually and via DOM absence of data-testid='cf-my-edit-btn' / 'cf-my-delete-btn' when Alice has 2 votes. No client-side bypass possible because backend also enforces the 409 (defense-in-depth).",
+    "Velocity widget (cf-my-velocity) + Share-performance widget (cf-my-share-perf) both render on MyDashboard when data available. Layout: 2-col grid, readable on 390px width.",
+    "Cosmetic only: CrowdfundingProjectPage share buttons row footer needs `gap-2` + `flex-1 min-w-0` on each child to stop the WhatsApp circle from overlapping the Partager label on mobile. Non-blocking for CEO GO."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter145_gonogo.py (created — 15 smoke tests covering new P3 endpoints + security gates)"
+  ],
+  "success_rate": {"backend": "100% (60/60 pytests: 45 regression + 15 new GO/NO-GO)", "frontend": "100% of CEO GO/NO-GO acceptance criteria (owner dashboard, widgets, edit/delete gating, public page, anon CTA)"},
+  "test_credentials": "alice@japap.com/Alice2026!, bob@japap.com/Test1234!, admin@japap.com/JapapAdmin2024!. Captcha bypass: send captcha_id='JAPAP_E2E_BYPASS_2026' + captcha_answer='x' in /api/auth/login body.",
+  "seed_data_creation": "The new test_iter145_gonogo.py truncates crowdfunding_votes/projects/cycles at module setup, sets threshold_projects=3 votes_to_win=5 in admin_settings, creates 3 projects (alice/bob/admin) to open votes, has bob vote for alice (first vote counted), admin votes for alice too, and admin disqualifies bob's project. Final DB state after test module: active cycle with alice project 2 votes, admin project 0 votes (untouched), bob project status='disqualified'. Main agent should re-run a clean reset before next iteration if needed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "GO decision issued. Backend + frontend all P0/P1/P3 acceptance criteria met. Only residual cosmetic issue is the 3-share-button overlap on the public project page (already reported in iter144). No security, auth, vote-logic, or data-persistence bugs found. Main agent can proceed to P4 with confidence. New backend file /app/backend/tests/test_iter145_gonogo.py is 15 quick smoke tests (~60s) that can be used as a regression tripwire before any future crowdfunding change. Be aware that CrowdfundingModule is mounted INSIDE ServicesPage (not at /crowdfunding top-level) — test flows must first log in then click the 'Crowdfunding' tile on /services.",
+  "rca of the issue": "N/A — no blocking bug to RCA. Observations: (1) /crowdfunding URL is NOT a direct route, it falls through to a username lookup; mitigation = use /services and click the tile OR add a <Route> redirect. (2) Preview URL 502s transiently on cold start after ~60s idle; mitigation = retry on 502, which is already how the existing iter142* tests are written."
+}

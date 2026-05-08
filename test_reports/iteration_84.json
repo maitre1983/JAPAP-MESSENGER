@@ -1,0 +1,43 @@
+{
+  "summary": "Iter83 Phase 2 & 3 — Quiz JAPAP + Tap Challenge unified points engine. 18/18 backend tests PASS (quiz start/submit/history/admin + tap status/start/submit/admin + scoring tiers 25/55/85/200 + anti-cheat cap + day limits 3/1 + reset-user wipes + non-admin 403). Frontend smoke PASS: /games/quiz intro (purple card + Démarrer), /games/tap intro (orange card + Lancer le défi), /services → Jeux cards redirect to /games/quiz and /games/tap, Admin → 'Quiz & Tap' tab loads engagement dashboard with quiz-admin-section + tap-admin-section + games-admin-stat-* + quiz-regenerate-ai-btn.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Tap full in-run interaction (tap-button during the 10s countdown)",
+        "issue": "After clicking tap-start-btn on /games/tap, the [data-testid=tap-button] element was not queryable within ~1s of the start click. Possibly the intro → 3-2-1 countdown → run transition delays mounting of the tap-button. Backend flow is fully exercised via tests, but UI-level automated tap hammering was not validated end-to-end.",
+        "affected_selectors": ["[data-testid='tap-button']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter84_quiz_tap.py",
+    "/app/test_reports/pytest/iter84_quiz_tap.xml"
+  ],
+  "action_items": [
+    "Confirm that [data-testid='tap-button'] remains mounted from the start-click onward (even during any pre-run countdown) so e2e tests can hammer it reliably.",
+    "Nice-to-have: expose [data-testid='tap-countdown'] and [data-testid='tap-run-active'] flags so Playwright can wait for run-active state before tapping."
+  ],
+  "critical_code_review_comments": [
+    "routes/quiz.py admin_list_questions interpolates `category` directly into SQL (line ~354) — mitigated because CATEGORIES is a static allowlist, but the endpoint still accepts arbitrary category strings from query params without validating against CATEGORIES → low-risk SQL injection surface. Use parameterized query `category = $3` instead.",
+    "routes/tap.py hardcodes TAPS_PER_SEC_CAP=12 and BONUS_TIERS in module scope — fine for now, but the sovereign clamp (10000/25d) happens in points_service; there is no config override in points_service for games ops (good isolation).",
+    "Both quiz.py and tap.py use `_ddl_done` module-level flag which means the first-request penalty is paid per-worker; acceptable but document it.",
+    "submit endpoints correctly use SELECT … FOR UPDATE + transaction to prevent double-submit race (verified via test_double_submit_blocked).",
+    "Admin overview SQL uses `NOW() - ($1 || ' days')::interval` — works with asyncpg but consider `make_interval(days => $1::int)` for safer casts."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter84_quiz_tap.py"
+  ],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "95% (7/8 smoke checks; tap-button mid-run mount not observed in automation)"},
+  "test_credentials": "Admin admin@japap.com / JapapAdmin2024!. User bob@japap.com / Test1234!. Fresh test user auto-registered in fixture (TEST_iter84_*@japap.com, StrongPass1!).",
+  "seed_data_creation": "Uses admin reset-user endpoints between tests to wipe quiz+tap history for bob so that quota/day tests are deterministic. Registered one fresh TEST_iter84_*@japap.com user (fixture) that remains as regular user.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression suite: /app/backend/tests/test_iter84_quiz_tap.py. Run with `REACT_APP_BACKEND_URL=https://japap-refactor.preview.emergentagent.com python -m pytest backend/tests/test_iter84_quiz_tap.py -v -p no:ethereum`. Full run takes ~2m30s. Each test autonomously resets bob's quota via admin endpoints — safe to rerun back-to-back. BASE_URL MUST be injected via env (no default). CSRF uses X-Requested-With: XMLHttpRequest header (not X-CSRF-Token). Admin login does NOT require 2FA. Correct answers for perfect-score test are fetched directly from Neon (quiz_sessions + quiz_questions). Tap scoring tiers validated: 25→+0, 55→+25, 85→+50, 200 raw→120 valid (cap)→+50. Points funnel into points_service and are clamped by the sovereign 10000/25d rule (points_cycle in response body).",
+  "rca of the issue": "No blocking bugs. Only minor e2e timing issue with [data-testid=tap-button] not captured during automated click hammering — likely a short pre-run countdown. Backend covers the full submit flow via direct API tests, which is the authoritative source of truth."
+}

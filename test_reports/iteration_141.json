@@ -1,0 +1,61 @@
+{
+  "iteration": 141,
+  "summary": "iter141 — Multi-Challenger duel system tested. Backend 11/11 pytest passed. Frontend MultiAttemptsView renders correctly with leaderboard, stats, action button. /api/duel/me/sent auth-gated (401 unauth, 200 + items for Alice).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/duel/{token}/leaderboard", "issue": "Initial preview cold-start gave one transient 502 (recovered on retry — preview env warm-up only, not a code issue)"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/duel/{token} MultiAttemptsView", "issues": ["Leaderboard row items have no data-testid (e.g. 'leaderboard-row-{rank}'); rank pill / score cell / outcome badge unselectable for E2E tests. Recommend adding data-testid on each row."]}
+    ]
+  },
+  "tests_executed": {
+    "backend": {
+      "TestLeaderboard.test_leaderboard_public_no_auth": "PASS",
+      "TestLeaderboard.test_leaderboard_as_initiator_sets_flag": "PASS — you_are_initiator=true for Alice",
+      "TestLeaderboard.test_leaderboard_as_challenger_has_your_attempt": "PASS — your_attempt + is_you=true for Bob",
+      "TestLeaderboard.test_leaderboard_unknown_token_404": "PASS",
+      "TestMeSent.test_me_sent_requires_auth": "PASS — 401 unauth",
+      "TestMeSent.test_me_sent_alice_returns_seed_duel": "PASS — Alice sees seed duel with participants>=3, aggregates correct",
+      "TestMultiGuards.test_bob_cannot_restart_after_play": "PASS — 409 on re-start",
+      "TestMultiGuards.test_initiator_cannot_start_own_multi_challenge": "PASS — 400 'Vous ne pouvez pas vous défier vous-même'",
+      "TestMultiGuards.test_bob_cannot_submit_again": "PASS — 409 on re-submit",
+      "TestDuelKind.test_get_duel_returns_multi_kind": "PASS — duel_kind=multi_attempts, opponent NULL (not locked), multi_stats present",
+      "TestDuelKind.test_classic_duels_still_work_in_my_list": "PASS — /duel/my/list still returns multi token"
+    },
+    "frontend": {
+      "/duel/jAY9zih8qJCn6t__IeaS_A": "PASS — MultiAttemptsView rendered. Header 'DÉFI QUOTIDIEN · CLASSEMENT'. Initiator Alice 3/5 ⏱2.6s. Stats: Participants=3, Meilleur=1/5, Battent A=0/3. Bouton 'Relever le défi' visible (non-auth user). Classement (3 challengers): Bob 1/5, Charlie 1/5, Dave 0/5 — tous 'Perdu'. Boutons Partager WhatsApp + Copier le lien + Retour aux jeux présents.",
+      "Classic-1v1-not-rendered": "PASS — duel-preview-view selector returned 0 elements (correct — multi mode active)",
+      "Sorting-by-score-then-time": "PASS — Bob (1/5, 2.5s) #1 before Charlie (1/5, 2.6s) #2 before Dave (0/5) #3"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter141_multi_challenger.py",
+    "/app/test_reports/pytest/iter141_multi.xml"
+  ],
+  "action_items": [
+    "(Optional) Add data-testid attributes to MultiAttemptsView leaderboard rows + 'Mes défis envoyés' button so future E2E tests can rely on stable selectors instead of text content.",
+    "(Optional) The login endpoint sometimes takes ~30-45s on cold preview (caused 1 transient 502 + 1 timeout in a 11-test run). Consider warming up the backend or investigating slow login init."
+  ],
+  "critical_code_review_comments": [
+    "duel.py:191 — duel_kind fallback `row['duel_kind'] if 'duel_kind' in row.keys()` repeated 5+ times in the same file; could be extracted to a tiny helper `_duel_kind(row)` for DRY.",
+    "duel.py:1245 my_sent_duels — uses 5 sub-SELECTs in same query. With heavy duels per user this is N+M queries via correlated subselects; a single LEFT JOIN aggregate would be cheaper at scale (low priority — fine for now).",
+    "duel.py:1140 — `get_current_user(request)` wrapped in try/except returns me_id=None on any error. Good. But OK considering /leaderboard is public on purpose.",
+    "duel.py — File is now 1372 lines, approaching the 700-line guideline ceiling already breached. Consider splitting into duel_create.py / duel_play.py / duel_views.py / duel_admin.py for the next refactor."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter141_multi_challenger.py (NEW — 11 pytest cases)"
+  ],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "100% (visual smoke + 4 indicators present)"},
+  "test_credentials": "Used per memory/test_credentials.md: alice@japap.com/Alice2026!, bob@japap.com/Test1234!, with TURNSTILE_TEST_BYPASS_TOKEN=JAPAP_E2E_BYPASS_2026",
+  "seed_data_creation": "None — used the existing seed token jAY9zih8qJCn6t__IeaS_A created by main agent (Alice 3/5 + 3 attempts Bob/Charlie/Dave).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Multi-challenger backend is stable. /api/duel/{token}/leaderboard, /api/duel/me/sent, multi_attempts guards (no self-submit, no double-submit, no opponent_id lock) all work. Frontend MultiAttemptsView is correct on the seed token. NOT YET TESTED end-to-end: (1) auto-creation of multi_attempts duel via POST /api/quiz/daily-challenge/submit (left to main agent — needs deletion of quiz_daily_challenge_runs row first to avoid 'already played today' error), (2) live submit flow by a brand-new challenger (would consume a daily-cap slot for an account), (3) /duel/me/sent UI page rendering when authenticated (preview env was slow on the 2nd navigation). The 'Mes défis envoyés' button DOES NOT appear for unauth users — by design, only for initiator.",
+  "rca of the issue": "N/A — no functional bugs found in this iteration."
+}

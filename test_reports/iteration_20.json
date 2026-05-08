@@ -1,0 +1,49 @@
+{
+  "summary": "Iter20 — Auto-translation Preferences (preferred_lang) — FULL PASS end-to-end. Backend 13/13 in /app/backend/tests/test_iteration20_preferences.py: PUT /api/auth/preferences with 'fr'/'en'/all 8 supported langs → 200 + persisted via /me; with 'zz' → 400 'Langue non supportée'; with '' → 200 sets NULL; unauth → 401. /api/auth/me includes preferred_lang (null or string). /api/auth/login response.user includes preferred_lang. Translate regression: fresh + cached both work. Frontend Playwright on /profile as Bob: preferred-lang-card present with title 'Auto-traduction des messages'; preferred-lang-select has exactly 9 options ['', fr, en, pt, es, ar, sw, ln, yo]; current value = 'fr' (Bob's stored); preferred-lang-active badge shows '✨ Messages auto-traduits vers 🇫🇷 Français'; selecting '' shows toast 'Auto-traduction désactivée' and hides badge; selecting 'en' updates badge to 'English'; restored to 'fr'. Frontend /chat with preferred_lang=fr: 10 auto-translation-{msg_id} elements rendered with 'TRADUIT AUTOMATIQUEMENT DE EN' badge + italic French text, 14 POST /translate calls fired automatically on conv open, 0 manual translate-button chips. Frontend /chat with preferred_lang=null (after /me confirmed null): 0 auto-translation, 14 translate-button chips render correctly (fallback to iter19), clicking renders translation-{msg_id} successfully. No regressions on conv list, money msgs, voice bubbles, reactions, 5-block nav.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Login page initial load", "issue": "CARRY-OVER from iter19: 2× 500 errors fire on /login load before auth (likely pre-auth call to a protected endpoint). Not blocking — login completes. Not iter20-specific.", "affected_selectors": []},
+      {"flow": "Socket.IO realtime", "issue": "CARRY-OVER from iter14-19: wss://…/api/socket.io handshake still fails ('closed before established'). HTTP-only flows (incl. translation) unaffected.", "affected_selectors": []}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration20_preferences.py",
+    "/app/test_reports/pytest/iter20_results.xml",
+    "/app/backend/tests/test_iteration19_translation.py"
+  ],
+  "action_items": [
+    "OPTIONAL: Investigate the two 500s on /login initial load (carry-over from iter19) — pre-auth protected endpoint hit.",
+    "OPTIONAL: WebSocket /api/socket.io upgrade through ingress still failing (carry-over). Does not affect translation/preferences HTTP flow.",
+    "MINOR (cosmetic): When a previously-cached message has detected_lang == target_lang (e.g., FR→FR), the manual mode still renders the translation block with 'FR → FR · cache' text. The autoMode branch correctly hides this case (returns null), but manual mode does not. Consider symmetric handling in TranslateButton manual branch for consistency."
+  ],
+  "critical_code_review_comments": [
+    "auth.py PUT /preferences: Pydantic schema uses Optional[str] = None, so JSON body {} (no field) silently no-ops (returns 200 with preferred_lang:None). Fine but undocumented — main agent should clarify whether {} should 400 or be treated as 'disable'.",
+    "auth.py PUT /preferences response returns {preferred_lang: req.preferred_lang if req.preferred_lang else None}. On payload {preferred_lang:'fr'} returns 'fr'. On {preferred_lang:''} returns None. On {preferred_lang:None} (or {}) returns None but DOES NOT update the DB (guarded by `if req.preferred_lang is not None`). Inconsistent: '' updates DB to NULL, None leaves DB untouched but both return None. Document or unify.",
+    "auth.py: _SUPPORTED_LANGS hardcoded as a module-level set duplicates the whitelist in messaging.py. Risk of drift. Extract to a shared module (e.g., constants.py) and import from both.",
+    "ProfilePage.js handleSaveLang: refreshUser() is called but NOT awaited; subsequent state may be stale if user navigates immediately. Consider `await refreshUser()`.",
+    "ProfilePage.js: setPrefLang(lang) is called optimistically before the PUT resolves. If PUT fails (e.g., 400 on unsupported lang), local state is wrong. Move setPrefLang inside the try{} after success, or revert on catch.",
+    "TranslateButton.jsx autoMode branch: silently swallows errors (no user feedback when auto-translate fails). Acceptable per 'zero friction' design but consider a dev console.warn for debuggability.",
+    "TranslateButton.jsx: triggeredRef prevents re-fetch on remount, but if targetLang changes (user switches preferred_lang in another tab), the existing component instance won't refetch with new target. Add targetLang to the dep array OR reset triggeredRef when targetLang changes.",
+    "ChatPage.js (lines 465-484): TranslateButton is rendered twice in adjacent branches with near-identical props. Extract a small helper to avoid duplication and prevent future drift.",
+    "Database column preferred_lang VARCHAR(8) — adequate for 2-letter ISO codes but no DB-level CHECK constraint. App-level whitelist is the only guard."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration20_preferences.py (NEW — 13 tests, 13 passed)"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 passed)",
+    "frontend": "100% on iter20 scope (profile card+select+badge, chat auto-translate render with badge+italic+POST calls, manual fallback on disable, restore to fr)"
+  },
+  "test_credentials": "admin@japap.com / JapapAdmin2024! ; bob@japap.com / Test1234! (preferred_lang restored to 'fr' after testing)",
+  "seed_data_creation": "1 fresh English text message admin→bob ('Hello brother, see you tonight at 7pm at the restaurant!') used for translation cache test. message_translations entries added for FR target.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter20 'Mode réponse traduite' fully functional. Reusable test file: /app/backend/tests/test_iteration20_preferences.py — run with `pytest backend/tests/test_iteration20_preferences.py -v --junitxml=/app/test_reports/pytest/iter20_results.xml`. Bob's preferred_lang is restored to 'fr' after this iteration. To test fallback (manual buttons), set preferred_lang='' via PUT /api/auth/preferences then HARD reload /chat — context refresh is required (refreshUser is fire-and-forget, so navigation timing matters). Frontend test caveat: Playwright must wait for /me preferred_lang to confirm context updated before opening conv. Cached translations <500ms; cold LLM 2-4s. Carry-overs from iter19: (a) 2× 500 on /login pre-auth, (b) WSS handshake failure — neither affects iter20.",
+  "rca of the issue": "N/A — no bugs found in iter20 scope. Initial Playwright run showed 0 manual buttons after disabling preferred_lang due to refreshUser() not being awaited (race between navigation and context update). Re-test with explicit /me poll confirmed 14 manual buttons render correctly after a hard reload. Recommend awaiting refreshUser() in ProfilePage.handleSaveLang for deterministic UX (listed under critical_code_review_comments)."
+}

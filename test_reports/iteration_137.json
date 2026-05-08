@@ -1,0 +1,19 @@
+{
+  "iteration": 137,
+  "summary": "AI Error Monitor wired end-to-end: ErrorBoundary + global axios interceptor → /api/errors/report → admin dashboard 'Erreurs IA' (déjà existant).",
+  "discoveries": "L'infrastructure backend (POST /api/errors/report, error_groups dedup, admin dashboard) ÉTAIT DÉJÀ EN PLACE depuis iter108 mais le frontend ne reportait quasiment rien. Audit : 43 erreurs déjà ouvertes (8114 occurrences) — incluant le wheel datetime crash d'iter134 (10x) et SESSION_SIZE iter132 (1x) qu'on aurait vu en 5min sans aller-retour user.",
+  "fixes": [
+    "ErrorBoundary.componentDidCatch redirige sendBeacon de /api/client-errors (404) vers /api/errors/report (existant), avec module auto-deduit du pathname",
+    "Nouveau /app/frontend/src/utils/axiosErrorReporter.js : interceptor global qui auto-reporte TOUS les 4xx (≥422) et 5xx avec throttle 1/sig/60s anti-storm",
+    "Pydantic 422 detail array → string lisible avant le report (réutilise la même logique que extractErrorMessage)",
+    "Self-recursion guard : skip /api/errors/report dans l'interceptor",
+    "App.js installe l'interceptor au boot avant tout AppRouter"
+  ],
+  "tests_e2e": [
+    "POST /api/errors/report avec crash payload → 200 + signature unique ✓",
+    "GET /api/admin/errors retourne 43 groupes (incl. wheel datetime 10x) ✓",
+    "PUT /api/admin/games/quiz avec clé invalide → 422 + auto-report → signature e92d8675daa1b6c7 enregistrée ✓",
+    "Frontend yarn build clean en 66s"
+  ],
+  "verdict": "STABLE — admin verra les nouveaux bugs en <5min via /admin → onglet 'Erreurs IA' avec breakdown sévérité + AI suggest fix (Claude Sonnet 4.5)."
+}

@@ -1,0 +1,39 @@
+{
+  "summary": "iter179 — Marketplace Boost Audience Targeting (P0 sticky button + multi-country/age targeting + admin settings + audience badges). FULL GREEN backend (6/6 iter179 + 9/9 iter175 + 9/9 iter176 + 6/6 iter178 = 30/30 PASS) and FULL GREEN frontend (sticky confirm button verified on BOTH mobile 414x800 AND desktop 1920x800 — bbox in viewport, position:sticky bottom:0; targeting UI fully functional on mobile: target-global checkbox toggle, country-input + country-add + country-chip-{FR,CM} (multi-add + remove on click), age-min/age-max numeric inputs; plan cards basic_24h $1 / standard_7d $5 / homepage_30d $10 rendered; product detail audience badges mkt-boost-audience + mkt-boost-audience-countries (text '🌍 FR · CM') + mkt-boost-audience-age (text '🎂 25–40 ans') verified after live boost POST). DB schema confirmed: product_boosts.target_countries TEXT[], is_global BOOLEAN, age_min/age_max SMALLINT. /api/settings/public exposes targeting_enabled=true, allow_country_filter=true, allow_age_filter=true. AdminPage.js rows 1045-1047 expose 3 new bool settings. targeting_enabled=false bypass verified end-to-end: when admin disables targeting, POST boost-wallet ignores target_countries+age_min+age_max and persists target_countries=NULL, is_global=TRUE, age_min=NULL, age_max=NULL.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_marketplace_targeting_iter179.py",
+    "/app/backend/tests/test_marketplace_iter175.py",
+    "/app/backend/tests/test_marketplace_escrow_iter176.py",
+    "/app/backend/tests/test_currency_canonical_iter178.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "BoostModal sticky footer: <div className='p-4 border-t shrink-0 sticky bottom-0'> — position:sticky correctly anchors confirm button to modal bottom on both viewports. Mobile bbox y=735+41=776 (vp 800) ✓, Desktop bbox y=715+41=756 (vp 800) ✓. P0 CEO bug FIXED.",
+    "Targeting sanitization (routes/marketplace.py BoostWalletRequest): ISO2 uppercase + slice 2-chars + dedup + ≤50 limit + age_min clamp 13 / age_max clamp 99 + swap if min>max + empty list forces is_global=TRUE. All edge cases covered.",
+    "Settings gate targeting_enabled=false correctly drops target_countries/age_min/age_max from insert payload (verified DB row: all NULL with is_global=TRUE). Idempotent override.",
+    "/api/marketplace/featured LATERAL JOIN on product_boosts.status='active' AND expires_at>NOW() correctly filters by users.country_code OR users.country (uppercase, slice 2 chars) and parses users.birthday TEXT via _dt.fromisoformat(). Graceful fallback when user.country_code IS NULL (test [5] verified).",
+    "Audience badges (MarketplaceProductPage.js:724-742) render only when active_boost has targeting metadata — clean conditional rendering.",
+    "Plan testid naming inconsistency: review-request expected mkt-boost-plan-24h_1usd but actual is mkt-boost-plan-basic_24h (and standard_7d / homepage_30d). NOT a bug — just internal naming choice, all 3 plans render correctly with proper $ pricing.",
+    "AdminPage.js (lines 1045-1047) wires the 3 new bool settings inside the 'Marketplace — Escrow & Boost' group as instructed in problem statement. Zero hardcode."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (30/30: 6 iter179 + 9 iter175 + 9 iter176 + 6 iter178 regression)",
+    "frontend": "100% (sticky button verified mobile + desktop, all targeting testids present and functional, audience badges rendered live after boost POST)"
+  },
+  "test_credentials": "bob@japap.com / Test1234! · alice@japap.com / Alice2026! · admin@japap.com / JapapAdmin2024! · captcha bypass JAPAP_E2E_BYPASS_2026.",
+  "seed_data_creation": "Test product prod_55321943e80d created via Bob (cleaned up). Alice's country_code/birthday restored (CM/NULL) by iter179 backend test cleanup. Wallet Bob set to 100 USD then deducted to ~$76 across UI boost flows.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter179 ships GREEN. iter180 (next) = full Ads campaign console with CPM/CPC/budget consumption (ads_campaigns / ads_targeting / ads_impressions / ads_clicks tables). For iter179 verification reproduce by: (1) login Bob via /api/auth/login bypass, (2) create product POST /api/marketplace/products, (3) navigate to /marketplace/p/{pid}, (4) click [data-testid=mkt-owner-boost], (5) wait for [data-testid=mkt-boost-targeting] to render (~2s for /api/settings/public load), (6) interact with mkt-boost-target-global / mkt-boost-country-input / mkt-boost-country-add / mkt-boost-age-min/max, (7) click mkt-boost-confirm, (8) reload page → audience badges visible. Note: data-testid for plans uses snake_case keys basic_24h/standard_7d/homepage_30d (not 24h_1usd). users.birthday is TEXT/VARCHAR ISO format; route parses with _dt.fromisoformat. users has both country_code AND country columns — route OR's them then uppercases+slices to 2 chars.",
+  "rca of the issue": "n/a — all 12 review-request items PASS: schema migration ✓, boost-wallet sanitization ✓, /featured LATERAL audience filter ✓, fallback on NULL country/birthday ✓, /products/{id}.active_boost exposes 4 targeting keys ✓, public settings 3 new keys ✓, targeting_enabled=false bypass ✓, BoostModal sticky confirm mobile+desktop ✓, target-global checkbox + country chips ✓, age inputs ✓, audience badges on product detail ✓, AdminPage 3 new bool toggles wired ✓, regression iter175/176/178 all green ✓."
+}

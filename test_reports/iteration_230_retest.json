@@ -1,0 +1,50 @@
+{
+  "summary": "iter230 RETEST — Backend E2E P2P quiz challenge flow PASSES end-to-end (7/7 pytest). Alice opens paid 1-USD challenge → plays → Bob claims → Bob plays → auto-resolution → both wallets get quiz_challenge_lock + winner gets quiz_challenge_release; OG meta + public preview both work. HOWEVER, the FRONTEND P1 fix in WalletPage.js is INCOMPLETE — wallet page still renders '0 transaction au total' / 'Aucune transaction pour le moment' for Bob despite backend returning 279 transactions. /api/wallet/transactions is NEVER CALLED from the wallet page (verified via network capture), even though /api/wallet/balance and /api/wallet/payment-methods (which use the same `user?.user_id` gating) ARE called and succeed. The new French labels ('Mise verrouillée — défi quiz', 'Gain défi quiz') still cannot be visually verified because the list never populates.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "WalletPage",
+        "issue": "P1 fix INCOMPLETE — `/api/wallet/transactions` is never requested when /wallet page loads (network capture confirms). Header shows '0 transaction au total'. Direct browser fetch of same endpoint with same cookies returns 200 + 11.4kB JSON. Other endpoints in the page (balance, payment-methods, payment-requests) all fire correctly with the same `user?.user_id` gating, so the gating itself is not the blocker — something specific to loadTransactions's useEffect chain is preventing the call. The new French labels added in iter230 (lines 243+) still cannot render.",
+        "selector": "[data-testid='transactions-list']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Wallet → transactions list",
+        "issue": "Console has NO `[wallet] loadTransactions failed:` log (fix added that line) and the network tab has zero `/api/wallet/transactions` requests. Suggests loadTransactions is short-circuiting at the early-return guard on every render, OR the useEffect with [loadTransactions] dep isn't re-invoking after user hydration. Hypothesis: page state initializes BEFORE first render captures the empty user, and a stale useCallback ref is kept; verify by adding `console.log('[wallet] loadTransactions invoked', !!user?.user_id)` at line 96 BEFORE the guard.",
+        "affected_selectors": ["[data-testid='transactions-list']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter230_retest_e2e_p2p.py",
+    "/app/test_reports/pytest/iter230_retest.xml"
+  ],
+  "action_items": [
+    "FRONTEND P0 (still open): WalletPage.loadTransactions() is never invoked. Add a console.log BEFORE the `if (!user?.user_id) return` to confirm the function is at least being called. If it IS called and short-circuits, gate it on a stable `authReady` boolean from AuthContext instead of `user?.user_id`. If it's NOT called, the useEffect dep `[loadTransactions]` may be missing a re-render trigger; consider also adding `[user?.user_id, page]` directly. Comparable functions loadBalance + loadGating fire fine, so the difference is worth diffing line-by-line.",
+    "Once fixed, verify the new French labels render: 'Mise verrouillée — défi quiz', 'Gain défi quiz', 'Remboursement défi quiz', 'Bonus engagement — défi'. Bob NOW has fresh quiz_challenge_release rows from the new e2e test (challenge qcc_64334df160fa4b6b).",
+    "Backend E2E flow ALL GREEN: Alice opens → plays → status=challenger_played; Bob claims → plays → status=completed; both wallets receive quiz_challenge_lock + winner receives quiz_challenge_release. Public landing /api/quiz/champion/challenge/public/{cid} returns Alice + 1 USD without auth; OG /api/og/challenge/{cid} returns og:title/description/image with stake amount."
+  ],
+  "critical_code_review_comments": [
+    "WalletPage.js: loadTransactions/loadBalance/loadGating all duplicate the same `if (!user?.user_id) return; try{...}catch(e){console.error(...)}` shape — extract a tiny `useAuthedFetch(url)` hook to DRY it and make the auth-race fix uniform across the page.",
+    "WalletPage.js is 1106 lines — split into WalletHeader, TransactionList, PaymentRequests, KycBanner sub-components.",
+    "routes/quiz_champion.py is now ~1587 lines — split admin endpoints into routes/quiz_champion_admin.py (KPIs, list, set/demote, expire-stale, promote-all). Open-challenge endpoints could move to routes/quiz_champion_open.py.",
+    "test_iter230_retest_e2e_p2p.py uses `sess._user` attached attribute — works but consider a real fixture `current_user(sess)` for clarity."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter230_retest_e2e_p2p.py (NEW — 7 passing tests)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "33%"},
+  "test_credentials": "Bob bob@japap.com / Test1234! ; Alice alice@japap.com / Alice2026! ; captcha JAPAP_E2E_BYPASS_2026 / 0",
+  "seed_data_creation": "Two paid 1-USD challenges by Alice resolved during testing (latest cid=qcc_64334df160fa4b6b — Bob won 1 vs 0).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend P2P E2E flow is fully green via /app/backend/tests/test_iter230_retest_e2e_p2p.py (7 passed, ~3 min). The frontend wallet rendering bug from iter230 IS NOT YET FIXED — /api/wallet/transactions is never called from the page despite the user being authenticated and the same gating working for loadBalance. Suggest the main agent add a temporary console.log to confirm whether loadTransactions is invoked at all, then proceed to fix.",
+  "rca of the issue": "WalletPage.js: `useEffect(() => { loadTransactions(); }, [loadTransactions])` should re-fire when user.user_id transitions from undefined → defined (because loadTransactions is rebuilt by useCallback). However, network capture proves the fetch never happens. Two hypotheses: (a) AuthContext exposes `user.id` rather than `user.user_id` for the wallet page's consumer (in which case the early-return is permanent, but then loadBalance/loadGating wouldn't work either — so this is unlikely); (b) page-level state machinery wraps the component so loadTransactions's useEffect dep is somehow preventing the re-invocation (e.g., a parent provides a memoized user that retains identity across re-renders and never causes useCallback to rebuild). RECOMMEND: 1) add `console.log('[wallet] loadTransactions called', user?.user_id)` BEFORE the guard, 2) if log appears with valid user_id but no fetch happens, the issue is in the try/await chain, 3) if log never appears, switch the useEffect to depend on `[user?.user_id, page]` directly, bypassing useCallback identity."
+}

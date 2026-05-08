@@ -1,0 +1,58 @@
+{
+  "iteration": 143,
+  "summary": "Crowdfunding viral module (CEO P0 refonte) — backend + frontend E2E tested. Backend pytest 16/16 PASS via /app/backend/tests/test_iter142_crowdfunding.py covering: 1-project-per-user-per-cycle (409 dup), votes locked under threshold, self-vote 400, double-vote 409, atomic winner detection + 50 000 XAF wallet credit + reward_tx_id + cycle status='completed', between_cycles=true with no auto-restart, admin-only POST/PUT cycle routes (403 for non-admin), GET/PUT /admin/settings, and cycle-2 unblocking previous winner. Frontend: CrowdfundingModule on /services renders CycleHeader with 'X / Y projets' counter that animates threshold→'Votes ouverts !', MyDashboard switches between cf-my-noproject/cf-my-project, project cards expose disabled 'Ton projet' for owner and 'Voter' for others, vote action shows green toast '✓ Vote enregistré (20% de la victoire).', AdminPanel modal (cycles/réglages/historique) is gated to role=admin and exposes start-cycle, update-active, save-settings, and cycle history.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/crowdfunding/projects", "issue": "@_limiter.limit('5/hour') is keyed in-memory per-process and is NOT reset by TRUNCATE in tests. Re-running the pytest suite within the same hour after >=5 successful creates yields 429 from test_04 onwards. Fix: either (a) bump cap, (b) skip limiter when MATH_CAPTCHA_TEST_BYPASS_TOKEN is sent, or (c) reset limiter storage in pytest setup. Workaround used: sudo supervisorctl restart backend before re-running."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CrowdfundingModule.CreateProjectModal", "issue": "After successful POST /projects, parent state (cf-my-project, threshold-counter, project list) is NOT refreshed until manual reload. The toast 'Projet créé !' shows but MyDashboard goes empty (neither cf-my-noproject nor cf-my-project visible) and counter still shows the pre-create value. Need to call reload()/refetch state+me+projects after the modal submit succeeds.", "selector": "[data-testid=cf-create-submit]", "priority": "MEDIUM"},
+      {"component": "CrowdfundingModule.AdminPanel (Réglages tab)", "issue": "cf-admin-save-settings button is rendered but not visible in the small modal viewport on first open of the Réglages tab (likely below the fold; modal content not scrolled). Add max-h+overflow-y-auto to the modal body or shrink the form so save is reachable without scroll.", "selector": "[data-testid=cf-admin-save-settings]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CycleHeader threshold-counter", "issues": ["Text reads '2 / 3 projets· encore 1 pour déclencher' — missing space before the bullet '·'. Cosmetic."]}
+    ]
+  },
+  "tests_executed": {
+    "backend_pytest_16_16_pass": "All 16 tests in test_iter142_crowdfunding.py PASSED in 45.38s (after backend restart to clear in-memory rate-limit). XML report: /app/test_reports/pytest/iter143_crowdfunding.xml",
+    "frontend_e2e": {
+      "alice_login_open_module": "PASS — service-crowdfunding tile opens CrowdfundingModule, cf-state-active visible with 'CYCLE #1 / Compte à rebours / 50 000 XAF / 0 / 3 projets · encore 3 pour déclencher'",
+      "alice_create_first_project": "PASS — modal submitted, green toast 'Projet créé !' displayed; backend returns 201 with slug + votes_open=false. (UI auto-refresh missing — see ui_bugs.)",
+      "alice_reload_shows_my_project": "PASS — after manual reload, cf-my-project visible with 'Mon projet · Rang #2 · 0 votes (objectif 5)' and counter '1 / 3 projets'.",
+      "bob_create_second_project": "PASS — cf-state-active counter advances to '2 / 3 projets · encore 1 pour déclencher', votes still locked (all cf-vote-btn disabled).",
+      "bob_self_vote_blocked": "PASS — bob's own card shows disabled 'Ton projet' button.",
+      "admin_create_third_opens_votes": "PASS — header flips to 'Votes ouverts ! · 50 000 XAF · Le premier projet à atteindre 5 votes remporte le pactole · 3 projets en lice.'",
+      "bob_votes_alice_toast": "PASS — green toast '✓ Vote enregistré (20% de la victoire).' shown; GET /api/crowdfunding/projects?sort=votes returns Alice votes_count=1, voted_by_me=true.",
+      "admin_panel_visible_for_admin": "PASS — cf-admin-btn visible only for role=admin; cf-admin-panel modal exposes Cycles/Réglages/Historique tabs; cf-admin-start-cycle + cf-admin-update-active visible; Historique shows 'Cycle #1 — active · Seuil 3 · Votes/win 5 · Récompense 50 000 XAF'.",
+      "between_cycles_state": "VERIFIED via backend pytest test_11 (state.between_cycles=true, cycle=null, last_cycle.status='completed', list returns [], create returns 409)."
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter142_crowdfunding.py",
+    "/app/test_reports/pytest/iter143_crowdfunding.xml"
+  ],
+  "action_items": [
+    "FRONTEND (MEDIUM): In CrowdfundingModule.js, after CreateProjectModal POST success, call the same reload() that the top toolbar refresh-button calls so cf-my-project + cf-threshold-counter + project list update without needing F5.",
+    "FRONTEND (LOW): Make cf-admin-save-settings reachable in the AdminPanel Réglages tab without scrolling — add max-h-[80vh] overflow-y-auto on the modal body or reduce field padding.",
+    "FRONTEND (COSMETIC): Add a thin space before the bullet '·' in the threshold-counter string ('2 / 3 projets · encore 1' instead of '2 / 3 projets·').",
+    "BACKEND (MINOR): Either raise '5/hour' on POST /api/crowdfunding/projects to a saner test-friendly cap, OR bypass the limiter when the body's captcha_id matches MATH_CAPTCHA_TEST_BYPASS_TOKEN/TURNSTILE_TEST_BYPASS_TOKEN, OR reset the SlowAPI in-memory store in the pytest fixture so the suite is re-runnable without supervisor restart."
+  ],
+  "critical_code_review_comments": [
+    "routes/crowdfunding.py is ~998 lines — consider splitting into crowdfunding_public.py / crowdfunding_admin.py / crowdfunding_eligibility.py to keep routes <700 lines (same pattern as the iter142 wallet.py review).",
+    "Rate-limit on POST /projects is a per-process in-memory limiter (slowapi default). On a multi-worker uvicorn this becomes per-worker (effectively N×5/hour). If business intent is strictly 5/h per user globally, back the limiter with Redis or move the check into Postgres (count(*) where created_at > now() - 1h).",
+    "frontend CrowdfundingModule.js (~700 lines) keeps state/me/projects/leaderboard in 4 separate effects — consolidate into a single reload() + invalidate-on-mutation pattern (already partly there but not wired into the create modal).",
+    "No optimistic-UI on vote: the API call is awaited without showing a transient state. Considering CEO P0 is virality, a dim/disable on the clicked card during the request would feel snappier."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (16/16 pytest)", "frontend": "90% — all CEO P0 flows visible & wired; 2 minor UI follow-ups (auto-refresh after create, settings save-button reachability)"},
+  "test_credentials": "alice@japap.com/Alice2026!, bob@japap.com/Test1234!, admin@japap.com/JapapAdmin2024!  + captcha bypass via captcha_id='JAPAP_E2E_BYPASS_2026', captcha_answer='x' on /api/auth/login",
+  "seed_data_creation": "DB reset to demo-friendly settings (threshold_projects=3, votes_to_win=5, eligibility 0/0, required_actions all 0). Cycle #1 active with 3 projects: 'Projet test E2E Alice' by Alice (1 vote from Bob), 'Application agriculteurs' by Bob, 'Centre artisanal' by Admin.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "If you re-run the pytest suite within the same hour, run `sudo supervisorctl restart backend` first to clear the slowapi in-memory rate-limit (5/hour on POST /projects). The pytest fixture only TRUNCATEs the DB; it does NOT reset the limiter. The frontend bypass for testing without solving captcha is to inject jp_token+jp_user into localStorage (see scripts above): page.request.post /api/auth/login with captcha_id='JAPAP_E2E_BYPASS_2026' returns body.access_token + body.user, store both in localStorage as 'jp_token' and JSON-stringified 'jp_user', then navigate to /services — the SPA picks them up. The Admin button (cf-admin-btn) is gated on user.role==='admin'|'superadmin' — admin@japap.com works.",
+  "rca of the issue": "1) UI no-refresh after create: CreateProjectModal's onSubmit does setOpen(false) + toast.success but doesn't call the parent reload(); fix is to pass reload() into the modal as a prop and invoke it on success. 2) Settings save-button hidden: AdminPanel modal body lacks overflow-y; the form pushes the save button below viewport on smaller laptops. 3) Rate-limit 429 in re-run: slowapi default in-memory storage persists across pytest runs because supervisor doesn't restart between runs. 4) All other CEO P0 rules (1 user / 1 project / cycle, votes-lock, self-vote blocked, atomic winner+wallet credit, between_cycles, admin-only routes) are functioning correctly per backend pytest + manual UI verification."
+}

@@ -1,0 +1,30 @@
+{
+  "summary": "iter125 — Phase 3.B Quiz Champion paid mode + escrow: 55/55 backend tests PASS. Full coverage of admin settings (7 new keys), validation bounds (commission_pct/expiry/bonus), challenge lifecycle (create/accept/refuse/play/submit), atomic escrow (lock/release/refund/commission/bonus), tie split, race conditions, admin expire-stale, and free-mode regression. Financial integrity verified end-to-end: Alice 5/5 vs Bob 0/5 with stake=500 → Alice +900, JAPAP commission 100, Bob unchanged. All 5 transaction types appear with correct status='completed' and proper from/to_user_ids.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter125_quiz_paid_escrow.py",
+    "/app/test_reports/pytest/iter125_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Sound design: lock_stake/release_to_winner/refund_player/log_bonus all run inside conn.transaction() with SELECT...FOR UPDATE → no race window for double-debit. Verified empirically (race_accept test → exactly one 200 + one 409, only 2 lock rows total).",
+    "Decimal arithmetic used end-to-end (stake/commission/payout). Pot 1000 × 10% = 100 commission, payout 900 — exact match.",
+    "Tie path (both 5/5) correctly refunds both players and emits NO commission/release rows. Edge case (tie at 0/0) not tested explicitly because problem statement requires 'both > 0' for tie semantics; the code itself treats any equal score as tie incl. 0/0 — this is fine since pre-resolve runs require submitted scores.",
+    "_lazy_expire is idempotent and emits both refund + bonus inside the same transaction — admin/expire-stale verified to flip status='expired' and refund the challenger atomically.",
+    "Minor nit: in routes/quiz_champion.py line 209, the bare `except Exception: raise HTTPException(...)` swallows the original Decimal-conversion error — would benefit from `except (ArithmeticError, ValueError) as e` for forensics, but not blocking.",
+    "Minor nit: refuse_challenge gives the engagement bonus on EVERY refuse (paid or free), as the spec requires. Same +50pts for free-mode refuses — confirm this is intended (currently no free-mode-only branch). Consistent with the ticket text 'bonus engagement (50 pts default) au challenger sur refus/expiration' so OK.",
+    "Test bench note: a stake_amount above quiz_challenge_stake_max returns 400 BEFORE reaching the wallet balance check, so 'insufficient balance' had to be tested by raising stake_max to 100000 first — done in the suite."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter125_quiz_paid_escrow.py"],
+  "success_rate": {"backend": "100%", "frontend": "n/a (backend only)"},
+  "test_credentials": "Alice/Bob/SuperAdmin from /app/memory/test_credentials.md (XAF wallets reset to 20000/50000 after run)",
+  "seed_data_creation": "State reset post-run: Alice=20000 XAF, Bob=50000 XAF, Bob=CM champion with refusal_count_consecutive=0, demoted_at=NULL. paid_enabled=true, all other settings at defaults (commission_pct=10, stake_min=1, stake_max=10000, expiry_hours=24, bonus_pts=50, refund_on_expiry=true).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 3.B fully GREEN. Test runner /app/backend/tests/test_iter125_quiz_paid_escrow.py is reusable and idempotent (calls reset_state between scenarios). It uses CSRF (X-CSRF-Token header pulled from csrf_token cookie). 2FA helper uses /api/auth/verify-2fa (NOT /api/auth/login/2fa). Bob is the CM champion at end of run with 0 refusals. JUnit XML at /app/test_reports/pytest/iter125_results.xml.",
+  "rca of the issue": "n/a — no bugs found"
+}

@@ -1,0 +1,43 @@
+{
+  "summary": "iter216 retest of BUG 3b (Reels share) after the iter215.1 fix in ReelsPage.shareReel. Frontend Playwright (390x844 mobile viewport) on real preview URL with navigator.share stubbed to throw NotAllowedError (simulating Playwright/desktop headless). RESULT: BUG 3b FIXED. POST /api/feed/reels/{reel_id}/share IS now fired even when native share throws, no 'Échec du partage' toast appears, and the new sequential try-share → try-clipboard → try-prompt fallback chain works as designed. Regression check from iter215 minor finding also PASS: shares_count is now exposed in GET /api/feed/reels list response. Smoke checks: comment drawer opens, like optimistic update works (2→3).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "ReelsPage.shareReel optimistic counter UX",
+        "issue": "Optimistic shares_count increment is correctly applied in state (verified by reading ReelsPage.js:270-272), but in the test the visible counter stayed at '8' before AND after the click. Root cause: backend share endpoint is idempotent per user — Bob had already shared reel_b86b57f1c4a8 in a prior iter so server returned the unchanged count of 8, and the next list refresh (mount) reconciled local state back to server. Behaviour is correct per design; but consider: (a) keep optimistic value in a separate clientShareDelta ref to avoid stomp-back, OR (b) only optimistically bump when server indicates a NEW share (e.g. response field 'newly_shared:true'). LOW priority — does not affect functional correctness.",
+        "selector": "[data-testid='reel-share-reel_b86b57f1c4a8']",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_216.json"
+  ],
+  "action_items": [
+    "(OPTIONAL/LOW) Improve share counter UX: prevent the next /api/feed/reels list-refresh from clobbering the optimistic +1 if the user has already shared (idempotent backend). Either persist a local delta or have backend return is_new_share and only optimistic-bump in that case.",
+    "(NONE) BUG 3b is fully resolved — POST /share fires through clipboard or prompt fallback when native share throws."
+  ],
+  "critical_code_review_comments": [
+    "ReelsPage.shareReel (lines 229-275): refactor is correct. Sequential paths with single `success` flag work as expected: navigator.share NotAllowedError now falls through to clipboard (clipboard.writeText succeeds in Chromium headless after a user gesture), and the backend POST always fires when any path succeeds. AbortError still short-circuits early (correct — user cancelled).",
+    "Path 3 'window.prompt' fallback: works in headless via stubbed prompt; in real desktop browsers without clipboard permission, prompt() will block synchronously and may feel intrusive. Acceptable for last-resort.",
+    "feed_extended.py:130 — shares_count = d.get('shares_count') or 0 — correct null-safe coalesce; pairs nicely with the ALTER TABLE migration cache (_ensure_reels_shares_count) so list endpoint won't break on cold DB.",
+    "Backend feed.py: ALTER TABLE was hoisted into module-level cache (_ensure_reels_shares_count) — good performance fix vs running DDL on every /share request as flagged in iter215."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (per iter215 pytest 6/6, no rerun needed)",
+    "frontend": "95% (BUG 3b POST fired ✅, no error toast ✅, shares_count exposed ✅, comment drawer ✅, like optimistic ✅; only the visual counter doesn't bump due to idempotent backend dedup — design choice, not a bug)"
+  },
+  "test_credentials": "bob@japap.com / Test1234! ; captcha bypass JAPAP_E2E_BYPASS_2026 / 0",
+  "seed_data_creation": "1 idempotent share POST on reel_b86b57f1c4a8 (no count change due to dedup, Bob already on share-list). No new persistent test data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend URL is https://japap-refactor.preview.emergentagent.com (NOT the feedfix-1 URL — that returns 404). Read it from /app/frontend/.env: REACT_APP_BACKEND_URL. To replay the BUG 3b headless scenario: page.add_init_script that overrides navigator.share to throw NotAllowedError + canShare=()=>true + window.prompt=(m,v)=>v BEFORE navigation. Login via fetch /api/auth/login with bypass. Then navigate /reels, click [data-testid^=reel-share-]. Verify a POST request to /api/feed/reels/{reel_id}/share is captured by page.on('request',...). The visible UI counter may not change because backend is idempotent per (reel_id,user_id) and reel_b86b57f1c4a8 has Bob already on the share list — that's expected, not a bug.",
+  "rca of the issue": "iter215 BUG 3b root cause was: shareReel had a single try/catch around navigator.share that early-returned on any non-AbortError, skipping both the optimistic increment AND the backend POST /share call. iter215.1 fix: refactor into 3 sequential paths (Web Share, clipboard, prompt) gated by a single `success` boolean. AbortError still short-circuits (user cancelled). On any other share error, falls through to clipboard.writeText. On clipboard error, falls through to window.prompt. Once `success=true`, ALWAYS runs setReels optimistic +1 and axios POST /share. iter216 verifies fix end-to-end on Playwright with stubbed navigator.share that throws NotAllowedError — the POST /api/feed/reels/reel_b86b57f1c4a8/share IS captured in network log, no error toast appears, and the list response now correctly includes shares_count field (regression fix from iter215 minor finding)."
+}

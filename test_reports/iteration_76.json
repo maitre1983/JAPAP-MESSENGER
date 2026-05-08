@@ -1,0 +1,34 @@
+{
+  "summary": "Iter76 — Inline comments + external share + /post/:id deep link. Backend: 11/11 pytest pass (single post GET, 404, comment create+persist+counter, share external whatsapp/facebook/copy_link, share external no-caption => unknown, invalid target 400, 404 share, like toggle regression, feed listing). Frontend Playwright on mobile viewport (Bob): comment button toggles inline CommentSection (aria-expanded flips), composer posts and renders the new comment, post-card counter increments to '2', second toggle collapses (section unmounted, aria-expanded=false), share modal exposes 'PARTAGER EN EXTERNE' section with the 3 buttons, share-url-preview equals window.location.origin + /post/{post_id}, 'Copier le lien' shows 'Copié !' feedback, WhatsApp button opens api.whatsapp.com (wa.me redirects there) in new tab, Facebook opens sharer.php in new tab, /post/:postId deep link renders post-detail-page with embedded CommentSection + Retour button, /post/invalid renders post-detail-not-found empty state.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "PostDetailPage", "issues": ["Bottom nav (BottomBar) labels Wallet/Home overlap each other on 390px viewport — not introduced by this iteration but visible on /post/:id; main agent may want to inspect later (not blocking)"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration76_feed_share_comments.py",
+    "/app/test_reports/pytest/iter76_feed.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "feed.py share endpoint correctly accepts target='external' with caption channel routing; defaults to 'unknown' when caption missing — matches spec.",
+    "GET /api/feed/posts/{id} mirrors feed shape (is_liked included) and returns 404 for missing/private — good.",
+    "CommentSection uses optimistic insert with rollback on failure and parent onCountChange(+/-1) — correct UX pattern.",
+    "SharePostModal.copyLink falls back to execCommand when navigator.clipboard rejects (sandboxed iframes) — verified working in preview iframe (got 'Copié !' feedback).",
+    "buildPostShareUrl is SSR-safe (window guard) — fine.",
+    "Minor: openExternal uses window.open with noopener; share record POST is fire-and-forget — acceptable but errors are silently swallowed (.catch(() => {})). Consider a low-volume warn log."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration76_feed_share_comments.py (new)"
+  ],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "100% (9/9 flows)"},
+  "test_credentials": "bob@japap.com / Test1234!  ;  admin@japap.com / JapapAdmin2024!",
+  "seed_data_creation": "Created 1 post per test run via POST /api/feed/posts ('TEST iter76 post …') + 1 comment per run ('TEST_iter76 comment …') + 1 share-post via target=feed indirectly bumped through external shares. No manual cleanup performed — TEST_ prefix used for easy identification.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Public BASE_URL has high latency (login ~23s due to bcrypt + ingress); use timeout>=60s for /api/auth/login. Run pytest with: cd /app/backend && PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest tests/test_iteration76_feed_share_comments.py -p asyncio -p anyio -p pytest_asyncio. WhatsApp link in PostMenu.jsx uses https://wa.me/?text= which mobile browsers/desktop redirect to api.whatsapp.com — both popup_url validations pass. Onboarding modal did NOT show on Bob's login this run (already onboarded by previous tests).",
+  "rca of the issue": "N/A — no bugs found. Initial pytest run failed with ReadTimeout (20s) on login through public ingress; root cause = bcrypt + ingress add-up easily exceeds 20s. Mitigation: bumped login timeout to 60s in test fixture."
+}

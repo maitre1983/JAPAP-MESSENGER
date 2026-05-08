@@ -1,0 +1,37 @@
+{
+  "summary": "iter218 RETEST — backend only. ALL 7 P0 blockers from iter218 are now RESOLVED. ARM64 ffmpeg resolution works, video uploads (.mp4/.mov/.webm) return 200 with canonical mp4 + thumbnail + duration, atomic transcode-to-temp rename fix verified, non-video rejected with 4xx, feed post creation honours auth. Image upload path regression-free.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter218_upload_csrf.py",
+    "/app/test_reports/pytest/iter218_retest.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "video_pipeline.py:66-86 _arch_dir_for_static_ffmpeg() correctly branches on platform.machine() (aarch64 → linux_arm64, x86_64 → linux). Verified at runtime: uname -m=aarch64, resolved bin=/root/.venv/.../static_ffmpeg/bin/linux_arm64/ffmpeg, `-version` returns 0.",
+    "video_pipeline.py:138-151 _verify_executable() now runs `<bin> -version` at module init to trap ARM/x86 mismatches BEFORE first upload. has_ffmpeg() still uses a cheap path-exists check on the hot path, which is fine because _resolve_ffmpeg_paths has already filtered to a verified binary.",
+    "upload.py:261-295 Atomic transcode-to-temp + rename pattern verified: .mp4 input → transcodes to `{file_id}.transcoded.mp4` → unlinks source → replaces onto target. No more 'Output same as Input' collision. Sync path returns 200 with the correct file_id/url/content_type/thumbnail_url/duration.",
+    "requirements.txt static_ffmpeg==2.13 is acceptable given the explicit per-arch branch; long-term recommend vendoring ffmpeg into the container image for faster cold-starts and removing the runtime fetch.",
+    "Test isolation learning: the shared requests.Session() was carrying the login cookie into test_post_requires_auth. Using a fresh bare `requests.post()` to isolate the no-auth path is the correct pattern for session-cookie apps — documented in the test file."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter218_upload_csrf.py (switched fixtures to local ARM64 static_ffmpeg-generated videos; test_post_requires_auth uses fresh session)"
+  ],
+  "success_rate": {
+    "backend": "7/7 (100%)",
+    "frontend": "not retested this iteration (per review request)"
+  },
+  "test_credentials": "bob@japap.com / Test1234! + captcha bypass JAPAP_E2E_BYPASS_2026 / 0 — working",
+  "seed_data_creation": "Uploaded 3 small test videos (~30-80 KB each) + 1 JPEG under bob@japap.com; created 1 TEST_iter218 text post via /api/feed/posts.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter218 retest backend PASSED 7/7. Fixtures now synthesise videos locally via the bundled ARM64 static_ffmpeg (/root/.venv/lib/python3.11/site-packages/static_ffmpeg/bin/linux_arm64/ffmpeg) so no CDN flakiness. To rerun: `python -m pytest /app/backend/tests/test_iter218_upload_csrf.py -v -p no:ethereum`. If you see 502 during login, supervisor just restarted backend — wait 10s and retry (hot-reload kicks in whenever upload.py / video_pipeline.py changes).",
+  "rca of the issue": "Confirmed fix RCA: (1) static_ffmpeg 2.13 ships both x86_64 and arm64 binaries but its resolver returned the wrong one on aarch64. Patch: _arch_dir_for_static_ffmpeg() reads platform.machine() and explicitly selects bin/linux_arm64/. (2) 'Output same as Input' for .mp4 uploads — source path and target path were identical (both `{file_id}.mp4`). Patch: transcode to `{file_id}.transcoded.mp4`, atomically replace after success. (3) Executability now probed with `<bin> -version` at module init so future arch mismatches fail loudly at startup, not at first user upload."
+}

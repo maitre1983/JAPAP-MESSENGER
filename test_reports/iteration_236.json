@@ -1,0 +1,43 @@
+{
+  "summary": "iter236 Orange Money (deposit gate non-GH, withdraw gate CM+237, no-rate-leak, USSD code, +237658012390 receiver, 'New deal finances', token TTL 8h) — backend 7/8 PASS + 1 SKIP (no PENDING withdrawal in DB to test recredit on). Frontend Wallet UI verified for Alice (US) and Daf (GH) with all gating rules respected. OM deposit wizard step 1 → step 3 traversal verified end-to-end (without final submit to avoid pollution).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminOrangeMoneySection / admin-mobile-money-block", "issue": "When navigating /admin → Paiements → 'Paramètres Paiement' sub-tab, the admin-mobile-money-block / admin-om-section / om-settings-block selectors were not detected by query_selector even though they exist in source (PaymentsAdminTab.jsx L554, AdminOrangeMoneySection.jsx L77,L99). They are likely rendered far below the visible viewport or behind a <details> collapsible. iter235 already noted this — non-blocking but worth verifying the wrapper's mount path.", "selector": "[data-testid='admin-mobile-money-block'], [data-testid='admin-om-section'], [data-testid='om-settings-block']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter236_om.py",
+    "/app/test_reports/pytest/iter236.xml"
+  ],
+  "action_items": [
+    "(LOW) Vérifier que admin-mobile-money-block est bien monté dans /admin → Paiements → 'Paramètres Paiement' (la div existe dans le source mais n'a pas été détectée par Playwright — peut-être à l'intérieur d'un <details collapsed> ou très bas dans la page).",
+    "(INFO) Le test backend test_om_withdraw_reject_recredits_wallet est SKIP car aucun retrait OM PENDING n'existe dans la DB de test (Daf=GH ne peut pas en créer). Pour valider le recrédit auto, créer manuellement un retrait OM via un user CM+237 puis re-runner le test."
+  ],
+  "critical_code_review_comments": [
+    "Quote OM /api/deposits/orange-money/quote ne fuite AUCUN champ rate/taux/deposit_rate (vérifié sur Alice : retourne {montant_usd:10, montant_xaf:6050.0} uniquement).",
+    "USSD code généré côté frontend correctement : '#150*14*556348*237658012390*6050*VOTRE CODE SECRET#' (sans '+' devant le numéro, montant_xaf intégré).",
+    "Bénéficiaire 'New deal finances' bien servi par /api/deposits/orange-money/info, et numéro récepteur '+237658012390' bien présent dans la base + UI.",
+    "Token TTL 8h confirmé via décodage JWT du cookie access_token (delta exp-now ≈ 28800s ±tolérance).",
+    "Gating frontend STRICT et conforme : Alice (US) → mobile-money-section + om-deposit-card visibles, om-withdraw-card et wave-* absents. Daf (GH) → mobile-money-section ENTIÈREMENT absente.",
+    "Gating backend STRICT : /api/deposits/orange-money/info renvoie 200 pour Alice (US), 403 pour Daf (GH). /api/withdrawals/orange-money/submit refuse Daf (400/403, pas un 5xx).",
+    "Endpoints admin OM tous joignables (200) avec admin et tous (401/403) en anonyme.",
+    "Wave non régressé : aucune modification observée sur les endpoints/tests Wave de iter235."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter236_om.py (créé)"
+  ],
+  "success_rate": {"backend": "100% (7 PASS / 1 SKIP attendu / 0 FAIL)", "frontend": "95% (gating + wizard step 1 OK; admin wrapper testid LOW miss)"},
+  "test_credentials": "alice@japap.com / Alice2026! (US, non-GH) ; mirtoken2022@gmail.com / Daf2026! (GH) ; admin@japap.com / JapapAdmin2024! ; bypass captcha JAPAP_E2E_BYPASS_2026 / 0",
+  "seed_data_creation": "Aucune écriture en base. Le test wizard OM s'arrête juste avant le submit final pour ne pas créer de dépôt fantôme.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Pour tester le recrédit auto sur reject OM, créer d'abord un user CM+237 (ou changer Daf country=CM en DB), soumettre un retrait OM, puis appeler PATCH /api/admin/orange-money/withdrawals/{id}/reject. Le test test_om_withdraw_reject_recredits_wallet du fichier test_iter236_om.py picotera automatiquement le PENDING le plus récent. La regex Wave et l'admin block Mobile Money restent à vérifier visuellement (le source le contient — c'est probablement un <details> collapsed). Le test backend complet doit être lancé depuis /app/backend/tests/ avec PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pour éviter le crash du plugin pytest_ethereum (eth_typing.ContractName ImportError).",
+  "rca of the issue": "Aucun bug iter236 détecté. Toutes les règles iter236 sont respectées : (1) OM dépôt visible pour US/non-GH ✓, (2) OM retrait UNIQUEMENT pour CM+237 ✓ (Alice US bloquée, Daf GH bloqué), (3) USSD #150*14*556348*237658012390*6050*VOTRE CODE SECRET# ✓, (4) 'New deal finances' affiché ✓, (5) +237658012390 affiché ✓, (6) AUCUN taux 605/600 leaké ✓ (vérifié sur le payload quote ET sur le DOM rendu), (7) token TTL 8h confirmé ✓, (8) Wave non touché ✓."
+}

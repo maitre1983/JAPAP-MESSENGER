@@ -1,0 +1,42 @@
+{
+  "summary": "Iter111 — Referral Phases A/B/C: tested preview endpoint, /p/:code landing, localStorage UTM persistence, CTA redirect with UTM, short-link route. Register-side E2E (UTM DB persistence, email logs, verify-otp activation, wallet credit, NameError regression) could NOT be exercised end-to-end via curl because /api/auth/register is gated by Cloudflare Turnstile and there is no test bypass. Backend preview + frontend Phase B fully validated.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/register", "issue": "Turnstile enforced — no test-mode bypass, blocking automated E2E coverage of UTM persistence, referral_email_log, OTP activation, NameError re-register regression."},
+      {"endpoint": "/api/health (ingress)", "issue": "Public URL returned 502 intermittently while backend rebooted (~30-60s startup). Only operational, not a code bug."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/p/BOB2026X", "issues": ["Avatar zone shows empty circle when referrer has no avatar URL — initial fallback letter not visible because referrer has empty first_name? (showed only blank). Verify fallback path renders 'B' for Bob."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter111_referral_phases_abc.py",
+    "/app/test_reports/pytest/iter111_results.xml"
+  ],
+  "action_items": [
+    "Add a Turnstile test-mode bypass (e.g., accept token 'TEST_BYPASS' when env JAPAP_TEST_TURNSTILE_BYPASS=1) so E2E register/verify-otp can be tested via curl. Alternatively, run Playwright through full UI with real widget.",
+    "Re-test backend register flow end-to-end once bypass is in: assert referrals.utm_source/medium/campaign saved, referral_email_log rows for kind=referral.invited (on register) and referral.activated (after verify-otp), Bob wallet credited, NameError re-register regression closed.",
+    "Verify avatar fallback initial renders when avatar URL is empty (ReferralPreviewPage.js line 147 — currently the {initial} span sits inside an <img>-or-<span> block but the empty avatar circle showed blank in screenshot)."
+  ],
+  "critical_code_review_comments": [
+    "ReferralPreviewPage.js: localStorage write of utm_* uses raw URLSearchParams values without trimming; backend caps at 40/40/80 chars but client-side slice ok. Good.",
+    "routes/referrals.py preview_code: properly normalises code to upper, length <=16 returns 400, missing returns 404. Correct.",
+    "routes/auth.py register: ensure init of referrer_user_id_for_email at function top — could not directly verify via curl due to Turnstile, but code review confirms init before if/else (must be retested when bypass available).",
+    "Backend reload triggered by tests/ subdir under /app/backend: WatchFiles re-reloads on test file edits causing 30-60s outages. Consider --reload-exclude tests/ in supervisord."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter111_referral_phases_abc.py"
+  ],
+  "success_rate": {"backend": "100% (5/5 preview+shortlink); 0/6 register-flow tests skipped (Turnstile)", "frontend": "100% (/p/:code page, localStorage, CTA redirect)"},
+  "test_credentials": "bob@japap.com/Test1234! (parrain BOB2026X), alice@japap.com/Alice2026!",
+  "seed_data_creation": "None — used existing Bob (BOB2026X). Test referee accounts (testref_*@japap.com) attempted but blocked by Turnstile.",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Phase B (page /p/:code + localStorage UTM persistence + CTA redirect) is GREEN end-to-end. Phases A + C (UTM in DB, referral_email_log writes, OTP→activation→wallet credit, NameError fix) cannot be validated via curl until a Turnstile test bypass exists. The pytest file is at /app/backend/tests/test_iter111_referral_phases_abc.py — register tests will skip until bypass is added. Backend reload triggers when test file is saved (WatchFiles watches /app/backend dir).",
+  "rca_of_the_issue": "Auth register endpoint enforces Cloudflare Turnstile (middleware/turnstile.py line 64). Real prod secret is configured in /app/backend/.env so the dev fail-open does NOT apply. Curl/requests cannot supply a valid Turnstile token, leading to 400 'Turnstile verification required' for every register call. This blocks DB-level validation of UTM persistence, email log, activation pipeline. Mitigation: add an env-gated bypass (e.g., if os.environ.get('TURNSTILE_TEST_BYPASS_TOKEN') and token == that value -> return True), or test through the frontend with real widget."
+}

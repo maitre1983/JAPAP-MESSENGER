@@ -1,0 +1,25 @@
+{
+  "summary": "iter124 retest — All 3 backend bug fixes from iter123 are verified working. Full Phase 3.A Quiz Champion suite passes 52/52 (was 38/45). Specifically: (1) Challenger double-/play now correctly returns 409 'Vous avez déjà joué.' on second call; (2) GET /api/quiz/champion/XYZ returns 400 (not 404) — same for 'X' and '12'; CM still returns 200 with full payload; (3) Re-promoted champion (Bob in CM) gets a clean rolling_30d=0 — first refuse returns consecutive=1 rolling_30d=1 demoted=false (was demoted=true rolling_30d_refusals before fix). Refuse cycle 1→5 demotes correctly at 5 with reason='consecutive_refusals'. Full happy path: Alice 5/5 vs Bob 4/5 → winner_user_id=Alice (user_317b6e0805a3), scores recorded correctly, options_order shuffled independently per side. Admin endpoints, validation errors, accept/refuse access control, list/detail endpoints, regression /api/quiz/start — all green.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter123_quiz_champion.py",
+    "/app/test_reports/pytest/iter123_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "All three iter123 issues correctly resolved. Patches confirmed: (a) routes/quiz_champion.py challenger replay guard now symmetric to champion's; (b) raw country_code length validation runs before .upper()[:2] truncation; (c) services/quiz_champion.py count_recent_refusals now scopes to refused_at >= promoted_at, so re-promoted champions start with a clean slate without needing to DELETE old refusal rows.",
+    "Session pick guard (array_length(question_ids,1)=5) appears effective — Bob/play still got 5 questions in the played session and regression /api/quiz/start works.",
+    "No new regressions detected across the 52 assertions covering CRUD, auth-gating, scoring, shuffle independence, refusal flow, and demotion paths."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (52/52)", "frontend": "n/a (backend-only)"},
+  "test_credentials": "Bob bob@japap.com/Test1234! ; Alice alice@japap.com/Alice2026! ; SuperAdmin emileparfait2003@gmail.com/Gerard0103@ (2FA via email_otps).",
+  "seed_data_creation": "Test re-seeds Bob as CM champion via admin/CM/set at start, after promote-all (which can replace), before refusal cycle, and before admin/CM/demote. Also wipes any open Alice↔Bob challenges to avoid 409 collisions.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase 3.A FREE-mode Quiz Champion is fully green. Bob is currently DEMOTED in CM at end of test 11 — re-seed via admin/CM/set if continuing CM-flow tests. The test file /app/backend/tests/test_iter123_quiz_champion.py is reusable and now passes 52/52. iter123 quiz_champion_refusals rows persist in DB but are correctly excluded by the new refused_at >= promoted_at scoping. Phase 3.B (paid mode) still returns 501 — covered by the 'mode=paid → 501' assertion."
+}

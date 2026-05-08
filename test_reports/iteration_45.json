@@ -1,0 +1,42 @@
+{
+  "summary": "Iter 45 — STRICT zero-fraud webhook policy + NowPayments integration validated end-to-end. Backend pytest: 11 PASSED, 2 SKIPPED (1 conditional, 1 transient rate-limit reproduced PASS in isolation). Frontend (bob@japap.com @1920x1080): 5 deposit methods present, NowPayments $5 deposit auto-redirects to https://nowpayments.io/payment?iid=6201450199 after ~1.2s, 20 'Vérifier mon paiement' buttons render on pending hubtel/nowpayments transactions, clicking one for an unpaid invoice shows toast 'NowPayments 404 : Payment not found' (FR) and does NOT crash. Status badges 'En attente' display correctly. STRICT POLICY CONFIRMED: spoofed Hubtel native webhook on a real pending hubtel_card tx → backend returns 200 {status:'pending_verification'} (Hubtel status API replies 400/404 since no real payment), wallet balance unchanged. Spoofed NowPayments webhook (no sig)→401, (wrong sig)→401, (valid HMAC-SHA512 sig but unpaid invoice)→200 {status:'pending_verification'}, balance unchanged in all cases. NowPayments /test-connection: admin→{ok:true,environment:'production'}, non-admin→403. POST /api/wallet/deposit with method=nowpayments_usdttrc20|nowpayments_usdtbsc creates real invoices (numeric provider_tx_id, https://nowpayments.io/payment?iid=... checkout_url). Manual /api/wallet/nowpayments/verify/{tx_id}: owner unpaid → {status:'check_failed', reason includes '404 ... Payment not found'}; non-owner (carol)→403. Hubtel verify same behaviour.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/login", "issue": "Carol's account hit the per-IP brute-force lockout ('Too many attempts. Try again later.') during repeated login probes — required ~60s cooldown. Manual reset via DB UPDATE (password_hash) needed to set Test1234! since carol was created in a prior iteration with an unknown password. Documented in test_credentials section."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "All authenticated pages", "issues": ["Pre-existing socket.io WebSocket handshake 401s carried from iter36-43 — out of iter45 scope."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration45_strict_webhooks.py",
+    "/app/test_reports/pytest/iter45.xml"
+  ],
+  "action_items": [
+    "(Optional) Document carol@japap.com canonical password in /app/memory/test_credentials.md or seed her on cold start (similar to admin/bob) to avoid manual DB resets between testing iterations.",
+    "(Cosmetic) The frontend toast surfaces raw 'NowPayments 404 : Payment not found' — consider mapping that to a friendlier FR message like 'Paiement non encore reçu — réessayez après confirmation blockchain.'",
+    "(Pre-existing) Fix socket.io websocket handshake 401s carried over from prior iterations."
+  ],
+  "critical_code_review_comments": [
+    "routes/wallet.py nowpayments_webhook (lines 847-988): correct strict order — HMAC verify on RAW body BEFORE parsing, then independent GET /payment/{id}. Decision matrix matches spec exactly: ok=True&is_paid=True→credit, ok=True&is_paid=False→unverified, ok=False→pending_verification. Idempotent (already_completed early return).",
+    "routes/wallet.py hubtel_webhook (lines 631-826): same strict pattern. NB it returns HTTP 503/502 when HubtelConfigError or unexpected exception is raised in verify_transaction_status — acceptable (backend cannot verify, must not credit). Tests tolerate (200|502|503) accordingly.",
+    "services/nowpayments_service.py verify_ipn_signature (line 187-203): correctly serialises with sort_keys=True and separators=(',',':') matching NowPayments docs — the test's HMAC over the same sorted serialisation passes (test_valid_hmac_but_unpaid_payment_no_credit ✓).",
+    "routes/wallet.py nowpayments_verify_tx (line 1000-1063): owner-or-admin gate is correct (403 for carol). Returns the raw NowPayments error reason verbatim ('NowPayments 404 : Payment not found') in the 'reason' field — propagated to the FR toast. Consider sanitising for end users.",
+    "routes/wallet.py file is now 1064 lines — exceeds 700 LOC threshold. Recommend splitting webhook handlers into routes/wallet_webhooks.py for maintainability."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration45_strict_webhooks.py (new)"
+  ],
+  "success_rate": {"backend": "100% (11/11 executed; 2 skipped: idempotency-replay needs a pre-existing completed deposit, non-owner-403 transient rate-limit but PASSED in isolated re-run)", "frontend": "100% — all iter45 acceptance criteria met"},
+  "test_credentials": "bob@japap.com/Test1234! ; admin@japap.com/JapapAdmin2024! ; carol@japap.com/Test1234! (password reset via DB during iter45)",
+  "seed_data_creation": "Each test creates its own pending deposit prefixed TEST_iter45_. Bob's wallet was NOT credited by any spoofed webhook (zero-fraud policy held). Carol's password_hash was reset via direct DB UPDATE to enable the non-owner 403 test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Strict zero-fraud webhook policy is verified end-to-end as of iter45. To replay: REACT_APP_BACKEND_URL=https://japap-refactor.preview.emergentagent.com pytest /app/backend/tests/test_iteration45_strict_webhooks.py -v. Carol's password is now Test1234! (set via bcrypt UPDATE during iter45). The Hubtel status API requires IP whitelisting at retail@hubtel.com — currently returns 400 'not found' for unpaid tx (expected, treated as pending_verification by backend). NowPayments /payment/{id} returns 404 for unpaid invoices (expected). Bob's wallet balance was NOT modified by iter45 backend tests (they only create pending deposits and exercise the rejection paths).",
+  "rca of the issue": "N/A — all P0 security acceptance criteria met. ZERO wallet credit was issued from any spoofed webhook in any tested code path."
+}

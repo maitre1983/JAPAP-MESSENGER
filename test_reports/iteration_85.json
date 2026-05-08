@@ -1,0 +1,46 @@
+{
+  "summary": "Iter85 Phase 2/3 follow-up — tested quiz shuffle, tap suspicious flagging, engagement leaderboard, and backend-rendered share-card PNG. 11/14 backend tests PASS. 3 FAIL : tap /submit response is missing `suspicious` and `cheated` fields (DB columns + admin endpoints + background logic all work, but they're NOT serialized in the SubmitResponse Pydantic model — breaking the explicit FR contract). Frontend smoke on /services → Jeux hub PASS : engagement-leaderboard, share-rank-btn ('Partager mon rang #1', enabled), 3 leaderboard rows all render.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/tap/submit",
+        "issue": "Response body does NOT include `suspicious` and `cheated` fields. SubmitResponse Pydantic model (routes/tap.py L99-107) only declares run_id/taps_raw/taps_valid/points_awarded/points_cycle/bonus_awarded/timed_out/best_today. DB columns are populated correctly (confirmed via /admin/suspicious which returns them), but the user-facing /submit endpoint hides them. The problem statement explicitly requires : `cheated=true, suspicious=true (>=100), points=120+50 bonus` in the response.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter85_shuffling_virality.py",
+    "/app/test_reports/pytest/iter85.xml"
+  ],
+  "action_items": [
+    "Add `suspicious: bool` and `cheated: bool` to SubmitResponse model in /app/backend/routes/tap.py (~line 99-107) AND pass them in the final `return SubmitResponse(...)` at ~line 259. The values are already computed at lines 210-217 — just expose them.",
+    "Nice-to-have : also expose `taps_per_second` or `threshold_info` so the UI can show a gentle warning banner to the user when suspicious=true (educates rather than silently flags)."
+  ],
+  "critical_code_review_comments": [
+    "routes/tap.py /submit : values for `cheated` and `suspicious` are correctly computed and persisted to DB (SQL at line 233-238 includes them), but the API response DTO drops them. This is the root cause of the 3 test failures and violates the iter83/85 FR.",
+    "routes/engagement_leaderboard.py weekly endpoint : `me` key is None when user has zero wheel_spins rows this week — current behaviour is graceful (tests pass). UI should handle `me: null` gracefully which frontend appears to do.",
+    "engagement_leaderboard._render_card_png : PNG renders correctly (>20KB), Pillow 12.x is installed and available. Font fallbacks work. No SSRF risk (local avatar only).",
+    "Quiz shuffling : options_order persisted as array-of-arrays [[0,1,2,3],…]. Unshuffle via perm.index(original) works. 3/3 quiz tests green.",
+    "Minor : routes/tap.py SubmitResponse uses BaseModel without model_config = ConfigDict(extra='allow'). Adding `suspicious`/`cheated` to the model is the only correct fix (not runtime kwargs)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter85_shuffling_virality.py"
+  ],
+  "success_rate": {
+    "backend": "79% (11/14) — 3 failures all same root cause (missing fields in SubmitResponse)",
+    "frontend": "100% (engagement-leaderboard renders, share-rank-btn present + enabled + labelled with rank, 3 top-10 rows visible)"
+  },
+  "test_credentials": "admin@japap.com / JapapAdmin2024! ; bob@japap.com / Test1234!",
+  "seed_data_creation": "Uses admin reset-user endpoints between tap/quiz tests for deterministic quotas.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run: `REACT_APP_BACKEND_URL=https://japap-refactor.preview.emergentagent.com python -m pytest backend/tests/test_iter85_shuffling_virality.py -v -p no:ethereum`. Full run ~80s. Once SubmitResponse is patched the 3 TapSuspicious tests will go green. Backend sometimes hits a 502 after a file save while hot-reload restarts — if all tests fail with 502 in <1s, wait ~30s and retry. Also, navigation to /games direct URL redirects to /feed — the games hub is rendered via /services → Jeux tab (ServicesPage.js L326 mounts GamesModule).",
+  "rca of the issue": "DB layer of /api/tap/submit computes `cheated = taps_raw > ceiling` (L210) and `suspicious = taps_valid >= 100` (L213) and persists both via UPDATE at L233. However the Pydantic SubmitResponse (L99-107) omits them, and the final `return SubmitResponse(run_id=..., taps_raw=..., ..., best_today=...)` at L259 doesn't pass them either. Fix = add 2 bool fields to the model + pass them in the return statement. Tests already assert on r.json()['suspicious'] and r.json()['cheated']. Admin /overview and /suspicious endpoints already use the same DB columns correctly (tests green)."
+}

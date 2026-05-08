@@ -1,0 +1,42 @@
+{
+  "summary": "Iter78 — Privacy & Settings layer. Backend pytest 19/19 PASS: GET/PUT /api/users/me/privacy (all 8 toggles, partial merge, invalid enum → 400/422, empty body → 400); follow approval flow (follow_mode='approval' → pending, no counter bump, idempotent); follow-requests inbox listing with request_id+follower_id+username; accept flips status + bumps both counters + returns already:true on 2nd call; accept of other user's request → 404; DELETE /me/followers/{id} decrements both counters + non-follower → 404; decline deletes pending + 2nd call → 404; followers listing filters pending out (only status='accepted'); followers ?q=bob server-side filter works; change-password wrong current → 401 + short new → 400; feed visibility: only_me hidden from non-author (GET /posts/:id → 404); friends visible to accepted follower + author; private account hides public posts from non-follower (Alice private, Bob not following → 404); notifications: social.follow row created on follow + opt-out (notify_follow=false) suppresses row + 60s dedup respected. Frontend Playwright (mobile 390x844, Bob): /settings renders settings-back + all 4 menu items (settings-menu-account/security/privacy/notif); Confidentialité shows settings-privacy-form with all 7 radios (privacy-account-public/private, privacy-follow-auto/approval, privacy-post-public/friends/only-me) visible & clickable.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration78_privacy_settings.py",
+    "/app/test_reports/pytest/iter78.xml"
+  ],
+  "action_items": [
+    "(Ops note — not a bug) PostgreSQL was STOPPED when this test run started; I started it via `service postgresql start` then supervisorctl restart backend. Root cause unknown, but any fresh cold-start test cycle may need to verify PG is up.",
+    "(Ops note) The public preview URL login was slow/flaky during the run — backend tests run reliably against TEST_BASE_URL=http://127.0.0.1:8001 (already the test default). Kept for next agent.",
+    "(Minor observation) /api/notifications returns a paginated shape {items, total, unread_count, page, limit} — test code handles both list and object shapes defensively; no code change needed."
+  ],
+  "critical_code_review_comments": [
+    "routes/privacy.py: Literal enums on Pydantic + defensive re-check → invalid enum returns 400/422 cleanly, no 500 leaks. Good.",
+    "routes/privacy.py change-password imports hash_password/verify_password inside the function (avoids circular import with routes.auth) — acceptable pattern.",
+    "routes/social.py follow branch: requires_approval = (follow_mode='approval' OR account_visibility='private') — correct interpretation of the spec (private implies approval).",
+    "routes/social.py remove_follower: single transaction around DELETE + both counter decrements — atomic, no drift. GREATEST(0,…) protects.",
+    "routes/social.py accept_follow_request: status='accepted' branch returns {accepted:true, already:true} instead of doing the bump twice — idempotent.",
+    "routes/social.py followers/following listings gated by status='accepted' AND ?q= search server-side with LIMIT/OFFSET AFTER the filter — pagination correctness preserved over filtered subset. total returns the denormalised followers_count (global count, not filtered) — matches spec.",
+    "routes/feed.py viz_filter SQL: self OR (public + (public account OR accepted-follower)) OR (friends + accepted-follower) — matches the 4-case matrix. GET /posts and GET /posts/:id use the same predicate — consistent.",
+    "routes/feed.py create_post: posts_count bumps ONLY when visibility='public' — prevents private drafts inflating public-facing counter. delete_post mirrors the decrement (GREATEST(0,...)).",
+    "services/notifications.py: 60s dedup keyed on (target, type, data->>actor_id) — elegant use of JSONB; per-event opt-in column (notify_follow/…) read BEFORE insert. send_push_to_user wrapped in try/except so missing OneSignal creds log at debug level only.",
+    "services/notifications.py guards against self-notifications (actor==target) — prevents noisy own-event rows.",
+    "(Minor) services/notifications.py dedup window is HARD-CODED 60s — consider making it an admin_setting for future tuning without code changes. Non-blocking.",
+    "(Minor) routes/feed.py update_post has no visibility param — editing a post does not allow changing its visibility after creation. If product wants per-post edit, extend UpdatePostRequest with optional `visibility` + guarded enum check + counter re-balancing when flipping public↔non-public."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration78_privacy_settings.py (new, 19 tests)"
+  ],
+  "success_rate": {"backend": "100% (19/19)", "frontend": "100% of items probed (menu/back/privacy-form/7 radios visible; notif/security/requests pages reachable; profile settings-link present)"},
+  "test_credentials": "bob@japap.com / Test1234! ; alice@japap.com / Test1234! ; admin@japap.com / JapapAdmin2024!",
+  "seed_data_creation": "TEST_iter78_* ephemeral posts are created and deleted within each feed-visibility test. Bob/Alice privacy settings are reset to defaults (public/auto/public + all notify_*=true) at the start of each run by module-scope fixtures and at the end of the frontend smoke.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && TEST_BASE_URL=http://127.0.0.1:8001 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest tests/test_iteration78_privacy_settings.py -p asyncio -p anyio -p pytest_asyncio -v . 127.0.0.1 is required because 'localhost' resolution is flaky inside the k8s container. The preview URL (japap-refactor.preview.emergentagent.com) works too but is 3–5× slower. If pytest errors out with connection timeouts, check `service postgresql status` — PG was found STOPPED this iteration and needed `service postgresql start` + `sudo supervisorctl restart backend`. UI login button label is 'Sign in' (English), not 'Se connecter'. Onboarding modal dismiss via [data-testid='onboarding-skip']. The /api/users/profile/{uid} endpoint shape includes followers_count/following_count/is_following — used by the test suite for counter verification.",
+  "rca of the issue": "N/A — no production bugs found. Two environmental gotchas documented above for the next run."
+}

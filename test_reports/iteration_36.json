@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 36 — JAPAP Wallet admin moderation (EAA alignment) tested end-to-end. 25/25 pytest cases PASSED covering: GET /api/admin/deposits & /withdrawals (structure, filters, pagination, volume_total_usd, processing_mode), POST approve/reject on both deposits & withdrawals (credit, refund, idempotency, 404, 400), deposits_enabled kill switch (503), withdraw modes manual/auto/both (status pending vs processing), Hubtel webhook (PAID/FAILED/unknown), NowPayments webhook (finished/failed/confirming/missing-order), plus /payment-methods regression. Frontend Admin /admin → 'Paiements' tab renders PaymentsAdminTab with 3 sub-tabs; all 10 required toggles + all 7 required text fields present; Save button produces success toast 'Paramètres enregistrés'; deposits list shows approve/reject buttons that actually call the API and refresh (7 pending approvable rows), withdrawals list shows AUTO/MANUAL mode badges and reject modal opens with reason textarea + confirm button.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin /admin (global page)", "issues": ["Two unrelated 500 responses in console during login (likely socket.io/notifications polling) — not caused by wallet admin flows but should be investigated separately."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_wallet_admin_iter36.py",
+    "/app/test_reports/pytest/iter36_wallet_admin.xml"
+  ],
+  "action_items": [
+    "(Polish) Investigate the two unrelated 500s observed on /admin page load (not wallet-related) to keep the admin console error-free.",
+    "(Hardening, already flagged by main agent) Add signature verification on /api/wallet/hubtel/webhook and /api/wallet/nowpayments/webhook once API keys & IPN secrets are provided — currently scaffolds accept any payload (MOCKED)."
+  ],
+  "critical_code_review_comments": [
+    "wallet_admin.py reject_withdrawal refunds the FULL tx.amount (fee included) which matches how /api/wallet/withdraw debits the full amount in one UPDATE — accounting consistent and verified by test_reject_refunds_wallet.",
+    "wallet_admin.py approve_deposit uses an explicit conn.transaction() around the wallet credit + status update + notify + audit — safe against partial writes. Good.",
+    "wallet_admin.py approve_withdrawal does NOT wrap its two UPDATEs in a transaction (just an `async with pool.acquire() as conn:`). Lower risk because it's just a status update + notify, but wrapping in conn.transaction() would be strictly safer.",
+    "wallet.py withdraw: when BOTH manual_withdraw_enabled=True AND auto_withdraw_enabled=True, auto wins ('auto' if auto_enabled else 'manual'). This is correct per spec but worth documenting in the settings hint so admins don't expect both modes to coexist per-transaction.",
+    "wallet.py webhook endpoints are unauthenticated and currently accept any payload without HMAC — acknowledged MOCKED per problem statement. Make sure to add rate-limiting or at least source IP allow-listing when wiring real SDKs.",
+    "wallet_admin._list_tx infers processing_mode by string-matching 'mode=auto'/'mode=manual' inside the `notes` column — fragile if notes format evolves. Consider a dedicated column or JSONB metadata in a future iteration.",
+    "PaymentsAdminTab.jsx `Toggle` / `TextField` are defined as nested components inside PaymentSettings — they are re-created on every render, which can cause input focus loss on text fields while typing. Consider hoisting them out or memoising. (Not blocking — noticed design-only, not observed as a functional bug during testing.)"
+  ],
+  "updated_files": ["/app/backend/tests/test_wallet_admin_iter36.py (new)"],
+  "success_rate": {"backend": "100% (25/25 pytest)", "frontend": "100% for the requested scope (tab + 3 sub-tabs + 10 toggles + 7 fields + approve action + reject modal + save settings success toast all verified)"},
+  "test_credentials": "admin@japap.com / JapapAdmin2024!  ·  bob@japap.com / Test1234!",
+  "seed_data_creation": "Created ~8 pending deposit rows for bob (amounts 2-11 USD) and ~3 pending/processing/rejected withdrawal rows across mode tests. Used admin settings API to flip deposits_enabled, manual_withdraw_enabled, auto_withdraw_enabled, kyc_required_for_withdraw during tests. Settings restored via `restore_settings` autouse fixture at module teardown. bob's wallet balance fluctuated by small amounts and was repeatedly debited/credited — final net change is small (a handful of approved deposits minus a few net withdrawals).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All iter36 wallet admin endpoints + UI are solid. /app/backend/tests/test_wallet_admin_iter36.py is the regression file; run it after any change to /app/backend/routes/wallet.py or /app/backend/routes/wallet_admin.py. When real Hubtel/NowPayments SDKs arrive, update test_hubtel_paid_credits and test_nowpayments_finished_credits to also assert signature header validation (currently not enforced). The admin Settings page lacks a 'Save' feedback spinner state beyond button text — minor. Toggle/TextField inline components inside PaymentSettings may cause input focus loss if admin starts typing fast; low priority. Bob currently has no active Pro plan (as expected per the iter36 note).",
+  "rca_of_the_issue": "No product bug identified. Admin moderation flows (approve/reject both deposits and withdrawals), the withdraw mode switcher (manual/auto/both), the deposits kill switch, and both webhooks behave exactly as specified. Refund on withdrawal rejection restores the full debited amount (verified by before/after balance math). UI wires every documented data-testid correctly and calls the right endpoints."
+}

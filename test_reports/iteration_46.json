@@ -1,0 +1,41 @@
+{
+  "summary": "Iter 46 — JAPAP Messenger Sprint A (reply/quote, forward modal, delivery ticks, empty-state CTAs, socket stability) validated end-to-end. Backend pytest: 6/6 PASSED. Frontend (bob@japap.com mobile 375x812 + tablet 768 + desktop 1920 + admin@japap.com empty-state): ALL acceptance criteria met. Mobile WhatsApp-style stack works (list hidden when conv active, back button flips state back). Right-click message menu opens with 3 buttons (reply/forward/react). Reply-preview-bar renders, quote-preview bubble shows on sent reply. Forward modal: search input present, confirm disabled until ≥1 conv selected, enables after selection. Ticks: 26/26 of bob's sent bubbles show tick-seen-{id} (carol has already seen the conv) — messages_seen socket flow verified. Admin empty state renders 3 left CTAs (new-chat/call-contact/create-group) + 2 main CTAs (new-chat-main/create-group-main). No horizontal scroll at any breakpoint (375/768/1920 all scrollWidth==clientWidth). Forwarded badge 'Transféré' visible on forwarded bubbles. Socket options verified in code: reconnection:true, reconnectionAttempts:Infinity, backoff 800-5000ms, 'Connexion restaurée' toast on reconnect event. Pre-existing WebSocket 401 noise carried from prior iterations — not regressed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/messages/groups", "issue": "500 Internal Server Error when creating a group. asyncpg UndefinedColumnError: column 'description' of relation 'conversations' does not exist (routes/messaging.py line 344). The INSERT writes description but the DB schema has no such column — create_group is effectively broken for every caller. Fix: either ALTER TABLE conversations ADD COLUMN description TEXT, or drop description from the INSERT. Not blocking Sprint A acceptance (forward/reply/ticks work), but 'Créer un groupe' CTA in empty state will 500 for all users."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration46_messenger_sprint_a.py",
+    "/app/test_reports/pytest/iter46.xml"
+  ],
+  "action_items": [
+    "P1: Fix /api/messages/groups 500 — add `description` column to conversations table OR drop it from INSERT. Blocks group creation entirely (empty-state Créer un groupe CTA will fail).",
+    "P3 (pre-existing): Socket.io WebSocket handshake 401s in console (carried from iter36-45) — not introduced by Sprint A."
+  ],
+  "critical_code_review_comments": [
+    "routes/messaging.py forward_message (L281-327): correctly validates src participant via JOIN, silently skips unauthorized target convs (no error raised), caps to 20 targets. Good.",
+    "routes/messaging.py get_messages reply_preview (L169-188): batch-loaded via ANY($1::varchar[]) — efficient N+1-safe. Preview truncated to 140 chars. Good.",
+    "routes/messaging.py send_to_conversation (L225-250): accepts reply_to, inserts correctly. Returned row includes reply_to but NOT reply_preview — frontend must reload the full message via GET /conversations/{id} to see the preview. Currently the socket handler's new_message broadcast DOES include reply_preview (server.py L229-253), so REST-only clients see the delayed preview. Minor inconsistency.",
+    "frontend/src/pages/ChatPage.js (996 lines) — exceeds 700 LOC threshold. Recommend splitting MessageBubble, MoneyModal, EmptyState into separate components.",
+    "ChatPage socket effect depends on [user] only (eslint-disable on activeConv) — activeConv is read inside handlers via closure, which works because the handler reads setMessages functional form. OK but fragile.",
+    "routes/messaging.py create_group (L333-372) — BROKEN: writes to non-existent 'description' column. Needs DB migration or code fix before group creation CTAs are usable.",
+    "ForwardModal.jsx: handleForward catches errors silently with console.error only — no toast to the user on failure. Add a failure toast."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration46_messenger_sprint_a.py (new)"
+  ],
+  "success_rate": {"backend": "100% (6/6 Sprint A tests passed)", "frontend": "100% — all Sprint A acceptance criteria met (mobile stack, reply, forward, ticks, empty-state CTAs, no horizontal scroll at 375/768/1920)"},
+  "test_credentials": "bob@japap.com/Test1234! ; carol@japap.com/Test1234! ; admin@japap.com/JapapAdmin2024!",
+  "seed_data_creation": "Tests create their own TEST_iter46_* messages in bob↔carol conv. No other seed data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Sprint A Messenger fully verified. To replay backend: REACT_APP_BACKEND_URL=https://japap-refactor.preview.emergentagent.com pytest /app/backend/tests/test_iteration46_messenger_sprint_a.py -v. For frontend mobile flow, use viewport 375x812, /chat as bob, expect no horizontal scroll and back-to-conversations testid toggling list/chat view. The /api/messages/groups 500 is the only active backend defect found — it does not affect reply/forward/ticks but will affect Sprint B group-focused features. Bob's existing conv with carol has ≥26 messages; first one can be re-used as src for forward tests.",
+  "rca of the issue": "Group creation 500: routes/messaging.py L344 INSERT INTO conversations (conv_id, type, title, description, created_by) references 'description' column that doesn't exist in the DB schema. Either schema drift (migration missed) or typo of an intended future column. Reproduction: POST /api/messages/groups with any valid body → 500 + asyncpg UndefinedColumnError. Mitigation: add migration `ALTER TABLE conversations ADD COLUMN description TEXT DEFAULT ''` OR remove description from the INSERT (and the CreateGroupRequest field). All other Sprint A paths are green — zero P0 issues."
+}

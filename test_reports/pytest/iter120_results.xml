@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="iter120_quiz_phase2" tests="25" failures="0">
+  <testcase classname="iter120" name="admin login (2FA)">
+  </testcase>
+  <testcase classname="iter120" name="GET /admin/games/quiz returns quiz_auto_advance_delays_ms">
+  </testcase>
+  <testcase classname="iter120" name="PUT quiz_auto_advance_delays_ms persists">
+  </testcase>
+  <testcase classname="iter120" name="Re-GET shows persisted delays">
+  </testcase>
+  <testcase classname="iter120" name="reject [200] (below 300)">
+  </testcase>
+  <testcase classname="iter120" name="reject [3500] (above 3000)">
+  </testcase>
+  <testcase classname="iter120" name="reject [] (empty)">
+  </testcase>
+  <testcase classname="iter120" name="reject "not_a_list"">
+  </testcase>
+  <testcase classname="iter120" name="/quiz/start 200 & 5 questions">
+  </testcase>
+  <testcase classname="iter120" name="/quiz/start contains all required keys">
+  </testcase>
+  <testcase classname="iter120" name="/quiz/start auto_advance_delays_ms is list">
+  </testcase>
+  <testcase classname="iter120" name="/quiz/answer returns {correct, question_idx}">
+  </testcase>
+  <testcase classname="iter120" name="/quiz/answer does NOT mutate DB state">
+  </testcase>
+  <testcase classname="iter120" name="Alice on Bob's run → 403">
+  </testcase>
+  <testcase classname="iter120" name="question_idx=10 → 400 or 422">
+  </testcase>
+  <testcase classname="iter120" name="/quiz/submit ok with full schema">
+  </testcase>
+  <testcase classname="iter120" name="/quiz/answer after submit → 409">
+  </testcase>
+  <testcase classname="iter120" name="/quiz/answer after expiry → 410">
+  </testcase>
+  <testcase classname="iter120" name="3 starts ok, 4th=429 (got [200, 200, 200, 429])">
+  </testcase>
+  <testcase classname="iter120" name="GET /api/wheel/status">
+  </testcase>
+  <testcase classname="iter120" name="POST /api/wheel/spin">
+  </testcase>
+  <testcase classname="iter120" name="POST /api/tap/start">
+  </testcase>
+  <testcase classname="iter120" name="POST /api/tap/submit">
+  </testcase>
+  <testcase classname="iter120" name="force-verify missing tx → 404">
+  </testcase>
+  <testcase classname="iter120" name="force-verify cross-user → 403">
+  </testcase>
+</testsuite>

@@ -1,0 +1,43 @@
+{
+  "summary": "Iter18 — Voice messages (OpenAI Whisper via EMERGENT_LLM_KEY) + Smart Feed re-ranking. Backend 15/15 PASS on /app/backend/tests/test_iteration18_voice_smartfeed.py: voice send via to_user_id returns full payload (msg_id/conv_id/url/duration/transcription/message), file accessible at /api/upload/files/{name}, voice persisted as media JSON kind='voice' with url/duration/transcription/size, missing conv_id+to_user_id → 400, .txt extension → 400 'Format audio non supporté', >10MB → 400 'trop volumineux', Whisper transcription returned as string, default sort=smart, sort=recent gives score=null and DESC by created_at, sort=smart ordered by score DESC, sort=foo → 422 (Query pattern), engagement boost verified (Bob likes+comments admin's post → boosted score >= baseline). Regression: text msg, chat-money, emoji react all pass. Whisper returned French filler text on 440Hz beep ('Sous-titres réalisés para la communauté d'Amara.org') — known Whisper non-speech hallucination, pipeline confirmed live. Frontend smoke PASS: feed-sort-toggle with feed-sort-smart ('✨ Pour toi') and feed-sort-recent ('🕐 Récents'), both clickable and trigger reload without crash; voice-record-button visible in 1-1 chat compose; 2 voice bubbles (message-voice-{msg_id}) render with voice-play-toggle, '2s' duration label, voice-transcription-toggle, voice-transcription-text shows transcription on toggle. emoji-picker-button + message-input + 5-block nav (Accueil/Messenger/Wallet/Services/Profil) intact.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Socket.IO realtime", "issue": "wss://…/api/socket.io WebSocket handshake still failing ('closed before established') — carry-over from iter14-17. Does not block voice/feed flows (HTTP works), but realtime new_message broadcast for voice cannot be cross-browser verified.", "affected_selectors": ["[data-testid^='message-voice-']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration18_voice_smartfeed.py",
+    "/app/test_reports/pytest/iter18_results.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: Whisper hallucinates plausible French phrases on non-speech audio (e.g., '440Hz beep' → 'Sous-titres réalisés…d'Amara.org'). For real user voice this is correct behaviour, but consider a server-side heuristic to suppress transcription when audio energy is below a threshold or duration < 1s.",
+    "CARRY-OVER (LOW): Fix /api/socket.io WebSocket upgrade through ingress to enable realtime voice message delivery (HTTP optimistic append already works, dedupe by msg_id is in place)."
+  ],
+  "critical_code_review_comments": [
+    "messaging.py /voice: `to_user_id or ''` then `await push_to_user(to_user_id or '', ...)` — passing empty string when conv_id was provided is wasteful; gate properly with `if to_user_id:` (the trailing `if to_user_id else None` pattern is awkward, prefer plain if/else).",
+    "messaging.py /voice acquires the pool twice (once for conv resolution/perm check, then again for INSERT) with the Whisper call in between — fine for connection hygiene, but if Whisper times out the upload is wasted. Consider streaming transcription async/background and returning immediately with transcription=null + a follow-up patch.",
+    "feed.py smart query embeds the 30-day affinity CTE inline on every request — for high-traffic feeds, materialize this in a per-user table refreshed every 5 min to avoid recomputing.",
+    "feed.py smart score: log denominator 10.0 caps engagement at log(N+1)/10 ≤ 1.0; with very viral posts (likes>10000) engagement saturates quickly. Acceptable for now; document the cap.",
+    "VoiceRecorder.jsx: ensure MediaRecorder cleanup on unmount to avoid leaked mic streams — verify component calls stream.getTracks().forEach(t=>t.stop()) on cancel/unmount. (Not tested here — main agent should self-verify.)",
+    "Backend voice endpoint accepts duration via Form but does not validate against actual audio duration (could be spoofed). Low risk since UI is the only client and 60s cap is enforced client-side; consider ffprobe for server-side duration verification."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration18_voice_smartfeed.py (new — 15 tests, all passing)"
+  ],
+  "success_rate": {
+    "backend": "100% (15/15 voice + smart feed + regression)",
+    "frontend": "100% on iter18 scope (voice button, voice bubbles with transcription toggle, feed sort toggle); WebSocket realtime carry-over is unrelated"
+  },
+  "test_credentials": "admin@japap.com / JapapAdmin2024! ; bob@japap.com / Test1234!",
+  "seed_data_creation": "Created 2 voice messages (Bob → admin), 2 TEST_iter18 text messages, 1 chat-money 100 XAF transfer, 1 emoji reaction (🔥), 2 TEST_iter18 feed posts ('baseline' and 'boosted'), 1 like + 1 comment on boosted post.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter18 voice + smart feed are fully working end-to-end. Reusable test file: /app/backend/tests/test_iteration18_voice_smartfeed.py (run with `pytest backend/tests/test_iteration18_voice_smartfeed.py -v`). Whisper is LIVE via EMERGENT_LLM_KEY in backend/.env. Login response uses 'access_token' key (not 'token'). Carry-over: WebSocket /api/socket.io upgrade still failing — does NOT block voice/feed HTTP flows. Feed posts table now exists and works (the iter17 missing-table issue has been resolved).",
+  "rca of the issue": "N/A — no bugs found in iter18 scope."
+}

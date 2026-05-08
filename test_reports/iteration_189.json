@@ -1,0 +1,37 @@
+{
+  "iteration": 189,
+  "feature": "Automated Seller Reminder Worker (push 15min + email digest 24h)",
+  "status": "PASS",
+  "testing_type": "backend",
+  "test_file": "/app/backend/tests/test_seller_reminder_iter189.py",
+  "cases": [
+    {"case": 1, "desc": "Push fires for intent older than 15min when seller hasn't replied", "status": "PASS"},
+    {"case": 2, "desc": "Push suppressed when seller has replied in conv after intent.created_at", "status": "PASS"},
+    {"case": 3, "desc": "Idempotency — push_15min row present blocks re-push", "status": "PASS"},
+    {"case": 4, "desc": "Email digest fires for intent older than 24h, email_24h row inserted", "status": "PASS"},
+    {"case": 5, "desc": "Admin toggle seller_reminders_enabled=false short-circuits tick", "status": "PASS"},
+    {"case": 6, "desc": "Strong idempotency — ON CONFLICT DO NOTHING keeps row count = 1, no double push", "status": "PASS"}
+  ],
+  "sql_fix": {
+    "previous_bug": "column 'user_a' does not exist on conversations table",
+    "root_cause": "Old query joined conversations.user_a — a non-existent column",
+    "fix": "Replaced with NOT EXISTS (SELECT 1 FROM messages WHERE conv_id=i.conv_id AND sender_id=i.seller_id AND created_at > i.created_at)",
+    "location": "/app/backend/services/seller_reminder_worker.py lines 144-149 (push) and 175-180 (email)"
+  },
+  "worker_mount": {
+    "import": "server.py line 83 — from services.seller_reminder_worker import start_worker as start_seller_reminder_worker",
+    "start": "server.py line 260 — start_seller_reminder_worker(fastapi_app)",
+    "boot_log": "services.seller_reminder_worker - INFO - [SellerReminder smr-XXXX] loop started (tick=300s)"
+  },
+  "admin_settings_keys": {
+    "seller_reminders_enabled": "true (default)",
+    "seller_reminder_push_minutes": "15",
+    "seller_reminder_email_hours": "24",
+    "seller_reminder_email_max_intents": "3"
+  },
+  "test_credentials": "alice@japap.com / bob@japap.com from /app/memory/test_credentials.md",
+  "mocked": ["_send_push_reminder", "_send_email_digest (to avoid hitting OneSignal/Resend during tests)"],
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "action_item_for_main_agent": "None — iter189 is complete and fully validated. Proceed to next priority (Jobs/Scholarship P2 or Crowdfunding P3)."
+}

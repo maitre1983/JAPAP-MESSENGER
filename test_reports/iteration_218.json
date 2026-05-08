@@ -1,0 +1,68 @@
+{
+  "summary": "iter218 — CRITICAL P0 root cause found: video upload broken on ARM64 container. has_ffmpeg() returns True but ffmpeg binary is x86_64 (Exec format error on aarch64). All video uploads fail → user sees 'Erreur upload'. Text-post creation + CSRF patch work correctly. Frontend composer missing expected data-testid attributes.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "/api/upload/ (video)",
+        "issue": "ALL video uploads fail with 400 'The file is not a readable video.' Root cause: container arch is aarch64 (ARM64) but static_ffmpeg 2.13 fallback path bin/linux/ffmpeg is x86_64 ELF (EM_X86_64=0x3E). Correct ARM64 binary exists at bin/linux_arm64/ffmpeg but get_or_fetch_platform_executables_else_raise() returns the wrong path. has_ffmpeg() passes (only os.path.exists check) yet subprocess raises OSError [Errno 8] Exec format error.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "/api/feed/posts",
+        "issue": "Pydantic schema expects field 'text' not 'content' — not aligned with iter218 spec wording (no real bug, just doc mismatch). Schema accepts text-only posts with 200."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "FeedPage composer",
+        "issue": "Expected data-testid attributes NOT found on /feed: publish-button, image-upload-label, camera-capture-btn, emoji-btn, file-upload-input. Buttons render visually but cannot be targeted by E2E automation. Spec says iter218 wired these, actually missing.",
+        "selector": "[data-testid=\"publish-button\"], [data-testid=\"image-upload-label\"], [data-testid=\"camera-capture-btn\"], [data-testid=\"emoji-btn\"]",
+        "priority": "HIGH"
+      },
+      {
+        "component": "FeedPage Publier button",
+        "issue": "Publier button renders greyed-out even after textarea fill with 'Test post iter218'. Possible React state/prop lag (may need keystroke events rather than fill) — needs main agent verification.",
+        "selector": "button:has-text('Publier')",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter218_upload_csrf.py",
+    "/app/test_reports/pytest/iter218.xml"
+  ],
+  "action_items": [
+    "URGENT P0: Fix ffmpeg resolution on ARM64. Options: (a) Patch _resolve_ffmpeg_paths() to use platform.machine() and pick bin/linux_arm64/ when aarch64/arm64. (b) Install system ffmpeg in container (currently NOT in apt PATH). (c) Upgrade static_ffmpeg past 2.13 if newer versions handle ARM64 correctly.",
+    "URGENT P0: Harden has_ffmpeg() to subprocess.run([bin, '-version']) so binary-mismatch bugs surface at startup instead of at first upload attempt. Currently it only checks os.path.exists() which masked this entire issue.",
+    "Add missing data-testid attributes on FeedPage composer: publish-button, image-upload-label, camera-capture-btn, emoji-btn, file-upload-input (per iter218 spec).",
+    "Investigate why Publier button stays disabled after textarea.fill() — may need native keystroke event dispatch to trigger React state change.",
+    "Confirm whether production (japapmessenger.com) runs on same ARM64 arch — if yes, this is the exact production P0 blocker the user reports."
+  ],
+  "critical_code_review_comments": [
+    "video_pipeline.py:90-93 — has_ffmpeg() is unsafe. Checks os.path.exists() but not executability. Recommend: run `[bin, '-version']` once at startup and cache the boolean; fail loudly if it raises.",
+    "video_pipeline.py:64-83 — _resolve_ffmpeg_paths() relies on static_ffmpeg.get_or_fetch_platform_executables_else_raise() which on this container returned the x86_64 path even though arch is aarch64. The logic should detect platform.machine() and select bin/linux_arm64/ manually if needed.",
+    "requirements.txt:185 — static_ffmpeg==2.13 pin is problematic on multi-arch container fleets. Pin a version known to resolve per-arch, or vendor ffmpeg in the image.",
+    "axiosSecurity.js CSRF patch — verified WORKING. Zero 'CSRF protection: missing or invalid token' in console on /feed and /reels. Both absolute + relative /api/ fetch paths get X-Requested-With/X-CSRF-Token.",
+    "uploadErrorMessage.js — well-structured fallback tree; good UX. Covers 401/403/csrf/413/415/422/429/5xx/network all with actionable French copy.",
+    "Security: /api/feed/posts creates posts without Authorization header when a session cookie from prior login is still active — expected cookie-auth behavior, not a bug. But test_post_requires_auth assumed bearer-only (now confirmed cookie carries through session)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter218_upload_csrf.py"
+  ],
+  "success_rate": {
+    "backend": "2/7 passed (test_has_ffmpeg FAIL — critical P0; test_upload_* setup errors due to CDN 403 BUT direct curl of real mp4 to /api/upload also returns 400; test_post_requires_auth FAIL — cookie persisted; test_post_text_only_with_bearer PASS; test_upload_txt_rejected_4xx PASS)",
+    "frontend": "CSRF patch 100% working; composer data-testid 0% present"
+  },
+  "test_credentials": "bob@japap.com / Test1234! + captcha bypass JAPAP_E2E_BYPASS_2026 / 0 — working",
+  "seed_data_creation": "Created 2 text posts on Bob's feed via /api/feed/posts during tests: 'iter218 no-auth test', 'TEST_iter218 backend post creation'. Also attempted but failed 1 video upload (400 not readable).",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "REPRODUCTION STEPS for the ARM64 ffmpeg bug: (1) `uname -m` → aarch64. (2) `python3 -c \"from static_ffmpeg.run import get_or_fetch_platform_executables_else_raise as g; print(g())\"` returns `bin/linux/ffmpeg` (WRONG — that's x86_64). (3) `<that_path> -version` → bash: Exec format error. (4) Correct binary exists at `bin/linux_arm64/ffmpeg` — verify with `od -c <path> | head -1` → ELF header byte 18 should be 0xB7 (aarch64) not 0x3E (x86_64). (5) Direct curl of any valid mp4 to `/api/upload/` with Bearer token returns 400 'File is not a readable video'. Once main agent patches _resolve_ffmpeg_paths to honor platform.machine(), retest with: backend test file `test_iter218_upload_csrf.py` + direct curl with /tmp/tiny.mp4 (downloaded from filesamples.com/samples/video/mp4/sample_640x360.mp4). Note: filesamples.com CDN 403s urllib default UA — use curl -A or requests with custom UA.",
+  "rca of the issue": "Root cause of user-reported 'Erreur upload' on japapmessenger.com: container is ARM64 (aarch64). iter218 added static_ffmpeg==2.13 which did ship both x86_64 AND arm64 binaries, but its auto-resolver returns bin/linux/ffmpeg (x86_64) even when run on aarch64. Binary file exists so has_ffmpeg() returns True. When upload handler calls ffprobe via subprocess → OSError: [Errno 8] Exec format error → caught as generic transcode failure → 400 'File is not a readable video' → frontend shows 'Erreur upload'. Fix: explicitly check platform.machine() in _resolve_ffmpeg_paths and prefer bin/linux_arm64/ on aarch64; AND make has_ffmpeg() validate executability not just existence. Bonus: the frontend CSRF token patch (axiosSecurity.js) + uploadErrorMessage.js centralization — both VERIFIED WORKING (zero CSRF console errors across /feed + /reels)."
+}

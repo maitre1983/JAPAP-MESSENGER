@@ -1,0 +1,37 @@
+{
+  "summary": "iter222 — Retest of the 5 cases that failed/cascade-failed in iter221. All 5 tests now PASS. The two critical fixes from iter221 are validated end-to-end: (1) QRScannerModal — open-redirect to japap.evil.com is now blocked because WS.isSafeJapapUrl(raw) is evaluated BEFORE the /pay/pr_xxx pathname regex; toast 'QR non-JAPAP' is surfaced and no cross-origin navigation occurs. (2) RequestPaymentModal — removing min='1' from the input lets validateAmount(-5) execute and surface the toast 'Le montant doit être positif'. TEST7 (Hubtel) and TEST8 (NowPayments) both render their respective deposit cards with masked TX IDs using the Unicode ellipse '…' (e.g. 'dep_1b…4783' and 'dep_5a…4d60'). TEST10 (valid japap.pay payload) successfully POSTs to /api/users/resolve-qr (returns 404 for non-existent u_test, as expected and acceptable per spec).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results_per_test": {
+    "TEST2_negative_amount_toast": "PASS — Pasting -5 in request-amount-input and clicking request-create-button produces sonner toast 'Le montant doit être positif'. WS.validateAmount() runs as expected after removing min='1'.",
+    "TEST5_open_redirect_blocked": "PASS — https://japap.evil.com/pay/pr_123 is rejected before any pathname matching. Page URL stays on /wallet (no navigation to evil.com). Both [data-testid=qr-scanner-error] and toast contain 'QR non-JAPAP. Scanne un QR de paiement ou de profil JAPAP.' Confirms WS.isSafeJapapUrl gate is now FIRST inside the if (/^https?:\\/\\//) block (lines 64-69 of QRScannerModal.jsx).",
+    "TEST7_hubtel_maskId": "PASS — XAF currency selected, hubtel_card method, 100 USD submitted via [data-testid=confirm-deposit-button]. [data-testid=hubtel-deposit-status] renders with text 'TX : dep_1b…4783' — Unicode ellipse '…' present, matching maskId(prefix=6, suffix=4) output for IDs longer than 10 chars.",
+    "TEST8_nowpayments_maskId": "PASS — nowpayments_usdttrc20 method, 100 USD submitted. [data-testid=nowpayments-deposit-card] renders with 'TX : dep_5a…4d60 · Payment ID : 6418316551'. TX masked correctly with Unicode '…'. Payment ID (10 chars) is intentionally not masked because maskId returns the original when id.length <= prefixLen+suffixLen — this is correct per walletSecurity.js line 165 contract.",
+    "TEST10_valid_japap_pay_payload": "PASS — Payload {\"t\":\"japap.pay\",\"uid\":\"u_test\",\"v\":1} is accepted by isValidQrPayload (all keys ∈ ALLOWED_KEYS) and POST /api/users/resolve-qr is fired (returns 404 since u_test does not exist — expected and acceptable per the test contract). Confirms the guard does not over-reject valid japap.pay payloads."
+  },
+  "test_report_links": [
+    "/app/.screenshots/wallet_iter222.png"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "QRScannerModal.jsx — fix is correct and minimal: WS.isSafeJapapUrl(raw) is now the FIRST gate inside the HTTPS branch (lines 64-69). Both /pay/pr_xxx and /api/og/pay/pr_xxx and the generic JAPAP-URL fallback now sit under this guard, so any non-JAPAP origin is rejected early. Recommend adding a small unit test under /app/frontend/src/utils/__tests__/walletSecurity.test.js for isSafeJapapUrl coverage.",
+    "RequestPaymentModal.jsx — keeping required attribute on the input is fine since negative numbers still pass HTML5 validity (only empty fails). The JS-level WS.validateAmount() now correctly surfaces every error case (negative, < min, > max, NaN).",
+    "walletSecurity.js maskId — the contract 'no masking when length <= prefix+suffix' is intentional but worth documenting because TEST8 reveals that 10-digit NowPayments Payment IDs (like 6418316551) appear unmasked in the UI. If the product wants ALL provider IDs masked, consider lowering prefix/suffix or always slicing first 4 + last 4 with ellipse regardless of length.",
+    "QRScannerModal.jsx still uses window.location.href = raw for safe JAPAP URLs whose origin differs from window.location.origin — fine in this preview but on production this means a real JAPAP→production cross-origin nav. Consider always using navigate() for same-origin and an explicit 'open in new tab' UI cue for cross-origin to avoid silent full-page reloads."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only retest)",
+    "frontend": "5/5 retest cases PASS (100%)"
+  },
+  "test_credentials": "Bob bob@japap.com / Test1234! — math captcha solved client-side from [data-testid=math-captcha-question]",
+  "seed_data_creation": "Each TEST7/TEST8 run creates a real wallet deposit row (hubtel_card and nowpayments_usdttrc20 respectively) for Bob, both at 100 USD. Visible in 'Historique des transactions'. No cleanup performed.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iter221 wallet-security regressions are now resolved. The fixes in QRScannerModal.jsx (lines 60-69, isSafeJapapUrl as first gate) and RequestPaymentModal.jsx (input without min='1') work as intended. Reusable selectors for any future wallet retest: [data-testid=deposit-button], [data-testid=deposit-method-{hubtel_card|nowpayments_usdttrc20|nowpayments_usdtbsc}], [data-testid=deposit-amount-input], [data-testid=confirm-deposit-button], [data-testid=hubtel-deposit-status], [data-testid=nowpayments-deposit-card], [data-testid=qr-mode-manual], [data-testid=qr-manual-input], [data-testid=qr-manual-submit], [data-testid=qr-scanner-error]. Login flow: solve math at [data-testid=math-captcha-question], fill [data-testid=math-captcha-answer], press Enter (Submit click sometimes detaches DOM after captcha re-render).",
+  "rca_of_the_issue": "Fixes from main agent verified: (1) QRScannerModal — WS.isSafeJapapUrl(raw) check moved BEFORE the /pay/pr_xxx and /api/og/pay regex matches, killing the open-redirect attack vector. (2) RequestPaymentModal — removed native min='1' so HTML5 validation does not pre-empt React onSubmit; WS.validateAmount(-5) now surfaces the toast 'Le montant doit être positif'."
+}

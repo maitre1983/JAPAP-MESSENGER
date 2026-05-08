@@ -1,0 +1,31 @@
+{
+  "summary": "Iteration 14 frontend retest PASSED. ServicesPage.js now exposes all 6 active service cards (marketplace, crypto, crowdfunding, games, jobs, transport) each with the 'Actif' badge — verified via Playwright. Clicking service-jobs mounts JobsModule (jobs-page) with all 7 category pills (jobs-cat-tech/sales/marketing/logistics/services/craft/other), jobs-search, create-job-btn and my-jobs-btn. The create-job-btn opens create-job-modal, submitting via job-form-title + job-form-category + submit-job successfully POSTed (Offre publiée! toast) and the new job (TEST_RetestJob_1776713780) appeared in the list. Clicking a job card opens job-detail. apply-btn is correctly hidden for the owner (admin posted all jobs). Clicking service-transport mounts TransportModule (transport-page) with mode-rider/mode-driver tabs. Rider mode shows rider-form when no active ride; with admin's pre-existing pending ride, active-ride card displayed correctly with fare 922 XAF / 2.11 km / cancel-ride-btn. Switching to mode-driver as the registered driver (testref_1776710356) shows driver-profile (no driver-register-form). Admin /admin Dashboard regression PASSED — admin-dashboard + admin-crowdfunding-stats + admin-gaming-stats + admin-jobs-stats + admin-transport-stats all render. No regressions detected.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Transport rider — fresh fare-estimate could not be re-asserted while admin has a pending active ride", "issue": "rider-form is correctly hidden when active-ride exists (922 XAF Bastos→Centre-ville from previous test). To re-test fare-estimate→request-ride from scratch, either cancel the pending ride first or use a different rider account. This is expected business logic, not a bug.", "affected_selectors": ["fare-estimate","request-ride-btn"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_jobs_transport_admin.py", "/app/test_reports/pytest/iter13_results.xml"],
+  "action_items": [
+    "None blocking. (Optional) Add a data-testid for the description textarea and city input inside create-job-modal for easier deterministic testing (currently only job-form-title, job-form-category, submit-job have testids).",
+    "(Optional) Add data-testid='job-description' and 'job-location' inputs in create-job-modal for parity with other modals."
+  ],
+  "critical_code_review_comments": [
+    "ServicesPage.js cards correctly wired to setView('jobs') and setView('transport') which mount JobsModule and TransportModule. All 6 cards have unique borderColor and proper Actif badge.",
+    "JobsModule create-job-modal is missing data-testid on description textarea and ville input — minor testability gap.",
+    "Transport rider correctly disables creation when an active_ride exists; this is good UX safety.",
+    "FeedPage shows console error 'An error occurred in the <FeedPage> component' on first render after login — not part of this scope but worth flagging for later (does not block any tested flow).",
+    "WebSocket connection to /api/socket.io/ closes before connection is established — repeated warning in console on every page load. Likely Socket.IO version mismatch or wrong path. Not blocking but should be investigated."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (29/29 from iter13, not re-run)", "frontend": "100% on all spec'd flows (services hub 6/6, jobs full CRUD path, job-detail navigation, transport page mount, mode tabs, rider-form/active-ride logic, driver-profile for registered driver, admin dashboard 5/5)"},
+  "test_credentials": "admin@japap.com / JapapAdmin2024! (admin), testref_1776710356@japap.com / Test1234! (registered driver)",
+  "seed_data_creation": "Created 1 additional test job (TEST_RetestJob_1776713780, Tech, Douala, 200000-300000 XAF) via UI submission. Admin's pending ride from iteration 13 still exists (Bastos→Centre-ville, 922 XAF, status=requested). 4 total TEST_* jobs now exist.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iteration 14 spec items pass. If retesting fare-estimate→request-ride end-to-end, first cancel admin's pending ride (cancel-ride-btn visible on transport page) or use a non-admin account without an active ride. Driver flow for accept→complete is fully covered by backend pytest (test_jobs_transport_admin.py 29/29).",
+  "rca of the issue": "No new bug found. Iter13's blocking issue (missing service-jobs/service-transport cards) has been fully resolved by main agent — both cards now render with correct testids, borderColor, Actif badge, and onClick that mounts the respective module. End-to-end frontend integration for Jobs and Transport modules is verified working."
+}

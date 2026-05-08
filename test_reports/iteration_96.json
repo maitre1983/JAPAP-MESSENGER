@@ -1,0 +1,79 @@
+{
+  "summary": "Iter96 — Pre-GoLive UX & perf audit. Backend 13/13 pytest PASS: full OTP verify flow (seeded inactive user → /verify-otp activates + cookies + /me returns email_verified=true), forgot/reset password flow (seeded reset_token → /reset-password 200, token marked used, post-reset login-equivalent via JWT /me 200), 5/5 perf targets met (see details), Turnstile regressions (login/register/forgot 400 without token), settings cache invalidation on wheel_config_json update (verified at service level). One backend bug FOUND + FIXED during run: /api/upload/image?kind=post → 500 for RGBA images due to `img.__class__.new(...)` attribute error on PngImageFile subclass (/app/backend/routes/upload.py L290). Fixed to use `PIL.Image.new`. Frontend: /register and /forgot-password pages render correctly in French with Turnstile widget present, but the widget displays 'Unable to connect to website — error 110200' on the preview hostname (japap-refactor.preview.emergentagent.com), meaning Cloudflare does not treat this domain as trusted — full register+OTP and forgot-password E2E could not be driven via Playwright for that reason. Authenticated routes (/wheel-fortune, /quiz-japap) redirected the test session back to /feed (cookie-injection approach does not authenticate the frontend session because backend sets httpOnly cookies on real /verify-otp or /login; JWT-mint alone is insufficient for cookie auth). Backend endpoints for both games return 200 within perf budgets, so UX rendering path is separately validated via perf tests.",
+  "verdict": "GO LIVE READY for backend (all 13 tests PASS, all 5 perf targets MET, 1 latent bug fixed). UX animation smoothness and full register-OTP-login E2E through the UI could NOT be physically validated in this test env due to Turnstile domain-trust issue on the preview hostname — MAIN AGENT should verify on the production domain (japapmessenger.com) where Turnstile site key 0x4AAAAAADCoJlINJzwPuKV0 is actually registered.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/upload/image (all kinds)",
+        "issue": "AttributeError: type object 'PngImageFile' has no attribute 'new' — _normalize_mode() at routes/upload.py L290 called img.__class__.new() which doesn't exist on Pillow subclass types. Only fires for RGBA images (alpha channel). Latent since iter94. FIXED in this iter by replacing with `PIL.Image.new`.",
+        "priority": "MEDIUM-FIXED"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Register / Forgot-password Turnstile widget",
+        "issue": "On japap-refactor.preview.emergentagent.com the Cloudflare Turnstile iframe shows 'Unable to connect to website — Troubleshoot' + console 'Cloudflare Turnstile Error 110200'. This is a hostname-allowlist mismatch on the Turnstile site key configuration. On the production domain (japapmessenger.com) it should auto-solve. This blocks any automated E2E register/forgot-password flow via Playwright on the preview URL.",
+        "affected_selectors": ["iframe[src*='turnstile']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter96_perf_auth.py",
+    "/app/test_reports/pytest/iter96.xml"
+  ],
+  "test_results": {
+    "AUTH_register_blocked_without_turnstile_400": "PASS",
+    "AUTH_verify_otp_activates_seeded_user_200_cookies_me": "PASS",
+    "AUTH_verify_otp_rejects_bad_code_400": "PASS",
+    "AUTH_forgot_password_blocked_without_turnstile_400": "PASS",
+    "AUTH_reset_password_happy_path_and_token_single_use": "PASS",
+    "PERF_wheel_status_median": "1.116s (target <1.5s) PASS",
+    "PERF_quiz_start_median": "0.903s (target <2.5s) PASS — massively under target",
+    "PERF_games_status_median": "0.769s (target <1.0s) PASS",
+    "PERF_admin_messaging_templates_median": "0.772s (target <1.0s) PASS",
+    "PERF_admin_messaging_campaigns_median": "0.770s (target <1.0s) PASS",
+    "REGRESSION_login_blocked_without_turnstile_400": "PASS",
+    "REGRESSION_upload_image_post_200": "PASS (after _normalize_mode fix)",
+    "REGRESSION_settings_cache_invalidates_on_wheel_config_update": "PASS",
+    "FRONTEND_register_page_loads_fr_with_turnstile": "PASS (widget present, shows CF error 110200 on preview hostname)",
+    "FRONTEND_forgot_password_page_loads_fr_with_turnstile": "PASS (widget present, shows CF error 110200 on preview hostname)",
+    "FRONTEND_wheel_spin_animation_smoothness": "NOT_VERIFIED (cookie injection could not authenticate the frontend session — both /wheel-fortune and /quiz-japap redirected to /feed). Backend perf proves the data path is fast; SVG GPU hint lives inline in WheelFortuneCasino.jsx L225-238 per code review.",
+    "FRONTEND_quiz_start_E2E_click": "NOT_VERIFIED (same cookie-injection limitation)"
+  },
+  "perf_measurements_seconds": {
+    "/api/wheel/status": [1.115, 1.116, 1.117],
+    "/api/quiz/start": [0.885, 0.903, 0.963],
+    "/api/games/status": [0.761, 0.769, 0.814],
+    "/api/admin/messaging/templates": [0.758, 0.772, 0.895],
+    "/api/admin/messaging/campaigns": [0.765, 0.770, 0.788]
+  },
+  "action_items": [
+    "Verify Cloudflare Turnstile domain whitelist for site key 0x4AAAAAADCoJlINJzwPuKV0 includes japap-refactor.preview.emergentagent.com (currently throws error 110200) OR confirm that only japapmessenger.com is intentional for production — in which case QA-on-preview for auth flows requires disabling Turnstile or a separate dev-mode key.",
+    "Main agent to run one final manual smoke on /wheel-fortune (spin) + /quiz-japap (start→answer) on production domain to eye-ball animation fluidity — backend perf is green but UI-layer fluidity still needs human eye. Playwright cookie-inject bypass did not work because frontend auth uses httpOnly cookies set by /verify-otp or /login responses; minted JWT alone does not create a frontend session.",
+    "Keep the _normalize_mode fix in upload.py (already applied) — this was a silent latent bug for any user uploading a PNG with alpha channel."
+  ],
+  "critical_code_review_comments": [
+    "routes/upload.py L290 (FIXED) — img.__class__.new() is not a Pillow API; `PngImageFile` subclasses don't expose class-level `.new`. Use `PIL.Image.new(...)` instead. Bug was silent because iter94 tests used JPEGs (RGB mode, branch never taken). Add one regression test with an RGBA PNG to lock this in.",
+    "routes/wheel_fortune.py L469-540 parallel asyncio.gather on 3 separate pool.acquire() calls gives 1.1s warm median — good. Caveat: under high concurrency the pool could throttle and serialize these; consider monitoring pool.get_idle_size() if /wheel/status QPS goes >50/s.",
+    "routes/quiz.py L155-260 parallelisation delivered the biggest win — 0.9s median vs. target 2.5s. Excellent headroom.",
+    "middleware/turnstile.py: fail-open when TURNSTILE_SECRET_KEY is unset is guarded by a log.warning only — consider refusing to start the backend in prod (FAIL_CLOSED) if env=production and secret missing, so a misconfigured deploy never ships an unprotected auth endpoint.",
+    "settings_service._cache_invalidate() on set_setting() works at process level only — if backend runs multiple workers (uvicorn --workers N) caches will drift until TTL expires (60s). Acceptable for current scale; if scaled out, promote to Redis pub/sub.",
+    "Preview-hostname Turnstile 110200 error → if any monitoring alert fires on /register 400s, make sure the dashboard discriminates real bots vs. this dev-preview hostname issue."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter96_perf_auth.py (new, 13 tests)",
+    "/app/backend/routes/upload.py (bugfix: _normalize_mode RGBA branch)"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "50% (2/4 — static page loads validated; authenticated UX flows not validatable under preview hostname)"},
+  "test_credentials": "admin@japap.com + alice@japap.com JWT minted via /app/backend/tests/test_iter96_perf_auth.py::_mint_token (Turnstile blocks direct curl login; 120min TTL).",
+  "seed_data_creation": "Created 3 ephemeral qa_iter96_* users + 3 email_otps rows + 1 password_reset_tokens row + 1 wallets row during tests. Cleanup fixture deletes all qa_iter96_* users + related OTPs + reset tokens + wallet rows after module.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=/app/backend python -m pytest -p no:cacheprovider --override-ini='addopts=' tests/test_iter96_perf_auth.py -v (web3 plugin breaks otherwise). Backend hot-reload on code changes is flaky — if a code edit doesn't take, `sudo supervisorctl restart backend && sleep 20` before re-running tests. For any Playwright auth-gated test on the preview hostname (japap-refactor.preview.emergentagent.com) be aware Turnstile site key returns CF error 110200 — hostname not in allowlist; bypass options: (a) temporarily clear TURNSTILE_SECRET_KEY in backend/.env to trigger fail-open (NOT for prod), (b) test on production domain japapmessenger.com, or (c) use Turnstile test key `1x00000000000000000000AA` with secret `1x0000000000000000000000000000000AA`. Authenticated frontend routes will not accept a raw minted JWT via cookie — the session is created by httpOnly cookies set in the /verify-otp or /login response. For spin-animation visual verification, actually drive the UI through a valid login (register → verify-otp from backend log) then click Spin with a trace-enabled Playwright run and inspect the SVG's computed style at mid-spin.",
+  "rca of the issue": "Upload.py RGBA bug: Pillow's Image subclasses like PngImageFile do NOT inherit the classmethod `.new`; only the base PIL.Image module exposes it as a module-level function. Calling img.__class__.new raised AttributeError silently for all alpha-channel PNGs. Repro: POST /api/upload/image?kind=post with a 1×1 RGBA PNG → 500. Fix: `from PIL import Image as _I; bg = _I.new('RGB', img.size, (255,255,255))`. Mitigation: the three-tuple kinds avatar/cover have the exact same branch — now also fixed via same single-site change since _normalize_mode is the shared code path."
+}

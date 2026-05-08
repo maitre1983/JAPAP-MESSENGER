@@ -1,0 +1,38 @@
+{
+  "summary": "iter176 Marketplace Phase B Step 2 (Escrow + share-on-boost + admin settings) — fully validated. Backend regression: iter175 9/9 PASS + iter176 escrow 9/9 PASS + new EXTENDED suite 9/9 PASS (commission % dynamic 5%→fee=2.50, public settings exposes 3 mkt_escrow_* keys, transactions ledger contains marketplace_purchase+marketplace_release+marketplace_commission USD rows, dispute reason <10→400 ≥10→disputed, seller cannot buy own product 400, non-admin /resolve→403, cross-user dispute blocked + dispute-on-released→409, /ledger 403 unrelated, auto-release idempotent). Frontend on https://japap-refactor.preview.emergentagent.com fully verified: (A) Alice non-owner on /marketplace/p/{pid} → mkt-escrow-info green banner renders 4 lines (🔒 Paiement sécurisé JAPAP / 💰 Fonds bloqués / ⏳ Libération auto après 7 jours [from public settings, NOT hardcoded] / ⚖️ Litige possible) and mkt-buy-escrow gradient button labeled 'Acheter pour 10.00 USD via Escrow'. (B) Click mkt-buy-escrow → window.confirm accepted → POST /api/marketplace/orders 200 → toast → navigate('/services?view=marketplace') → 'Mes commandes (Escrow)' section displays 1 row with order-escrow-{id} pill ('🔒 Fonds bloqués'), confirm-{id} ('✅ Confirmer'), dispute-{id} ('⚖️ Litige') — all 3 testids present. (C) AdminPage.js source confirmed 'Marketplace — Escrow & Boost (zero hardcode)' settings group with all 11 expected keys (verified_seller_badge_enabled, mkt_escrow_enabled/commission_percent/auto_release_days/dispute_enabled/treasury_account, mkt_boost_enabled/price_24h/price_7d/price_homepage/homepage_days). CEO rules respected: zero-hardcode (commission % live-read, auto_release_days from public settings drives banner copy), USD wallet only, treasury='japap_treasury' string in ledger, atomic INSUFFICIENT_BALANCE.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "ServicesPage marketplace listing card", "issues": ["Pre-existing carry-over from iter175: USD-priced product '10.00 USD' is rendered as '10 XAF' on the marketplace listing card (currency code formatter bug). Detail page correctly shows '10.00 USD'. Not blocking iter176 escrow flow."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_marketplace_iter175.py",
+    "/app/backend/tests/test_marketplace_escrow_iter176.py",
+    "/app/backend/tests/test_marketplace_escrow_iter176_extended.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "marketplace.py create_order/confirm_order/admin_resolve: settings_service.get('mkt_escrow_commission_percent') is read at runtime — verified by [E2] (5% setting → fee 2.50 USD on a fresh order, no static fallback regression).",
+    "marketplace_escrow_ledger commission entry to_account literal 'japap_treasury' (virtual ledger account, not a wallets row) — confirmed by base test [4] and matches CEO rule (treasury is virtual, not a user wallet).",
+    "transactions table writes 3 typed rows per release (marketplace_purchase / marketplace_release / marketplace_commission) all currency=USD — auditable financial ledger, no PSP path. Excellent.",
+    "Auto-release sweep is idempotent: only flips orders where escrow_status='held' AND auto_release_at <= NOW(); second run candidates=0 ([E9]).",
+    "MarketplaceProductPage.js buyEscrow uses window.confirm() — works but native dialog is a poor UX for E2E + mobile; consider a shadcn AlertDialog with data-testid='mkt-buy-escrow-confirm' for testability and consistency. Not blocking.",
+    "MarketplaceProductPage.js escrow banner text auto-release line correctly reads escrowSettings.auto_release_days (sourced from /api/settings/public) — zero-hardcode upheld.",
+    "AdminPage.js settings group 'Marketplace — Escrow & Boost (zero hardcode)' lists all 11 keys with French labels. Source-verified at lines 1024-1037.",
+    "Boost share-toast (mkt-boost-share-toast / -copy / -whatsapp / -native) is wired in MarketplaceProductPage.js BoostModal lines 229-260 — verified by code inspection and iter175 regression. Not re-tested here as the boost flow itself is iter175 territory.",
+    "Public settings endpoint exposes mkt_escrow_auto_release_days, mkt_escrow_commission_percent, mkt_escrow_dispute_enabled to anonymous frontend — confirmed by [E1]."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_marketplace_escrow_iter176_extended.py (new — 9 extended E2E tests covering settings dynamic, transactions ledger types, dispute validation, security 403/409, idempotency)"
+  ],
+  "success_rate": {"backend": "100% (27/27: 9 iter175 + 9 iter176 base + 9 iter176 extended)", "frontend": "100% (banner + buy + redirect + 3 services testids + admin settings group all verified)"},
+  "test_credentials": "Bob bob@japap.com/Test1234! (seller, balance reset to 50 USD), Alice alice@japap.com/Alice2026! (buyer, reset to 200 USD), Admin admin@japap.com/JapapAdmin2024! (no 2FA). Captcha bypass: captcha_id=JAPAP_E2E_BYPASS_2026 / captcha_answer=0.",
+  "seed_data_creation": "Created and cleaned test product 'TEST iter176 UI - Casque' (prod_7a2c4544779b) used for live UI flow. Reset Alice wallet to 200 USD, Bob to 50 USD. Restored mkt_escrow_commission_percent to 2 after test E2 ran with 5. All extended-test scratch products/orders deleted at teardown.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter176 ships green: 27/27 backend + all frontend testids present (mkt-escrow-info, mkt-buy-escrow, order-escrow-{id}, confirm-{id}, dispute-{id}, mkt-boost-share-toast/-copy/-whatsapp/-native, admin Marketplace—Escrow&Boost group 11 keys). Zero-hardcode verified end-to-end (settings drive fee, banner copy, public settings endpoint). Treasury 'japap_treasury' is a virtual ledger account (not wallets row). For future testing: backend login can be slow (~10s warmup) — use httpx.AsyncClient timeout >= 60s; native window.confirm in buyEscrow needs page.on('dialog', d.accept()) handler in Playwright; one minor pre-existing carry-over from iter175 (USD price → 'XAF' formatter on listing card).",
+  "rca of the issue": "n/a — all asks satisfied per spec. Single design polish carry-over (XAF/USD formatter on listing card) noted from iter175 and confirmed not regressed by iter176."
+}

@@ -1,0 +1,29 @@
+{
+  "summary": "iter121 — Phase 2 Quiz brute-force lock-in (revealed_options JSONB) validated. 17/17 targeted tests pass. Confirmed: (1) revealed_options column auto-added by _DDL exists in quiz_user_runs, (2) first POST /api/quiz/answer for (run_id, question_idx) returns 200 with {correct, question_idx} and writes the chosen selected_option into revealed_options, (3) repeating the SAME (run_id, question_idx, selected_option) returns 200 idempotent (same `correct` value), (4) calling SAME (run_id, question_idx) with EACH of the three other options (1, 2, 3) returns 409 with detail exactly 'Cette question a déjà été révélée avec une autre réponse.', (5) DIFFERENT question_idx in the same run is independent (own lock), (6) DB revealed_options serialised correctly as {'0': 0, '1': 2}, (7) /quiz/submit still 200 with full schema after multiple /answer reveals (no DB pollution), (8) all post-submit /answer calls return 409 'Run déjà soumis'. Regression: GET /api/admin/games/quiz still returns quiz_auto_advance_delays_ms = [900,800,700,550,400] (documented default).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter121_quiz_brute_force_lock.py",
+    "/app/test_reports/pytest/iter121_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "/app/backend/routes/quiz.py reveal_answer — implementation is correct (FOR UPDATE row lock + JSONB upsert keyed by str(question_idx) + idempotent same-option). One minor improvement: the lock now relies on a single UPDATE within the FOR UPDATE transaction, which is safe; however since the row is fetched by id (run_id) only, the user_id check happens AFTER the row lock — fine for correctness but could be tightened by adding `AND user_id=$2` to the SELECT … FOR UPDATE to fail-fast 404 on cross-user attempts (currently returns 403 after lock acquisition).",
+    "/app/backend/routes/quiz.py — file is now ~821 lines, still above the 700-line guideline carried over from iter120. Consider splitting admin endpoints into routes/admin/quiz.py.",
+    "Idempotent ALTER in _DDL: 'ALTER TABLE quiz_user_runs ADD COLUMN IF NOT EXISTS revealed_options JSONB' — confirmed applied. No backfill needed since revealed_options is read with a None-safe default."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter121_quiz_brute_force_lock.py (new — 17 assertions, custom runner, JUnit XML emitted)",
+    "/app/test_reports/pytest/iter121_results.xml (new)"
+  ],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "n/a (backend-only request)"},
+  "test_credentials": "Bob bob@japap.com / Test1234! used (matches /app/memory/test_credentials.md). Admin emileparfait2003@gmail.com / Gerard0103@ used for the regression GET /api/admin/games/quiz (2FA via DB email_otps purpose=login_2fa). All credentials worked unchanged.",
+  "seed_data_creation": "Bob's quiz_user_runs wiped at start and end of run. No other seed data introduced.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter121 fix is fully landed. The revealed_options column is auto-created on backend boot; tests are idempotent and re-runnable as long as Bob has fewer than the daily limit of starts (test wipes his quiz_user_runs first). Note: at the start of this run the preview environment was 502'ing for ~10s during a backend restart — the test now retries login on 502/503/504 and ReadTimeout. Pytest runner is still broken in this env (web3 plugin import — same as iter111-120), so the test uses a custom Python runner with manual JUnit XML emission.",
+  "rca of the issue": "Not applicable — feature validated end-to-end. The brute-force vector flagged in iter120 critical_code_review_comments[2] is now closed: a DIFFERENT selected_option for an already-revealed (run_id, question_idx) returns HTTP 409 with French detail. No code changes were required from this agent."
+}

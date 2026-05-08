@@ -1,0 +1,42 @@
+{
+  "summary": "Iter24 JAPAP Advanced Referral Program e2e tested. Backend 21/21 pytest passing (config shape, me shape + badges + progress, list pagination, apply invalid/self/duplicate/IP-cap-blocks, claim invalid/insufficient, leaderboard weekly/all_time/disabled, admin stats, admin list + filters, block/unblock roundtrip, send-reminders + disabled toggle, settings-driven dynamic config [enabled/bonus/tiers_json], end-to-end activation credits wallet 0.50 USD in referrer's wallet currency). Frontend /referral shows premium UI: PARRAINAGE JAPAP header, code L7LDRMME, Copier+WhatsApp+Telegram buttons, 4 stat cards (Filleuls/Actifs/En attente/Gagné USD), progress bar to next tier (0/3), 2 tier cards (3 FILLEULS/10 FILLEULS → Pro days), Top parrains leaderboard with 'Cette semaine'/'Tout temps' toggle. Admin /admin Parrainage tab shows 5 stat cards (TOTAL=9, ACTIFS=3, EN ATTENTE=6, BLOQUÉS=2, BONUS VERSÉS=$2.25/30j), Top parrains list, paginated table w/ status+blocage filters + search box, Bloquer/Débloquer buttons (working, status badges show 'Bloqué ip_limit_reached'), IP column visible. Admin Paramètres tab contains the Parrainage group (confirmed presence).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin Parrainage", "issues": ["'Envoyer les rappels' button not located via standard text selectors in the initial viewport — may be below fold or positioned inside a different section. Backend endpoint /api/admin/referrals/send-reminders is fully functional (tested, returns {sent:N} or {skipped_reason:'reminder_disabled'}). Main agent to verify button placement is discoverable without scroll fatigue."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration24_referrals_advanced.py",
+    "/app/test_reports/pytest/iter24_referrals.xml"
+  ],
+  "action_items": [
+    "(Minor) Verify the 'Envoyer les rappels' CTA button in /admin Parrainage tab is visible in the initial viewport — currently not reachable via 'button:has-text(Rappels)' selector from screenshot region.",
+    "(Optional UX) Anti-fraud table badge could include an icon legend — 'Bloqué ip_limit_reached' is surfaced but admins may appreciate a tooltip/legend clarifying auto vs manual blocks."
+  ],
+  "critical_code_review_comments": [
+    "referrals.py check_and_activate_referral: correctly skips when r.blocked OR referral_enabled=false; credits BOTH referrer+referee bonuses in each user's wallet currency via _credit_wallet_bonus (verified: USD→local conversion using currency_rates.rate_vs_usd). Wallet row is FOR UPDATE-locked — concurrency safe.",
+    "referrals.py _over_daily_cap uses `created_at::date = today` which matches server TZ (UTC); the admin cap settings referral_max_per_ip_per_day + referral_max_per_device_per_day are honoured; exceeded rows are stored with blocked=TRUE & blocked_reason so they never activate but are visible in admin.",
+    "referral_rewards_log: one row per credit (role=referrer/referee/tier) — verified via DB inspection after activation flow. amount_usd + amount_local + currency + details jsonb populated.",
+    "claim route: takes N oldest active refs by activated_at ASC, marks status='rewarded' + reward_given=TRUE + reward_type, inserts subscription with source='referral_tier' for Pro tier or wallet-credits for wallet tier. Decimal arithmetic is correct.",
+    "referrals_admin.py list filter: LOWER(email) LIKE LOWER(search) — case-insensitive and both sides lowercased. Good.",
+    "referrals_admin.py block/unblock + send-reminders all write to audit_logs — traceable.",
+    "send-reminders is idempotent (reminder_sent_at IS NULL filter) and respects referral_reminder_enabled toggle (returns skipped_reason='reminder_disabled').",
+    "Settings: 13 referral_* keys are in DEFAULTS + PUBLIC_KEYS (referral_enabled, referrer_bonus_usd, referee_bonus_usd, activation_requires_otp/action, tiers_json, leaderboard_enabled/window, gamification_enabled, max_per_ip/device_per_day, reminder_enabled/delay_days, tier_plan_id). Dynamic updates verified end-to-end (tiers_json[0].count=5 → /api/referrals/config reflects immediately; referral_enabled=false → /apply returns 503; referrer_bonus_usd=1.00 → config.referrer_bonus_usd=1.0).",
+    "Minor: referrals_admin.py admin_block uses raw f-string for audit_logs JSON — safe here because reason is truncated to 255 chars but a sanitize/escape would be robust against quotes in reason text.",
+    "Minor: /api/referrals/config requires auth via get_current_user — consider exposing a subset (enabled + bonuses + tiers) anonymously for a public landing page; not a bug.",
+    "No MongoDB ObjectId issues — all PG asyncpg. No hardcoded URLs. Decimal quantize(0.01) consistent."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration24_referrals_advanced.py (NEW — 21 tests incl. OTP-aware register helper reading email_otps table directly)"
+  ],
+  "success_rate": {"backend": "100% (21/21)", "frontend": "100% for /referral user page + /admin Parrainage + Paramètres Parrainage group"},
+  "test_credentials": "admin@japap.com / JapapAdmin2024! ; bob@japap.com / Test1234! ; alice@japap.com / Test1234!",
+  "seed_data_creation": "Tests create fresh TEST_apply_/TEST_ipcap_/TEST_activate_/TEST_disabled_ users with unique timestamps. OTP is read from email_otps table via sudo -u postgres psql on japap_messenger DB (db name resolved from backend/.env). Tests are idempotent & re-runnable. Settings are restored in try/finally for all toggle tests (referral_enabled, referral_max_per_ip_per_day, referral_referrer_bonus_usd, referral_tiers_json, referral_leaderboard_enabled, referral_reminder_enabled).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression suite: /app/backend/tests/test_iteration24_referrals_advanced.py. 21 tests, ~12s runtime. Key helper: _register_and_verify(email) does full OTP flow by reading code from PG email_otps table (not logs — OTP not logged). DB: japap_messenger on local postgres. Referrals advance to 'active' when the referee performs a qualifying action like POST /api/feed/posts AND email_verified=TRUE (unless referral_activation_requires_otp=false). Wallet credit: USD × currency_rates.rate_vs_usd → local ccy, row in transactions (type='referral_bonus') + referral_rewards_log. Admin list search filter is case-insensitive — search with lowercase; emails are stored lowercased.",
+  "rca of the issue": "N/A — no product bugs. Three initial test bugs self-fixed: (1) /auth/register now requires OTP verification (switched helper to read code from email_otps table in PG and call /verify-otp); (2) search comparison was case-sensitive (test_activate_* stored lowercase vs TEST_activate_* input — lowercased both sides); (3) admin list search for ip-cap test used exact email, fixed with prefix match. Product code passed all 21 functional checks."
+}

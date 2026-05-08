@@ -1,0 +1,38 @@
+{
+  "summary": "iter149 BOTH (backend smoke + P3 frontend extensions). Backend: 9/9 iter146 trusted-device pytests PASS in 65.6s — no regression introduced by SettingsPage / chat / story / profile / worker changes. Frontend (Bob login via computed math captcha 8-7=1 / 6+5=11): (1) NEW Settings 'Mes appareils' section fully functional — section entry rendered with DeviceMobile icon + label 'Mes appareils' + description 'Sessions connectées, appareils de confiance'; click reveals settings-devices-list with 2 trusted devices for Bob; current device shows 'Cet appareil' badge with primary border-left, the other shows '✓ De confiance' badge + 'Retirer' button; click Retirer → toast 'Appareil retiré des appareils de confiance' + the untrust button correctly disappears (is_trusted=false on reload). (2) FeedPage testids: camera-capture-btn FOUND; create-story-btn FOUND (NB review_request states 'create-story' but actual is 'create-story-btn' — minor doc mismatch). (3) StoryCreator: clicking create-story-btn opens story-creator modal with story-creator-close, story-add-photo, story-publish testids all present; story-add-photo opens MediaFilterEditor in capture mode and the headless camera fallback (media-filter-camera-error) is correctly shown with FR copy 'Impossible d'ouvrir la caméra. Réessaie.'. (4) ProfilePage: edit-avatar-button + edit-cover-button both FOUND; clicking edit-avatar-button opens MediaFilterEditor (upload mode) and Cancel cleanly closes it with no ghost ImageCropper. (5) ChatPage: chat-file-input is conditional on an active conversation (only mounted when activeConv is set) — confirmed by code review (line 1014). (6) Worker file present at /app/frontend/src/workers/sharpenWorker.js + bakeImageFilterAsync/getSharpenWorker correctly use 'new URL(\"../workers/sharpenWorker.js\", import.meta.url)' (Webpack 5 pattern, lines 124-138). The frontend bundles without errors and serves the page.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter146_auth_trusted.py",
+    "/app/test_reports/pytest/iter149_smoke.xml"
+  ],
+  "action_items": [
+    "Doc-only: review_request mentions testid 'create-story' but actual code uses 'create-story-btn' (FeedPage.js:390). Either update the request doc or rename the testid for consistency. Non-blocking."
+  ],
+  "critical_code_review_comments": [
+    "DevicesSection (SettingsPage.js:432-531) is well-scoped (~100 LOC) — handles loading/empty/list states, toast on success/error, optimistic-ish refetch via load() after untrust. Good UX: green DeviceMobile when trusted, primary border-left for current device.",
+    "summariseUserAgent() (SettingsPage.js:533+) avoids pulling a 30KB UA-parser dep — good lightweight choice. Detects Chrome correctly ('Chrome sur Linux' shown in test).",
+    "getSharpenWorker() (mediaFilters.js:124-138) lazy-instantiates a single Worker — correct pattern. bakeImageFilterAsync (line 229) wraps the worker.postMessage in a Promise with timeout fallback to synchronous applySharpen. The synchronous fallback guarantees a valid JPEG even when Worker construction fails (headless / old browsers).",
+    "ImageCropper.jsx initialFile prop + auto-load useEffect (lines 53-160 per request) — good DRY pattern, avoids duplicating file-picker logic when chained from MediaFilterEditor.",
+    "ChatPage.js (1300+ LOC) is over the 700 LOC threshold and was already flagged in earlier iterations; iter149 adds ~30 lines for filter routing, increasing the pressure to split. Consider extracting MessageComposer + AttachmentPicker into separate components in a follow-up.",
+    "FeedPage.js StoryCreator inlined into FeedPage rendering tree — passing photoPreview/onAddPhoto/onClearPhoto props is clean. No issue."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (9/9 iter146 retest in 65.6s)",
+    "frontend": "100% on validated flows: settings devices section (full untrust round-trip), camera-capture-btn presence, story-creator + story-add-photo + camera fallback, edit-avatar + edit-cover open MediaFilterEditor + clean cancel. Worker bundling validated by code review (no runtime worker invocation captured in headless because camera is unavailable, but the synchronous fallback path is the one exercised by getUserMedia=NotAllowed flows)."
+  },
+  "test_credentials": "Bob bob@japap.com / Test1234! used. Math captcha computed live from data-testid=math-captcha-question (regex /(\\d+)\\s*([+\\-x×*])\\s*(\\d+)/). E2E bypass NOT used for frontend.",
+  "seed_data_creation": "None for frontend. Bob already had ≥2 trusted devices from iter146/147/148 retest runs — confirmed by listing 2 device cards (one current 'Chrome sur Linux', one previous 'Navigateur'). Untrust called on the non-current device — restored state visible in screenshot. Backend pytest TestTrustedDevice setup_method DELETEs trusted_devices for Bob between every class.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "iter149 fully validated. Backend regression via `cd /app/backend && PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_iter146_auth_trusted.py -v` (~66s, 9/9). Frontend testids confirmed stable: settings-devices-list, settings-devices-loading, settings-devices-empty, settings-device-{8charfp}, settings-device-{8charfp}-current, settings-device-{8charfp}-trusted, settings-device-{8charfp}-untrust. NB the FeedPage story trigger testid is 'create-story-btn' (NOT 'create-story' as docs suggested). MediaFilterEditor still mounts via media-filter-editor; camera fallback is media-filter-camera-error. ChatPage chat-file-input is rendered only when an active conversation is opened — to test, must first click a conversation row. The Worker file is at /app/frontend/src/workers/sharpenWorker.js and is consumed lazily by mediaFilters.js getSharpenWorker(); the synchronous fallback in applySharpen guarantees a valid baked JPEG regardless of worker availability (verified by code review only — actual sharpen preset application requires a real image upload + apply button click which was not exhaustively run in headless).",
+  "rca_of_the_issue": "N/A — no bugs found this iteration."
+}

@@ -1,0 +1,51 @@
+{
+  "summary": "Iteration 32 Wallet refactor end-to-end validation (backend + frontend). All 13 pytest cases covering /api/wallet/payment-methods, deposit (USDT TRC20/BEP20/Hubtel MOCKED), withdraw (percent & flat fee, KYC gate, invalid method, short address), balance debit, and transactions regression — ALL PASSED. Frontend Playwright confirmed WalletPage renders, the 3 data-testid deposit buttons work end-to-end (TRON address shown, MOCKED label shown for Hubtel), KYC gate blocks the withdraw form when KYC is pending (kyc-banner + kyc-modal), and the percent fee preview renders correctly ('2%', fee 1.00, net 49.00) with address 'TTestAddress123456789' & amount 50. Withdraw submission succeeds and shows the success banner with Net + frais.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/wallet/payment-methods",
+        "issue": "min_withdraw_usd is read from withdraw_min_amount_usd (default '5' in seed) — this overrides the amount-input min attribute on frontend even when min isn't required. Not a bug, just a note."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Wallet — balance card",
+        "issues": ["Balance is labelled in XAF but amounts are USDT when depositing/withdrawing. The currency on the wallet row is hard-coded XAF, yet the deposit/withdraw flows are in USD/USDT. Possible user confusion — consider dual-display or explicit USD conversion label."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_wallet_iter32.py",
+    "/app/test_reports/pytest/iter32_wallet.xml"
+  ],
+  "action_items": [
+    "Consider: clarify wallet currency on WalletPage.js header (XAF vs USDT) since all new deposit/withdraw methods are denominated in USD/USDT but the balance card shows the user's native currency (XAF for bob). Not blocking, just a UX polish.",
+    "Hubtel API is MOCKED (confirmed on both backend & frontend) — no real checkout URL. Needs real API key when owner provides it (expected per problem statement).",
+    "Crypto deposits are manual (admin approves tx_hash). No on-chain verification — acceptable per MOCKED API list."
+  ],
+  "critical_code_review_comments": [
+    "wallet.py L197-199: min_dep uses get_setting('deposit_min_amount_usd'). Seed default is '1'. OK, but the unified error message for 0/negative amount (400 'Amount must be positive') is checked before method validation — good.",
+    "wallet.py fee computation (L274-284): uses Decimal correctly, rounds percent mode to 0.0001 precision and blocks fee >= amount — robust.",
+    "WalletPage.js L366-381: fee preview logic mirrors backend formula (same percent vs flat branching) — consistent, zero drift risk.",
+    "WalletPage.js L283: 'reference' field is shown for usdt_* methods but allows empty — reasonable since user returns later to add tx hash.",
+    "admin_settings.py: Hubtel key on/off is exposed publicly but not `deposit_hubtel_card_enabled` — consider exposing it so frontend can hide the button when admin disables the method (currently we rely on /payment-methods which is auth-gated)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_wallet_iter32.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 pytest)",
+    "frontend": "~95% (deposit TRC20 + Hubtel MOCKED + KYC gate + percent fee preview + withdraw submit verified; flat-mode UI preview was blocked by admin session cookie collision in Playwright — path verified via backend test + /payment-methods response + identical render template)"
+  },
+  "test_credentials": "admin@japap.com / JapapAdmin2024!  ·  bob@japap.com / Test1234!",
+  "seed_data_creation": "Temporarily approved bob's KYC via direct DB UPDATE on kyc_verifications (reverted to pending during test then re-approved for withdraw). Temporarily flipped withdraw_fee_mode percent↔flat via admin API, restored to percent/2 at the end. Created ~7 pending deposit and 2 pending withdrawal test tx rows for bob in the transactions table (all safe, will show in history as pending).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Wallet iter32 refactor is solid end-to-end. If main agent adds real Hubtel integration, re-run /app/backend/tests/test_wallet_iter32.py and update test_deposit_hubtel_mocked to assert mocked=false + real checkout_url. bob's KYC is currently approved in DB and wallet balance was reset to ~500 USD; any remaining pending deposits/withdrawals are harmless test artifacts. Settings are restored to defaults (withdraw_fee_mode=percent, value=2).",
+  "rca_of_the_issue": "No product bug found. Backend correctly supports the new DEPOSIT_METHODS/WITHDRAW_METHODS dicts, dynamic fee settings, KYC gate, balance debit semantics (full amount debited, fee on transactions.fee). Frontend WalletPage.js renders all 3 deposit methods, 2 withdraw methods, deposit address/chain/instruction, Hubtel MOCKED label, KYC banner + modal, and the dynamic fee preview mirrors backend math exactly."
+}

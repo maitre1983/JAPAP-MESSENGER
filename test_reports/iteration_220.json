@@ -1,0 +1,40 @@
+{
+  "summary": "iter220 — Upload progress UX (UploadProgressButton). Frontend-only test as requested. Both Feed publish-button and Reels reel-submit correctly expose data-progress + data-phase attrs and transition through real upload phases. End-to-end flows (text post + reel upload of an ARM64-ffmpeg-generated test mp4) succeed. All key prior-iter regressions pass at the surface level.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Reels create flow", "issues": ["Mobile sticky header (md:hidden notif/menu strip) z-index intercepts clicks on the gradient reels-create-btn pill on mobile viewport (390x844). Playwright .click() with force=true STILL routed the click to the Bell icon. Workaround in tests: dispatch via element.click() in JS. Recommend bumping reels-create-btn z-index above the fixed header (z-50) or moving the pill out of the header overlap zone for real-thumb taps."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_220.json"
+  ],
+  "action_items": [
+    "Optional polish: have FeedPage handlePost reset uploadPhase→'idle' / uploadProgress→0 IMMEDIATELY after the optimistic post is appended (currently the publish-button is still observable at phase='publishing'/95% for ~1 frame after the post appears; user-visible window is essentially nil but tests caught it as the last attribute snapshot). Looks fine to end users; flag as P3 polish only.",
+    "P2 (mobile UX): raise z-index of [data-testid='reels-create-btn'] above the md:hidden header strip (Layout line ~105). Currently the Bell icon overlay can intercept thumb taps on the create pill at 390px width."
+  ],
+  "critical_code_review_comments": [
+    "UploadProgressButton.jsx: clean drop-in component, proper SVG ring math (radius=14, circumference=2πr, dashoffset = c - (p/100)c). data-progress and data-phase attributes are correctly wired for E2E observability — passes the iter220 acceptance criteria.",
+    "UploadProgressButton.jsx:43 `active = phase !== 'idle' || progress > 0` correctly hides the SVG ring when fully idle (verified: hasSvg=false at idle). When progress>0 OR phase!=idle, both ring + phase label render (verified during reel upload: phase=upload, hasSvg=true once active).",
+    "UploadProgressButton.jsx:56 `disabled = disabled || (active && !done)` prevents double-submits during upload — good. But once progress hits 100 and phase=publishing, `done` would become true and unblock the button, allowing a second click before the parent resets state. In practice the parent unmounts the modal (Reels) or clears the composer (Feed) faster than a user can re-tap, so it's a non-issue. Worth a comment in the source.",
+    "FeedPage.js publish-button: the first observable post-click attribute set captured was phase='publishing' at progress=95 — i.e. for a TEXT-ONLY post the upload+processing phases are skipped (no files), the button jumps straight to 'publishing'. This is correct semantic behaviour (no bytes to upload). The percentage label '95%' still renders during that brief window, which is good UX.",
+    "ReelsPage.js reel-submit: full phase progression observed for a real 17KB mp4 upload — idle → upload(0%) → upload(80%) → publishing(95%) → modal close. The 'processing' (80-95%) phase did not surface as a distinct mutation because transcode of a 1-second test video completes in <100ms; for real-world reels this phase will be visible. Acceptance criteria met.",
+    "Mobile Layout overlay regression (NOT a iter220 regression — pre-existing): the md:hidden fixed top header in Layout.js intercepts pointer events on elements at top-of-viewport. Confirmed by Playwright reporting 'subtree intercepts pointer events' on the Bell svg even though the click target was the create-btn rendered below. Flagged in design_issues."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "frontend": "6/6 acceptance checks (100%)",
+    "backend": "not retested (per review_request — backend frozen at iter219 100%)"
+  },
+  "test_credentials": "bob@japap.com / Test1234! + captcha bypass JAPAP_E2E_BYPASS_2026 / 0 — working",
+  "seed_data_creation": "Generated /tmp/iter220_test.mp4 (~17KB, 1s, 320x240, h264) via /root/.venv/lib/python3.11/site-packages/static_ffmpeg/bin/linux_arm64/ffmpeg. Created 1 text post 'iter220 progress test' + 1 reel uploaded by bob@japap.com.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter220 PASS. Acceptance evidence: (1) Feed publish-button at idle has data-progress='0', data-phase='idle', label 'Publier', no SVG ring. After Publier click on a text-only post, MutationObserver captured phase='publishing' progress='95' and the post appeared optimistically in the feed. (2) Reels reel-submit went through observable phases idle→upload(0)→upload(80)→publishing(95)→modal close. (3) Idle disabled state shows opacity ~0.55 (disabled=true when textarea empty). (4) UploadProgressButton component at /app/frontend/src/components/UploadProgressButton.jsx hides the SVG ring when active=false, shows ring+label when active. (5) /api/og/reel/{id} still returns 200. To click the gradient `reels-create-btn` from Playwright on mobile viewport, do NOT use .click() — use page.evaluate(\"() => document.querySelector('[data-testid=\\\"reels-create-btn\\\"]').click()\") because Layout.js header intercepts pointer events.",
+  "rca of the issue": "No iter220 bugs found. Two pre-existing P3/P2 polish items flagged (FeedPage publish-button doesn't snap back to idle for the last animation frame; Layout mobile header overlay intercepts clicks on reels-create-btn). Neither blocks acceptance."
+}

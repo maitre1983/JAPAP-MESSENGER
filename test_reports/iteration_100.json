@@ -1,0 +1,41 @@
+{
+  "summary": "Iter100 — Transport Phase 2.5 (RideLifecyclePanel wiring) + Phase 3 (public /track/{token} share link). Backend share mint + public view + full-lifecycle regression: 19/19 PASS (test_iter100_transport_share.py). Frontend public tracking page /track/{valid-token} rendered end-to-end WITHOUT login: hero status badge (French), trip summary, driver card with vehicle plate, timeline stamps. Invalid token path shows 'Lien invalide'. Rider+driver lifecycle panel wiring in TransportModule.js verified by code review (both blocks pass role='rider' / role='driver' to <RideLifecyclePanel/> with proper onChange reducer). Full headless e2e of rider/driver modes inside /services → Transport was skipped because production login is gated by Cloudflare Turnstile, which cannot be bypassed from Playwright.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Public track page — driver_position freshness", "issue": "On a freshly-accepted ride whose /position was pinged once, the <div data-testid='public-driver-position'> did not render on the first fetch (ride.driver_position was null in the client payload). Backend endpoint returned driver_position correctly in the iter100 backend test (test_23 PASS) after /en-route, so likely just a timing artifact for /accept+/position without /en-route. Non-blocking: the 8s polling will pick it up once the driver is 'en_route'.", "affected_selectors": ["[data-testid='public-driver-position']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter100_transport_share.py",
+    "/app/test_reports/pytest/iter100_transport_share.xml"
+  ],
+  "action_items": [
+    "Consider letting main agent run one manual browser session as Bob (through real Turnstile challenge) to visually confirm <ride-share-whatsapp> opens wa.me and that the driver buttons (ride-action-en-route → ride-action-start → ride-action-complete) transition cleanly. Backend contract is already validated.",
+    "Optional: in PublicRideTrackPage.js, also show driver_position once status='accepted' so the family sees a 'live' pin even before the driver flips to en_route (currently the backend already exposes it whenever /position has been pinged)."
+  ],
+  "critical_code_review_comments": [
+    "RideLifecyclePanel.jsx L144: driver_position block is only rendered for role='rider'; the driver side never sees it, which is fine (driver has their own GPS). But a `data-testid='driver-self-position-debug'` toggle could help future tests assert that the ping succeeded.",
+    "RideLifecyclePanel.jsx L158 uses window.confirm for cancel — OK for MVP but breaks jp design system. Consider a shadcn AlertDialog to stay consistent with the rest of JAPAP (and to keep e2e tests deterministic — window.confirm in Playwright requires page.on('dialog')).",
+    "RideLifecyclePanel.jsx L43-L56: the polling uses two useEffects (tick-timer + tick-fetcher). Works, but the fetcher depends on onChange identity — if the parent re-renders the onChange callback without useCallback, the fetcher will re-run on every render and leak requests. TransportModule.js passes an inline arrow at L147 — acceptable because tick is the trigger, but worth wrapping in useCallback for safety.",
+    "routes/transport.py L1089: PUBLIC_APP_URL env fallback defaults to 'https://japapmessenger.com' which is NOT the preview URL — in staging the WhatsApp link will point to prod. Recommend setting PUBLIC_APP_URL=REACT_APP_BACKEND_URL in backend/.env, OR falling back to Request.url base rather than a hard-coded prod domain.",
+    "routes/transport.py L1144 GET /share/{token}: the SELECT JOIN uses LEFT JOIN drivers on user_id — correct, but the sanitiser passes d['rating'] through as a string. On the rider side it's a Decimal. Consider unified float serialisation for consistency.",
+    "PublicRideTrackPage.js L37 axios call has no timeout; if the backend slows down, the user sees an infinite 'Chargement…'. Add 10s timeout and surface a retry button on transient errors.",
+    "PublicRideTrackPage.js L143 hides driver_position when isFinal=true — good (privacy). But the `cancelled_at` stamp is rendered only in the 'cancelled' branch; the completed branch omits the cancellation row — OK UX. No action."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter100_transport_share.py (created)"
+  ],
+  "success_rate": {"backend": "100% (19/19)", "frontend": "public /track validated live; rider/driver panels validated via code review only"},
+  "test_credentials": "Used JWT-minted tokens (JWT_SECRET from backend/.env) for bob@japap.com (rider) and alice@japap.com (driver). Admin session uses admin@japap.com via the same JWT mint helper. Fresh ride created live: ride_45b444ff30c3 with 12h share token used to validate /track/{token} render.",
+  "seed_data_creation": "Test _prepare fixture resets ride_requests + drivers + driver_kyc_decisions for alice/bob, then re-registers Alice as driver and admin-approves her. Bob wallet topped to 50000 XAF. Creates ~2 rides during the lifecycle + cancel path. One extra ride left after the manual mint_share.py for the browser check — harmless, will be cleaned on the next iter _prepare.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter100 closes Phase 2.5 + Phase 3 backend coverage. The only gap is an interactive e2e inside /services → Transport under Cloudflare Turnstile; if the next iter disables Turnstile in preview or exposes a TEST bypass header, wire a Playwright flow that: (1) login as bob → navigate to /services → Transport → fill pickup/dropoff → submit → assert <ride-lifecycle-panel> mounts with rider badge; (2) login as alice → switch to Chauffeur mode → accept ride → assert <ride-action-en-route> visible → click → assert <ride-action-start> → click → assert <ride-action-complete> → click → panel unmounts and activeRide cleared. The data-testids are already stable and documented in the review_request.",
+  "rca of the issue": "No bug to RCA. One observation on PUBLIC_APP_URL env fallback (see critical_code_review_comments #4) — worth fixing so the WhatsApp share message on the preview environment does not link to prod japapmessenger.com."
+}

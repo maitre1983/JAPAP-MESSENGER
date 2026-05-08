@@ -1,0 +1,49 @@
+{
+  "summary": "iter237n+iter237o legal pages + litellm patch testing — 15/17 pytest PASS, all frontend public legal pages verified. CRITICAL ISSUE: backend intermittently hangs (HTTP=000 / 502 for 30-60s windows) despite the iter237o asyncio.to_thread litellm patch — observed multiple times during testing including 'pool is closing' warnings from video_transcode_worker indicating asyncpg pool entered a bad state.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "/api/health", "issue": "Intermittent HTTP=000 (event-loop blocked) lasting 30-60s under normal idle load. Reproduced 4 separate times during testing. Cause: 'asyncpg pool is closing' (video_transcode_worker tick failures every 5s) + LiteLLM completion calls overlapping. The iter237o monkey-patch IS applied (verified via direct import) and works most of the time — but the DB pool entering 'closing' state appears to be the real freeze trigger. /api/health is wired to query DB which then times out.", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "/api/auth/register", "issue": "country_code field expects ISO-2 ('CM'), not dial code ('+237'). Testing artifact only, but worth documenting: the API contract is non-obvious because the UI shows '+1' as country code in the dropdown."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter237n_legal.py",
+    "/app/test_reports/pytest/iter237n_results.xml"
+  ],
+  "action_items": [
+    "INVESTIGATE backend instability: the asyncpg connection pool enters a 'closing' state under normal load (visible via 'video_transcode_worker tick failed: pool is closing' every 5s). When this happens /api/health hangs HTTP=000 for 30-60s. The litellm patch alone does NOT fix this. Root cause likely: another async path that does not yield (CPU-bound or sync), OR the pool gets explicitly closed during shutdown of a worker that never re-opens it. Check services/database.py + video_transcode_worker.py + dcq_paid_pool_worker.py shutdown handlers.",
+    "Iter237n legal endpoints, JapapFooter, About/Contact pages, SEO meta tags, RegisterPage checkbox + LoginPage legal links are ALL working and validated."
+  ],
+  "critical_code_review_comments": [
+    "routes/legal.py: clean & idempotent — `COALESCE(column, NOW())` ensures timestamp set once. Correct.",
+    "routes/legal.py: writes still go through CSRF middleware — testing required X-CSRF-Token header (tests updated accordingly). Frontend axios in RegisterPage.js must also send the cookie/header — confirmed working in browser test.",
+    "services/litellm_patch.py: correctly applied, verified _PATCHED=True on import. However observation shows backend STILL hangs intermittently → patch is necessary but not sufficient.",
+    "services/dcq_paid_pool_worker.py WARMUP_S=60 helps but doesn't prevent the pool-closing freeze.",
+    "Backend public route /api/health depends on DB (likely) — under freeze conditions returns HTTP=000. Recommend making /api/health truly DB-independent (just return 200 + ts) so liveness probes succeed even when DB pool is recycling.",
+    "Frontend RegisterPage: checkbox + disabled submit button correctly wired. CGU + Privacy text + links visible: 'J'ai lu et j'accepte les Conditions Générales d'Utilisation et la Politique de confidentialité de JAPAP TECHNOLOGIES PLC'.",
+    "Public legal pages (/legal/cgu, /legal/conditions-de-jeu, /legal/confidentialite, /about, /contact) all render correctly with 'Addis Ababa' + 'JAPAP TECHNOLOGIES PLC' visible.",
+    "SEO: <title> = 'JAPAP Messenger — JAPAP TECHNOLOGIES PLC (Addis Ababa)' and meta description contains both keywords. PASS.",
+    "JapapFooter on /about: complete with email, postal address (Bole Sub-City Woreda 03, Addis Ababa Ethiopia), all role-based contact emails (legal@, support@, dpo@, privacy@, jeux@). Excellent."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter237n_legal.py (new)"
+  ],
+  "success_rate": {
+    "backend": "88% (15/17 pytest PASS, 2 SKIP because /api/auth/register fixture failed during a backend hang window — endpoint contract is fine, validated via curl)",
+    "frontend": "100% (all 5 public legal/about routes render with required content; LoginPage legal links present; RegisterPage checkbox blocks submit when unchecked)"
+  },
+  "test_credentials": "alice@japap.com / Alice2026! (logged in successfully via captcha bypass JAPAP_E2E_BYPASS_2026/0). New-user fixture used country_code='CM' + auto-generated phone.",
+  "seed_data_creation": "Test fixture creates one new user per pytest module session (testlegal_<rand>@japap.com); cleanup not implemented — OK for non-prod env. Alice's cgu/cgje/privacy_accepted_at columns are now all NOT NULL after the test run.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Iter237n legal feature is FULLY working — do NOT re-test routes/legal.py endpoints or the public pages, they passed. Focus next iteration on the backend stability issue: backend /api/health returns HTTP=000 (event-loop frozen) for 30-60s windows, multiple times per hour, even with iter237o patch applied. Symptom in logs: 'video_transcode_worker tick failed: pool is closing' repeating every 5s. To reproduce: hit https://japap-refactor.preview.emergentagent.com/api/health 5 times spaced 30s apart and observe at least one HTTP=000 response. Mitigation suggestions: (1) make /api/health DB-independent, (2) audit all asyncpg connection lifecycle (look for pool.close() called during normal operation), (3) add try/except around pool.acquire() in workers to re-init pool if 'pool is closing'.",
+  "rca of the issue": "RCA for backend hangs: the asyncpg connection pool enters a 'closing' state during runtime (not just shutdown). This is visible in backend.err.log via 'services.video_transcode_worker - WARNING - [vtw] tick failed: pool is closing' messages repeating every 5s. When the pool is in this state, any DB-dependent endpoint (including /api/health) blocks waiting for an unavailable connection. The litellm patch (iter237o) correctly moves LLM calls off the event loop, but it does NOT address this pool-state issue. Reproduction: continuous polling of /api/health from outside reveals 30-60s windows where HTTP=000 then suddenly returns 200 again. Mitigation: add resilient pool re-creation in services/database.py.get_pool() when current pool reports `pool._closed` or `pool._closing`."
+}

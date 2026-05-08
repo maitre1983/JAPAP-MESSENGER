@@ -1,0 +1,52 @@
+{
+  "summary": "Iteration 16 — Realtime notifications + Send Money in Chat. Backend 13/13 PASS (new test_iteration16_realtime_money.py) including happy path, all 5 validation branches (self/min/zero/invalid recipient/insufficient), messaging regression, and feed like/comment/tip regression (notify_* emits don't regress status codes). Frontend smoke test PASS for: chat-money-button only on 1-1 (not groups ✓), money-modal with amount/note/quick-amounts 500/1000/2500/5000/confirm/close testids all present, confirm disabled when amount<50, modal closes after submit, sonner success toast appears with new balance, nav-unread-badge renders. Found ONE integration bug: after send-money succeeds (toast+balance confirmed), the new money bubble does NOT appear on the SENDER's side because ChatPage.js handleSendMoney relies entirely on the 'new_message' socket event — with the WebSocket connection failing (wss://…/api/socket.io closed before established), the sender must refresh to see their own bubble. Backend returns data.message with the full payload; frontend should do optimistic setMessages(prev => [...prev, data.message]).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Chat Send Money — sender-side bubble not appearing",
+        "issue": "handleSendMoney (ChatPage.js line 165-188) relies only on socket 'new_message' to append the money bubble. Because /api/socket.io WebSocket handshake fails (wss 'closed before established'), the sender's chat shows the toast + new balance correctly, but the money bubble does NOT appear until page refresh. Backend returns data.message (full payload) — frontend should optimistically append it: setMessages(prev => [...prev, data.message]).",
+        "affected_selectors": ["[data-testid^='message-money-']", "[data-testid='money-confirm-button']"]
+      },
+      {
+        "flow": "Socket.IO global connection",
+        "issue": "Repeated console warnings: 'WebSocket connection to wss://.../api/socket.io/?EIO=4&transport=websocket failed: WebSocket is closed before the connection is established.' This is a carry-over from iter14/15. Impact: realtime toasts for tip/like/comment/money on the RECIPIENT side cannot be delivered over the ingress. notify_money/notify_tip/notify_like/notify_comment are correctly wired server-side (push_to_user) but never reach the browser due to this handshake failure. Likely cause: Kubernetes ingress upgrade/downgrade behavior for /api/socket.io path, or async_mode='asgi' + starlette-mounted sio mismatch.",
+        "affected_selectors": ["[data-testid='nav-unread-badge']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration16_realtime_money.py",
+    "/app/test_reports/pytest/iter16_results.xml"
+  ],
+  "action_items": [
+    "HIGH: In /app/frontend/src/pages/ChatPage.js handleSendMoney (line 180-182), add optimistic update: `setMessages(prev => [...prev, data.message]);` before `setShowMoneyModal(false);`. This makes the sender-side money bubble reliable regardless of socket state. Dedupe in the socket 'new_message' handler by msg_id to avoid double-appends once socket is fixed.",
+    "HIGH: Debug Socket.IO WebSocket handshake failure on /api/socket.io. Verify: (1) server mount path matches client socketPath '/api/socket.io', (2) Kubernetes ingress passes Upgrade/Connection headers, (3) sio is mounted on the FastAPI app (not a separate ASGI app), (4) CORS + credentials properly set on the sio server. Without this, ALL realtime features (notify_tip / notify_like / notify_comment / notify_money / new_message / recipient toasts) are effectively dead on the frontend.",
+    "LOW: Clean up 'Failed to load resource: net::ERR_NAME_NOT_RESOLVED' console error on /login (some 3rd-party asset)."
+  ],
+  "critical_code_review_comments": [
+    "messaging.py send_money_in_chat is correctly atomic (single conn.transaction with FOR UPDATE on both wallets, tx insert, msg insert all in one txn). Good — but note: `Decimal(str(req.amount))` relies on float→str conversion; for amounts like 99.99 this is still lossy. Recommend changing SendMoneyInChatRequest.amount to Decimal with Pydantic's decimal_places=2 constraint, or validate server-side.",
+    "messaging.py: if recipient wallet doesn't exist (line 330-333), transaction raises 404 mid-way. The tx insert happens AFTER this check so rollback is clean, BUT the sender's `is_locked` check happens before recipient existence check — fine, but the order 'sender wallet → recipient wallet → debit → credit → tx → msg' inside a single transaction is correct.",
+    "ChatPage.js handleSendMoney comment 'The new_message socket event will append the bubble on both sides' is a fragile single point of failure. If the socket is flaky (as it currently is), sender never sees their own send until refresh. Always do optimistic UI for sender; reconcile by msg_id on socket event.",
+    "realtime.py push_to_user catches all exceptions silently with logger.warning — good for non-blocking UX, but consider adding a counter/metric for dropped notifications so ops can detect socket degradation.",
+    "RealtimeContext: 3s like-coalescing is a nice feature, but without a working WebSocket it's untestable end-to-end. Recommend adding a health endpoint /api/socket.io/health or a server-emitted 'pong' on connect so the frontend can detect failed upgrades and fall back to polling or SSE."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration16_realtime_money.py (new — 13 tests, all pass)"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 new tests + no regressions on feed/messaging/wallet)",
+    "frontend": "90% — all testids + modal + validation + toast + bubble rendering + group-exclusion verified. 10% deduction for sender-side money bubble not appearing without refresh (socket-dependent rendering) AND broken websocket preventing recipient-side realtime toasts end-to-end."
+  },
+  "test_credentials": "admin@japap.com / JapapAdmin2024! (sender); testref_1776710356@japap.com / Test1234! (recipient)",
+  "seed_data_creation": "Created via tests: 1 TEST_i16 feed post by admin (received 1 like, 1 comment, 1 tip of 100 XAF from testref). Multiple 500 XAF chat-money transfers admin→testref (tx_id cm_* in transactions table, msg_id msg_* in messages table with media kind='money'). 1 regression text message admin→testref. Admin wallet: ~1.337M XAF after tests. Recipient wallet: credited 500 XAF × several runs.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend send-money endpoint is rock solid (13/13). The two outstanding issues are (1) ChatPage.js frontend doesn't optimistically append its own money bubble after POST success — trivial 1-line fix, main agent can self-test; (2) /api/socket.io WebSocket handshake fails with 'closed before established', blocking realtime toasts on recipient side. This #2 is the same carry-over from iter14/15 and needs deeper investigation of ingress + sio mount. Once (2) is fixed, use two browser contexts to verify recipient receives notify_money/notify_tip/notify_like/notify_comment toasts via sonner.",
+  "rca of the issue": "ChatPage.js handleSendMoney (line 165-188) only calls toast.success + setShowMoneyModal(false) after the POST. The comment on line 182 explicitly says 'The new_message socket event will append the bubble on both sides' — meaning the dev intentionally delegated message rendering to the socket event. Since the socket /api/socket.io/ WebSocket handshake is currently failing (console: 'WebSocket is closed before the connection is established'), the socket 'new_message' event never fires on the sender's page → the money bubble never appears locally → the user thinks their send didn't work (despite the toast). Reproduction: login as admin, open /chat → any 1-1 conversation → click $ → enter 500 → confirm. Observe: toast + new balance shown but no new bubble in the messages list. Refresh → bubble appears. Mitigation: optimistic append on API success using data.message payload; dedupe in socket handler by msg_id."
+}

@@ -1,0 +1,346 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Mobile-first safety rails (iter69, enrichi iter210) ────────────
+   Anti-overflow + iOS safe-area support. These rules apply GLOBALLY and
+   prevent the typical "content sticks out under the notch / bottom home
+   indicator" issues on iPhone and Android devices.
+
+   iter210 (CEO mandate): systemic safe-area coverage. `viewport-fit=cover`
+   is required in public/index.html (already present). These CSS variables
+   make the safe-area insets accessible anywhere, even in inline styles.
+------------------------------------------------------------------- */
+:root {
+    --safe-top:    env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left:   env(safe-area-inset-left, 0px);
+    --safe-right:  env(safe-area-inset-right, 0px);
+    /* Minimum visual breathing room above the iOS home indicator: 34pt
+       is the Dynamic Island / notch home-indicator height on modern
+       iPhones. We always reserve at least 16px even when env() is 0, so
+       desktop Chrome DevTools simulations still look reasonable. */
+    --safe-bottom-min: max(env(safe-area-inset-bottom, 0px), 16px);
+    --safe-top-min:    max(env(safe-area-inset-top, 0px), 0px);
+}
+
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+    /* Smooth momentum scroll on iOS */
+    -webkit-overflow-scrolling: touch;
+}
+
+body {
+    margin: 0;
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+        "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+        sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Use dynamic vh on mobile so the URL bar collapse doesn't crop content */
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+/* Prevent iOS auto-zoom when focusing inputs (triggers on font-size < 16px).
+   Tailwind utility classes often set text-sm (14px) on inputs, which would
+   override a plain rule — we enforce 16px on mobile only, with !important. */
+@media (max-width: 767px) {
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+}
+
+/* Respect iOS safe areas on the persistent top + bottom nav bars */
+.jp-safe-top    { padding-top:    env(safe-area-inset-top, 0px); }
+.jp-safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.jp-safe-left   { padding-left:   env(safe-area-inset-left, 0px); }
+.jp-safe-right  { padding-right:  env(safe-area-inset-right, 0px); }
+
+/* iter210 — Extended safe-area utilities.
+   Use `.jp-safe-bottom-stack` on any fixed/sticky bottom-anchored element
+   (bottom nav, sticky action bar, bottom drawer, etc.) so its content
+   sits above the iOS home indicator AND retains a minimum 16px breathing
+   room on Android / desktop. */
+.jp-safe-bottom-stack { padding-bottom: var(--safe-bottom-min); }
+.jp-safe-top-stack    { padding-top:    var(--safe-top-min); }
+
+/* Dynamic viewport height — iOS Safari fix (100vh includes the URL bar).
+   Apply to any full-screen modal / overlay that should fill the visible
+   viewport exactly. Falls back to 100vh on browsers without dvh. */
+.jp-full-dynamic-height {
+    height: 100vh;
+    height: 100dvh;
+}
+.jp-min-full-dynamic-height {
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+/* Offset `bottom-X` Tailwind values to account for the iOS home indicator.
+   Example: <div class="fixed bottom-safe-4" /> renders at
+   `bottom: calc(16px + safe-area-inset-bottom)` so nothing is hidden
+   beneath the home bar on iPhone X/11/12/13/14/15/16. */
+.jp-bottom-safe-0 { bottom: env(safe-area-inset-bottom, 0px); }
+.jp-bottom-safe-2 { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+.jp-bottom-safe-4 { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+.jp-bottom-safe-6 { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+.jp-bottom-safe-8 { bottom: calc(32px + env(safe-area-inset-bottom, 0px)); }
+
+/* iter211 — Facebook/Instagram/X-style post composer.
+   Bug 3: professional, borderless, auto-expanding.
+   Bug 2: works with useKeyboardOffset hook for iOS Safari support. */
+.jp-composer-card {
+    background: #FFFFFF;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.18s ease;
+}
+.jp-composer-card:focus-within {
+    box-shadow: 0 4px 16px rgba(15, 5, 107, 0.10);
+}
+.jp-composer-input {
+    width: 100%;
+    background: transparent;
+    border: 0;
+    outline: 0;
+    resize: none;
+    color: inherit;
+    font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+    font-size: 16px;    /* ≥16px: prevents iOS Safari auto-zoom on focus */
+    line-height: 1.5;
+    padding: 10px 0 4px 0;
+    min-height: 44px;
+    transition: min-height 0.2s ease;
+    box-shadow: none;
+}
+.jp-composer-input::placeholder {
+    color: #9ca3af;
+    font-weight: 400;
+}
+.jp-composer-input::-webkit-scrollbar { width: 0; }
+/* iter237r — RichTextEditor (contenteditable WYSIWYG) shares the same
+   typography & placeholder behaviour as the legacy textarea above. */
+.jp-rte {
+    width: 100%;
+    background: transparent;
+    color: inherit;
+    font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    padding: 10px 0 4px 0;
+    transition: min-height 0.2s ease;
+}
+.jp-rte:empty::before {
+    content: attr(data-placeholder);
+    color: #9ca3af;
+    pointer-events: none;
+}
+.jp-rte b, .jp-rte strong { font-weight: 700; }
+.jp-rte i, .jp-rte em     { font-style: italic; }
+.jp-rte u                  { text-decoration: underline; }
+
+/* iter237s — Chat textarea polish: keeps the bullet-pill aesthetic of the
+   original input while growing comfortably to 4 lines. Forced text fill
+   color so iOS Safari never paints the value invisible. */
+.jp-chat-textarea {
+    min-height: 40px;
+    max-height: 120px;
+    line-height: 1.4;
+    padding: 10px 14px;
+    border-radius: 20px;
+    overflow-y: auto;
+    transition: height 0.1s ease, background 0.15s ease;
+}
+.jp-chat-textarea::-webkit-scrollbar { width: 0; }
+
+/* iter237s — Typing indicator dots (WhatsApp style). 3 dots that bounce
+   in sequence. Used in the chat header presence line and could be reused
+   in any "user is typing…" UI. */
+.jp-typing-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+.jp-typing-dots > span {
+    width: 5px;
+    height: 5px;
+    border-radius: 9999px;
+    background: currentColor;
+    display: inline-block;
+    animation: jp-typing-bounce 1.2s ease-in-out infinite;
+}
+.jp-typing-dots > span:nth-child(1) { animation-delay: 0s; }
+.jp-typing-dots > span:nth-child(2) { animation-delay: 0.18s; }
+.jp-typing-dots > span:nth-child(3) { animation-delay: 0.36s; }
+@keyframes jp-typing-bounce {
+    0%, 60%, 100% { transform: translateY(0);   opacity: 0.45; }
+    30%           { transform: translateY(-4px); opacity: 1;    }
+}
+
+/* iter237s — Message bubble slide-in animation. Applied via the
+   `jp-msg-enter` class on each freshly-mounted bubble. CSS-only — no
+   JS scheduling required. Kept SHORT (180ms) so heavy threads scroll
+   smoothly. */
+@keyframes jp-msg-slide-in {
+    from { transform: translateY(8px); opacity: 0; }
+    to   { transform: translateY(0);   opacity: 1; }
+}
+.jp-msg-enter {
+    animation: jp-msg-slide-in 0.18s ease-out both;
+}
+
+/* iter237v — visual states for optimistic / failed messages. */
+.jp-msg-pending { opacity: 0.6; transition: opacity 0.2s ease; }
+.jp-msg-failed  { opacity: 0.85; }
+.jp-msg-failed > div > div:first-child { /* the bubble shell */
+    border: 1px solid #E01C2E !important;
+}
+
+.jp-composer-actions {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #F3F4F6;
+}
+@media (prefers-color-scheme: dark) {
+    .jp-composer-card {
+        background: var(--card-bg-dark, #1e1e2e);
+        color: #e5e7eb;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+    }
+    .jp-composer-input::placeholder { color: #6b7280; }
+    .jp-rte:empty::before { color: #6b7280; }
+    .jp-composer-actions { border-top-color: #374151; }
+}
+
+/* Mobile tap target minimum (Apple HIG: 44pt, Google Material: 48dp) */
+@media (hover: none) and (pointer: coarse) {
+    button, a[role="button"], [data-testid^="bottom-nav-"] {
+        min-height: 44px;
+    }
+}
+
+/* Prevent text selection on interactive UI chrome */
+[data-testid="bottom-nav"], [data-testid="sidebar"] {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Improve table responsiveness: force horizontal scroll on small screens
+   instead of pushing the layout out of the viewport. */
+table {
+    max-width: 100%;
+}
+.jp-table-wrap, .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+}
+
+code {
+    font-family:
+        source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+}
+
+@layer base {
+    :root {
+        --background: 0 0% 100%;
+        --foreground: 0 0% 3.9%;
+        --card: 0 0% 100%;
+        --card-foreground: 0 0% 3.9%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 0 0% 3.9%;
+        --primary: 0 0% 9%;
+        --primary-foreground: 0 0% 98%;
+        --secondary: 0 0% 96.1%;
+        --secondary-foreground: 0 0% 9%;
+        --muted: 0 0% 96.1%;
+        --muted-foreground: 0 0% 45.1%;
+        --accent: 0 0% 96.1%;
+        --accent-foreground: 0 0% 9%;
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 0 0% 89.8%;
+        --input: 0 0% 89.8%;
+        --ring: 0 0% 3.9%;
+        --chart-1: 12 76% 61%;
+        --chart-2: 173 58% 39%;
+        --chart-3: 197 37% 24%;
+        --chart-4: 43 74% 66%;
+        --chart-5: 27 87% 67%;
+        --radius: 0.5rem;
+    }
+    .dark {
+        --background: 0 0% 3.9%;
+        --foreground: 0 0% 98%;
+        --card: 0 0% 3.9%;
+        --card-foreground: 0 0% 98%;
+        --popover: 0 0% 3.9%;
+        --popover-foreground: 0 0% 98%;
+        --primary: 0 0% 98%;
+        --primary-foreground: 0 0% 9%;
+        --secondary: 0 0% 14.9%;
+        --secondary-foreground: 0 0% 98%;
+        --muted: 0 0% 14.9%;
+        --muted-foreground: 0 0% 63.9%;
+        --accent: 0 0% 14.9%;
+        --accent-foreground: 0 0% 98%;
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 0 0% 14.9%;
+        --input: 0 0% 14.9%;
+        --ring: 0 0% 83.1%;
+        --chart-1: 220 70% 50%;
+        --chart-2: 160 60% 45%;
+        --chart-3: 30 80% 55%;
+        --chart-4: 280 65% 60%;
+        --chart-5: 340 75% 55%;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+@layer base {
+    [data-debug-wrapper="true"] {
+        display: contents !important;
+    }
+
+    [data-debug-wrapper="true"] > * {
+        margin-left: inherit;
+        margin-right: inherit;
+        margin-top: inherit;
+        margin-bottom: inherit;
+        padding-left: inherit;
+        padding-right: inherit;
+        padding-top: inherit;
+        padding-bottom: inherit;
+        column-gap: inherit;
+        row-gap: inherit;
+        gap: inherit;
+        border-left-width: inherit;
+        border-right-width: inherit;
+        border-top-width: inherit;
+        border-bottom-width: inherit;
+        border-left-style: inherit;
+        border-right-style: inherit;
+        border-top-style: inherit;
+        border-bottom-style: inherit;
+        border-left-color: inherit;
+        border-right-color: inherit;
+        border-top-color: inherit;
+        border-bottom-color: inherit;
+    }
+}

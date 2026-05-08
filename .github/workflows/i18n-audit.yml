@@ -1,0 +1,64 @@
+name: i18n audit (no regression)
+
+# Guards against the iter205/206/208 class of bugs — bare `t(...)` calls
+# at module scope or inside helper functions with no `useTranslation()` in
+# scope. Ran after codemods like iter205 broke production 3 times, this
+# check must stay GREEN on `main`.
+#
+# Details: /app/scripts/ci_audit_i18n.py
+# Local reproduction:
+#   python3 scripts/ci_audit_i18n.py
+#
+# iter210 — CEO-mandated permanent guard.
+on:
+  pull_request:
+    paths:
+      - "frontend/src/**/*.js"
+      - "frontend/src/**/*.jsx"
+      - "frontend/src/**/*.ts"
+      - "frontend/src/**/*.tsx"
+      - "scripts/ci_audit_i18n.py"
+      - ".github/workflows/i18n-audit.yml"
+  push:
+    branches: [main, master]
+    paths:
+      - "frontend/src/**/*.js"
+      - "frontend/src/**/*.jsx"
+      - "frontend/src/**/*.ts"
+      - "frontend/src/**/*.tsx"
+      - "scripts/ci_audit_i18n.py"
+
+jobs:
+  audit-i18n:
+    name: i18n A/B/C audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run i18n audit (A/B/C)
+        id: audit
+        run: |
+          python3 scripts/ci_audit_i18n.py --json > audit.json
+          echo "--- Human-readable report ---"
+          python3 scripts/ci_audit_i18n.py
+        continue-on-error: false
+
+      - name: Upload JSON report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i18n-audit-report
+          path: audit.json
+          retention-days: 14
+
+      - name: Annotate PR with violations
+        if: failure()
+        run: |
+          echo "::error title=i18n regression detected::The CEO-mandated audit A/B/C has failed — review audit.json. See /app/scripts/ci_audit_i18n.py for fix strategies."

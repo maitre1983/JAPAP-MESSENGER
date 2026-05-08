@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 12 — Crowdfunding (5 fixed categories, 5% fee, wallet integration) + Games (spin/quiz/tap with daily limits + 2000 XAF cap) + Marketplace regression. Backend pytest: 27 passed, 1 skipped (spin daily limit already exhausted from prior dev runs). Frontend Playwright: /services hub renders 4 cards (marketplace/crypto/crowdfunding/games), CrowdfundingModule renders with all 5 category pills (business/health/community/education/emergency), create-campaign-btn opens create-campaign-modal, campaign cards open campaign-detail with progress-bar, contribute-modal works for non-creators, GamesModule renders daily-status card (400 XAF earned / 2000 XAF cap), 3 game cards (game-spin/quiz/tap), games-leaderboard, spin-page wheel+btn, quiz-page question+4 options+submit, tap-page start_btn. Marketplace still loads (regression OK). Wallet integration verified end-to-end: contribution of 500 XAF correctly deducts from contributor (CF Tester), credits creator (admin) with 475 XAF (5% fee = 25 XAF), updates campaigns.raised + backers_count, creates 'crowdfunding' transaction + 'campaign_contribution' notification. Anti-abuse confirmed: self-contribute rejected (400 'propre campagne'), insufficient balance rejected (400 'Solde insuffisant'), invalid category rejected (400), invalid duration rejected (400). Games anti-abuse: spin 429 after 3/day, tap rejects score<0 or >500, quiz rejects unknown question_id (404), quiz reward=50 XAF correct/0 wrong. Quiz questions endpoint correctly hides 'answer' field. NO standalone navigation entries for crowdfunding/games — only accessible via /services as required.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_crowdfunding_games.py",
+    "/app/test_reports/pytest/iter12_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Crowdfunding 5% fee is computed correctly (Decimal quantize 0.01) and amount/fee/net_to_creator are returned in API response.",
+    "campaigns.raised is incremented and backers_count is recomputed via DISTINCT subquery on every contribute — ensures correctness even with multiple contributions from same user.",
+    "Self-contribute, insufficient balance, expired campaign, and invalid campaign all correctly raise 400/404 with French messages.",
+    "Games _check_daily_limits uses 24h rolling window (not calendar day) — this is intentional and acceptable but worth documenting for users; means a user spinning at 23:00 yesterday counts toward today's limit until 23:00.",
+    "DAILY_CAP=2000 XAF is enforced at credit time AND clamped on the last reward (won't credit more than remaining cap). Verified.",
+    "Quiz endpoint /quiz/questions correctly omits 'answer' field — no client-side cheating possible.",
+    "Tap reward formula score//2 capped at 200 XAF prevents abuse (max ~5 plays * 200 = 1000 XAF/day from tap alone).",
+    "ServicesPage correctly gates new modules — Crowdfunding and Games are sub-views (setView), no /crowdfunding or /games standalone routes exposed in sidebar.",
+    "Crowdfunding contribute button is intelligently hidden when admin views own campaign (good UX, server-side check is the source of truth).",
+    "Minor — crowdfunding list_campaigns response leaks full row including creator_id, may expose internal fields; not a security issue but consider explicit field selection in production.",
+    "Minor — FeedPage console warning observed during login flow ('error occurred in <FeedPage> component') — pre-existing, unrelated to this iteration. Should be investigated separately."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_crowdfunding_games.py"
+  ],
+  "success_rate": {
+    "backend": "100% (27/27 executed; 1 skipped due to daily limit, not a failure)",
+    "frontend": "100% — all required testids present and rendering"
+  },
+  "test_credentials": "Admin admin@japap.com / JapapAdmin2024!. Created secondary user cftester_<ts>@japap.com / Test1234! during testing for non-self contribute.",
+  "seed_data_creation": "Created 1 admin TEST_ campaign (camp_*) in business category for contribute flow validation. Created 1 secondary test user (cftester_*) and topped up via /api/wallet/send. 1 contribution of 500 XAF recorded.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Daily limits are 24h rolling — admin spin limit is exhausted (0/3 remaining); tap and quiz still have remaining quota. To test spin again wait 24h or test with a different user. The /services hub is the only entry point for crowdfunding/games. Backend test file /app/backend/tests/test_crowdfunding_games.py is reusable for regressions. The FeedPage console warning is pre-existing and out of scope.",
+  "rca of the issue": "N/A — no bugs found this iteration. All 3 new modules (Crowdfunding, Games) and Marketplace regression are working correctly with proper wallet integration, anti-abuse, and French UI."
+}

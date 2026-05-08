@@ -1,0 +1,48 @@
+{
+  "summary": "Iter93 Go-Live backend validation: 24/25 PASS (96%). All 9 critical flows validated: LiveKit calls (room + JWT HS256 iss=APIxFgZRJB45C4V + video grants roomJoin/canPublish/canSubscribe), Auth (register→OTP from email_otps DB→verify-otp→login→logout), Password Reset (forgot 200 enum-safe + token in password_reset_tokens + reset + login with new pwd + old pwd rejected 401 + restore), Deposits (Hubtel checkout URL + NowPayments checkout URL, no real charge triggered), Webhook signature (Hubtel HMAC-SHA256 rejects invalid sig with 401; NowPayments HMAC-SHA512 rejects invalid sig with 400/401), Withdraw KYC gate (Alice non-KYC → 403), Games (wheel status/spin, quiz start, tap status, duel self-blocked), PRO plans (starter/creator/business) + subscribe, Connect (/nearby + share gate for non-Pro), Messenger (/api/messages/conversations + /send). The only failure is the intentional BLOCKING finding: TURNSTILE NOT CONFIGURED (wheel_turnstile_enabled=false, no TURNSTILE_SITE_KEY nor TURNSTILE_SECRET_KEY in env) — per review brief this blocks public go-live.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "TURNSTILE (anti-bot)", "issue": "Not configured for public go-live. wheel_turnstile_enabled=false in settings; TURNSTILE_SITE_KEY + TURNSTILE_SECRET_KEY absent from backend/.env. Only wheel_turnstile_enabled key exists in settings_service.py DEFAULTS — there is NO global turnstile_enabled / turnstile_site_key / turnstile_secret_key setting. The anti-bot layer is effectively OFF everywhere.", "priority": "CRITICAL — BLOCKING FOR GO-LIVE"}
+    ],
+    "minor": [
+      {"endpoint": "/api/auth/register", "issue": "Response field is {status:'otp_sent'} — the review brief mentioned {requires_otp:true, user_id} but actual shape is {status:'otp_sent', email, message}. Not a bug, just doc drift. Also no user_id returned, which means frontend cannot pre-select user for OTP screen (uses email instead, which is fine)."},
+      {"endpoint": "/api/auth/verify-otp", "issue": "Accepts {email, code} — review brief mentioned {user_id, code}. Current impl uses email, which is fine (schema in auth.py line 347)."},
+      {"endpoint": "/api/auth/register", "issue": "Requires country_code + phone_number + accept_terms (or terms_accepted). Review brief only mentioned email+password+first_name+last_name — OK if this is the actual product contract but confirm with product."},
+      {"endpoint": "/api/calls/livekit/config", "issue": "Endpoint does NOT exist — review brief mentioned it, but only /api/calls/test-livekit exists (admin diagnostic). LiveKit ws_url is returned inline by /api/calls/token payload. Not a bug but the brief description was inaccurate."},
+      {"endpoint": "/api/calls/{call_id}/accept and /api/calls/{call_id}/reject", "issue": "Do NOT exist. The 'accept/reject' flow is handled by LiveKit room join/leave + /api/calls/end with status='rejected'. Not a bug; the design diverges from the review brief."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter93_go_live.py",
+    "/app/test_reports/pytest/iter93_go_live.xml"
+  ],
+  "action_items": [
+    "[GO-LIVE BLOCKER] Configure Cloudflare Turnstile: (a) add TURNSTILE_SITE_KEY + TURNSTILE_SECRET_KEY to /app/backend/.env, (b) extend DEFAULTS in /app/backend/services/settings_service.py with turnstile_enabled + turnstile_site_key (public) + turnstile_secret_key (secret), (c) add these keys to SECRET_KEYS set in /app/backend/routes/admin_settings.py, (d) apply Turnstile verification to /api/auth/register + /api/auth/forgot-password + /api/auth/login endpoints (currently only /api/wheel/spin has it, gated by wheel_turnstile_enabled=false).",
+    "[Minor] Align review-brief contracts: update the brief doc so /calls/livekit/config → /calls/token payload (ws_url is inside), and {accept,reject} → 'use /api/calls/end with status=rejected'. No code changes needed.",
+    "[Minor] Consider returning user_id in /api/auth/register response so the frontend OTP screen doesn't need an extra /me call.",
+    "[Observation] Hubtel webhook secret + NowPayments IPN secret are CONFIGURED (invalid-signature test returned 401 — proves secret is set). Good.",
+    "[Observation] LiveKit JWT validated: alg=HS256, iss=APIxFgZRJB45C4V, video.roomJoin=true, video.canPublish=true, video.canSubscribe=true. Room name pattern japap_sess_<hex>. max_participants=2 for p2p. All correct.",
+    "[Observation] Password reset flow is rock solid: enum-safe 200 for unknown emails, token in password_reset_tokens table with used=FALSE, 1-hour TTL, old password rejected with 'Session révoquée' after reset (all active sessions invalidated — excellent security posture)."
+  ],
+  "critical_code_review_comments": [
+    "TURNSTILE: routes/wheel_fortune.py:186 gates on wheel_turnstile_enabled which is default 'false' — go-live needs a GLOBAL turnstile_enabled + apply to auth endpoints, not just wheel.",
+    "routes/auth.py:777 forgot_password sends email BEFORE returning response (awaited) — this adds ~1-3s latency. Consider fire-and-forget via asyncio.create_task to improve UX.",
+    "routes/auth.py:395 verify_otp uses email as key — fine, but rename request model field from user_id (if review brief is the spec) or document the contract.",
+    "routes/wallet.py:873 hubtel webhook signature check: uses hmac.compare_digest correctly. Good. But DEV mode (empty secret) accepts ANY payload — log a WARN on every request in DEV mode to make it obvious secrets aren't set.",
+    "routes/wallet.py:1081 nowpayments webhook similar DEV-mode concern.",
+    "routes/calls.py has no /livekit/config endpoint but frontend may expect one — add a lightweight GET that returns {ws_url, configured:bool} for probe purposes (currently UI must call /test-livekit which is admin-only).",
+    "settings_service.py DEFAULTS: only 'wheel_turnstile_enabled' exists. Add turnstile_enabled, turnstile_site_key (PUBLIC_KEYS), turnstile_secret_key (SECRET_KEYS) so admin UI can configure without redeploy."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter93_go_live.py"
+  ],
+  "success_rate": {"backend": "96% (24/25) — sole failure is the expected TURNSTILE blocking finding"},
+  "test_credentials": "admin@japap.com / JapapAdmin2024! ; bob@japap.com / Test1234! ; alice@japap.com / Test1234!",
+  "seed_data_creation": "1x test user (test_iter93_<hex>@example.com, deleted in cleanup). 1x password_reset_tokens row for Alice (used=TRUE after restore). 2x call_sessions rows (Bob host, Alice callee). 2x deposits rows in 'pending' state (dep_xxx tx_ids — NOT charged, just checkout URLs generated).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_iter93_go_live.py -v --tb=line -p no:ethereum (~3 min). Requires DATABASE_URL (auto-read from /app/backend/.env). Registration test is slow (~30s first hit cold conn) — has 3x retry. Password reset test is RENAMED TestZZPasswordReset so it runs LAST (it revokes Alice's sessions). Turnstile test will KEEP FAILING until main agent adds TURNSTILE_SITE_KEY + SECRET_KEY to backend/.env and enables wheel_turnstile_enabled (or adds a global turnstile_enabled). Webhook invalid-sig tests will skip if secrets become unset. No real money was debited — only deposit session creation was tested (checkout URLs from pay.hubtel.com and nowpayments.io returned, proving provider keys accepted).",
+  "rca of the issue": "TURNSTILE NOT CONFIGURED RCA: (1) /app/backend/.env has NO TURNSTILE_* keys (grep returned 0 matches). (2) /app/backend/services/settings_service.py DEFAULTS contains only 'wheel_turnstile_enabled':'false' — there is no global turnstile_enabled / site_key / secret_key. (3) /app/backend/routes/admin_settings.py SECRET_KEYS set contains hubtel+nowpayments+livekit+r2 keys but NOT turnstile. (4) /app/backend/routes/wheel_fortune.py:186-197 is the ONLY place Turnstile verification runs, and it's gated on wheel_turnstile_enabled=false, so effectively OFF. MITIGATION: Main agent must add TURNSTILE_SITE_KEY + TURNSTILE_SECRET_KEY to backend/.env, extend settings_service.DEFAULTS with turnstile_enabled + turnstile_site_key + turnstile_secret_key (adding turnstile_site_key to PUBLIC_KEYS for frontend read), add turnstile_secret_key + turnstile_enabled to admin_settings SECRET_KEYS (the enabled flag doesn't need to be secret), and apply a _verify_turnstile() dependency to /api/auth/register, /api/auth/login (after N failures), /api/auth/forgot-password — at minimum the unauthenticated POST endpoints that are abuse vectors for public go-live."
+}

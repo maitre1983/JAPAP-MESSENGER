@@ -1,0 +1,39 @@
+{
+  "summary": "Iter77 — Open Graph preview + user-to-user follow graph + ProfilePage cover/avatar/stats + UserFollowListPage. Backend pytest 18/18 PASS (OG html+og:*+twitter:* meta tags + meta-refresh, OG 200 fallback on unknown id, OG XSS html-escapes <script>, follow self-400, follow idempotent + counters, unfollow idempotent, followers/following list shape with is_self+is_following + invalid 404, follow roundtrip, profile new fields cover_image/cover_position_y/followers_count/following_count/posts_count/is_following/is_self, cover_position_y clamp 999→100 and -5→0, cover_image set, posts_count auto inc/dec on POST/DELETE, regression geo + feed listing + share external). Frontend Playwright (Bob, mobile 390x844): /profile renders profile-cover + edit-cover-button + edit-avatar-button + 3-stat strip (1/0/0); ImageCropper modal opens with all 5 testids, cancel closes cleanly; cover cropper hides cropper-position-y BEFORE pick and shows it AFTER pick; cover upload roundtrip succeeds → profile-cover-image objectPosition='center 50%'; stat-followers click navigates to /users/{id}/followers and shows follow-list-title 'Followers · Bob' + follow-list-empty (0 followers); follow-list-row + 'Vous' badge correctly shown on bob's own row in alice's followers list after bob follows alice; follow API roundtrip via JS fetch returns {followed:true, followers_count:1}.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "UserFollowListPage", "issue": "follow-toggle button click did not flip 'Abonné' → 'Suivre' text within 2s in automated test (state stayed 'Abonné'). Code shows correct optimistic update + rollback pattern, so this may be a test timing artifact OR a real React state-batching issue. Worth a manual verification by main agent.", "selector": "[data-testid^='follow-toggle-']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration77_og_social.py",
+    "/app/test_reports/pytest/iter77_og_social.xml"
+  ],
+  "action_items": [
+    "Manually verify the follow-toggle optimistic UI on /users/:id/(followers|following) — automated test could not visually confirm the 'Abonné'→'Suivre' label flip, although the underlying API (DELETE /api/users/{id}/follow) is verified working in pytest. Suggest adding a brief refetch-after-toggle to be safe, OR confirming setItems is mutating the right row."
+  ],
+  "critical_code_review_comments": [
+    "routes/og.py: html.escape(quote=True) applied to every untrusted field before injection — XSS-safe; image URL resolves relative paths to absolute against PUBLIC_FRONTEND_URL/REACT_APP_BACKEND_URL — correct for scrapers.",
+    "routes/og.py: unknown post_id returns HTTP 200 with valid OG fallback — prevents permanent negative caching by FB/WhatsApp scrapers — good pattern.",
+    "routes/social.py: follow/unfollow wraps INSERT/DELETE + counter UPDATE inside a single conn.transaction() — counters stay consistent under concurrency.",
+    "routes/social.py: ON CONFLICT DO NOTHING + RETURNING id pattern keeps follow idempotent without an extra SELECT round-trip — efficient.",
+    "routes/social.py: GREATEST(0, count - 1) on unfollow protects against negative drift — good defensive coding.",
+    "routes/social.py _list_users(): bulk is_following lookup in one query (ANY($::varchar[])) — O(1) per row instead of N+1.",
+    "PostMenu.jsx buildPostShareUrl returns `${origin}/api/og/post/${postId}` (verified) — WhatsApp/Facebook will now correctly scrape OG tags before redirecting to SPA.",
+    "ProfilePage.js: stat-followers/following are <Link> wrapping the whole stat tile — both clickable + accessible. stat-posts uses href='#' aria-disabled='true' (no /users/:id/posts route yet) — intentional placeholder, fine.",
+    "Minor: ProfilePage and UserFollowListPage both fetch `/api/auth/me` separately to know viewer identity — consider lifting to a global AuthContext to avoid duplicate /me calls per navigation (non-blocking)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration77_og_social.py (new)"
+  ],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "~95% (1 toggle visual flip not observed; rest 12+ flows green)"},
+  "test_credentials": "bob@japap.com / Test1234!  ;  alice@japap.com / Test1234!  ;  admin@japap.com / JapapAdmin2024!",
+  "seed_data_creation": "Backend pytest creates ephemeral 'TEST_iter77' posts (deleted in fixture teardown) and toggles bob↔alice follow rows (cleaned up at end of each test where applicable). Two additional follow rows may remain from frontend smoke (bob→alice) — harmless.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests use TEST_BASE_URL env (default http://localhost:8001) — much faster + reliable than the public preview URL which intermittently times out (>30s) under load. To re-run: cd /app/backend && PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest tests/test_iteration77_og_social.py -p asyncio -p anyio -p pytest_asyncio. Bob's user_id=user_a1b203440a53, Alice's user_id=user_317b6e0805a3 in current DB. The /users/:userId route does NOT render ProfilePage — ProfilePage is mounted on /profile only (own profile). The UserPublicProfile page that renders for /users/:userId is a different component (not part of iter77 spec) — don't confuse them.",
+  "rca of the issue": "N/A — no critical bugs. The single MEDIUM-priority frontend observation (toggle text not flipping in automation) needs a manual eye to confirm; backend underlying API is verified working."
+}

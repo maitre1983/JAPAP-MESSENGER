@@ -1,0 +1,36 @@
+{
+  "summary": "iter146 ROUND 2 RETEST — All 9 pytests PASS. Main agent's _client_ip(request) helper (cf-connecting-ip → x-forwarded-for → client.host fallback) correctly resolves the real external client IP and fixes the trusted-device fingerprint rotation bug that broke the whole feature in round 1. Updated test file to send a stable X-Forwarded-For: 203.0.113.42 on every login/devices/refresh/reset-password call so the tests are deterministic regardless of whether they hit the backend via preview URL (XFF preserved by ingress) or direct localhost.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "preview URL", "issue": "First pytest run hit 20s read-timeouts on 4 early tests (cold TLS to japap-refactor.preview.emergentagent.com). Rerun passed immediately. No backend-side issue; cosmetic only — could be mitigated by bumping requests timeout=30 or retry-once in the _login helper."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter146_auth_trusted.py",
+    "/app/test_reports/pytest/iter146_auth_retest.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "_client_ip(request) helper in routes/auth.py lines 24-48 is well-documented, handles the 3 standard layers correctly (cf-connecting-ip → x-forwarded-for first hop → socket peer fallback). Consider promoting it to a shared utility (e.g. /app/backend/utils/network.py) so that other endpoints still using `request.client.host` directly (login_attempts, audit logs if any) can re-use the same logic. Currently duplicated patterns exist across modules.",
+    "Trusted device flow now fully functional end-to-end: counter 1→2→3 (same UA+IP), different UA creates a new row with count=1, 90d refresh cookie on is_trusted=True, reset-password untrusts all devices, GET /devices returns is_current=true for calling fingerprint. All acceptance criteria met."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter146_auth_trusted.py (added STABLE_XFF constant + X-Forwarded-For header on all login/devices/refresh/reset-password/legacy-login calls)"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 on final run; 5/9 on first run due to transient 20s read-timeouts on 4 tests, all passed on rerun without code change)",
+    "frontend": "N/A (testing_type = backend only, per review_request)"
+  },
+  "test_credentials": "/app/memory/test_credentials.md — Bob bob@japap.com/Test1234!, Alice alice@japap.com/Alice2026!, Legacy baunestali@gmail.com. Bypass captcha JAPAP_E2E_BYPASS_2026/0. All correct.",
+  "seed_data_creation": "trusted_devices rows created/reset for Bob between every test class via setup_method DELETE. One password_reset_tokens row inserted + consumed during TestResetPasswordUntrust. No leftover state.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "iter146 Trusted Device feature is now fully validated. Full test suite reruns in ~67s via: `cd /app/backend && PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_iter146_auth_trusted.py -v`. If rerunning and hitting sporadic 20s timeouts on the first 3 tests (TLS cold start to preview URL), simply rerun — stable on warm connections. The test file now always sends X-Forwarded-For=203.0.113.42 which the backend _client_ip helper resolves as the real client IP. Frontend (LoginPage migration banner, PwaUpdateBanner) was validated by code review in round 1, not retested in this round per instructions.",
+  "rca_of_the_issue": "Round-1 root cause (pod IP rotation breaking fingerprint) is RESOLVED. Fix: /app/backend/routes/auth.py:24-48 introduces _client_ip(request) used in /login, trusted-device record, and downstream logic. Verified deterministic fingerprint across 3 consecutive logins (counter 1→2→3) and that a UA change produces a new fingerprint (count=1). The 90d max-age (7776000s) is correctly set on the refresh_token cookie when is_trusted=True and 7d (604800s) otherwise. Reset-password correctly cascades to untrust_all() zeroing successful_logins_count and setting is_trusted=FALSE on all rows for the user."
+}

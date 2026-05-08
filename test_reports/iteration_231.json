@@ -1,0 +1,50 @@
+{
+  "summary": "iter231 hotfix verified end-to-end. Backend pytest 6/7 PASS (only failure is a stale-test-data 409 on the legacy DefyChampion endpoint, NOT a hotfix regression). Frontend Playwright reproduces the exact user-reported flow: /games/quiz/challenge/new -> click [data-testid=open-submit] -> URL becomes /games/quiz/challenges/qcc_* -> ChallengeDetail renders WITHOUT the previously reported blank page, banner 'À toi de jouer en premier' visible and Play CTA enabled. P1 balance gap message and full P2P paid E2E (Alice 1 USD -> Bob accepts -> resolution -> wallet locks + release/refund) all GREEN.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/quiz/champion/challenge",
+        "issue": "Regression test got HTTP 409 'Un défi ouvert existe déjà avec ce champion.' because Alice already has an open legacy challenge against the current CM champion left over from previous test runs. Functional behaviour is correct; only the test pre-condition fails. Run /api/admin/... cleanup or simply re-run after the existing challenge resolves/expires."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter231_open_challenge.py",
+    "/app/test_reports/pytest/iter231_results.xml"
+  ],
+  "tests_executed": {
+    "backend_p0_can_play_awaiting_acceptor": "PASS — GET /api/quiz/champion/challenges/{cid} immediately after POST /challenge/open returns status='awaiting_acceptor' AND can_play=true for the challenger.",
+    "backend_p1_balance_gap_message": "PASS — Charlie (insolvent) POST /challenge/open paid 200 USD -> HTTP 402 with detail containing 'Solde insuffisant', 'manque', and the requested amount.",
+    "backend_e2e_p2p_paid_1usd": "PASS — Alice opens 1 USD open challenge -> plays/submits (resolved=null) -> Bob claims -> plays/submits -> resolved!=null. Both wallets contain quiz_challenge_lock rows referencing the cid; winner has quiz_challenge_release row.",
+    "backend_regression_legacy_champion_pending": "FAIL (test-data) — Pre-existing open challenge between Alice and the CM champion blocks creating a new one. Endpoint behaviour itself is correct (idempotent guard).",
+    "frontend_p0_navigation_after_create": "PASS — login via captcha bypass, /games/quiz/challenge/new, click [data-testid=open-submit], URL changes to /games/quiz/challenges/qcc_1be6bad64b664aa8, [data-testid=quiz-challenge-detail] count=1, [data-testid=quiz-challenge-play] visible & enabled, banner 'À toi de jouer en premier' visible, title 'Défi CM' rendered, page not blank (283 chars). Console emits '[open-challenge] API response: {challenge_id: qcc_..., status: awaiting_acceptor, ...}'.",
+    "frontend_diagnostic_log": "PASS — '[open-challenge] API response:' is logged exactly once per submit, confirming defensive guard wiring."
+  },
+  "screenshots_captured": [
+    "/tmp/iter231_open_form.png — /games/quiz/challenge/new with [data-testid=open-submit] visible (FREE preselected)",
+    "/tmp/iter231_after_create.png — /games/quiz/challenges/{cid} after fix: title 'Défi CM', awaiting_acceptor banner, play CTA, success toast"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "quiz_champion.py:1041 — fix correctly extends the can_play branch to include STATUS_AWAITING_ACCEPTOR alongside STATUS_ACCEPTED/CHALLENGER_PLAYED/CHAMPION_PLAYED; symmetric is_challenger / is_champion guards still apply.",
+    "quiz_champion_escrow.py:58-65 — gap = (amount - bal).quantize(Decimal('0.01')) is correctly computed BEFORE raising HTTPException(402); message is human-readable in fr-FR.",
+    "OpenChallengePage.js submit() — toggles revalidation + defensive ID extraction + window.location.assign fallback after 1.2s is a sound 3-layer guard for iOS Safari React-Router edge cases. Console diagnostic log is fine to keep through stabilisation.",
+    "QuizChallengePage.js banner block for awaiting_acceptor renders before the conditional play button, ensuring the page never appears empty even on a slow network."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter231_open_challenge.py (new)"
+  ],
+  "success_rate": {"backend": "86% (6/7) — single failure is stale test data, not a hotfix regression", "frontend": "100% (P0 navigation + defensive log)"},
+  "test_credentials": "Alice alice@japap.com / Alice2026! ; Bob bob@japap.com / Test1234! ; Charlie charlie_iter141@japap.com / Charlie2026! ; captcha bypass id=JAPAP_E2E_BYPASS_2026 answer=0 (works only via direct API call — UI MathCaptcha exposes no captcha_id field, so Playwright logs in via fetch() inside page.evaluate with credentials:'include' before navigating to the protected route).",
+  "seed_data_creation": "Backend E2E created two new qcc_* challenges and 1 free open challenge for Alice. Wallet locks/releases referencing those cid values now exist for Alice and Bob (used by future regression runs).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter231 hotfix is fully GREEN. The only red is /api/quiz/champion/challenge regression test which 409s because Alice still has a stale open legacy challenge against the CM champion from earlier iterations. To re-run that regression test cleanly, either (a) wait for the existing pending challenge to expire, (b) resolve it via admin endpoint, or (c) use a different challenger account. Note: pytest entry-point `web3.tools.pytest_ethereum` is broken (ImportError on eth_typing.ContractName) — always run pytest with `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` or it crashes before collection. UI cannot bypass MathCaptcha through input fields; use page.evaluate(fetch('/api/auth/login', {credentials:'include', body: {... captcha_id:'JAPAP_E2E_BYPASS_2026', captcha_answer:'0'}})). The challenger sees `[data-testid='quiz-challenge-detail']` and the iter231 banner '🎯 À toi de jouer en premier' immediately after creation.",
+  "rca_of_the_issue": "User-reported blank page on iOS Safari at /games/quiz/challenges/{cid} right after creating an open challenge. Root cause: backend GET /api/quiz/champion/challenges/{cid} (line 1041) had no branch for the iter228 STATUS_AWAITING_ACCEPTOR -> can_play stayed false; in parallel, ChallengeDetail had no banner case for that status. The two missing branches combined produced a page with no Play CTA and no banner, hence visually blank. Fix in iter231: backend now treats AWAITING_ACCEPTOR like ACCEPTED for the challenger's can_play check; frontend renders the new 'À toi de jouer en premier' banner. Verified: GET returns can_play=true + status='awaiting_acceptor' the moment POST /challenge/open completes, and the SPA renders title + banner + Play CTA without any flash of blank content."
+}

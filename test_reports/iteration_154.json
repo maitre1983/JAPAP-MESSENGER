@@ -1,0 +1,22 @@
+{
+  "summary": "iter170 Crowdfunding viral loop — full E2E (backend + frontend) verified. Backend test suite test_crowdfunding_recruit_iter170.py: 3/3 PASS (race-safe cap=3 under 10 concurrent visits via pg_advisory_xact_lock, notify_tier_awarded idempotent in-app + Resend email, run_reminder_pass idempotent). Admin endpoint POST /api/admin/crowdfunding/recruit-reminders/run: 401 for anon, 200 for admin returning expected schema {day_key, cycle_id, visited_no_vote{sent,errors,candidates}, voted_no_share{...}}. Frontend public route /crowdfunding/leaderboard: anon path renders cf-leaderboard-page, hero 'Top recruteurs Crowdfunding', 'Pas de cash, juste de la gloire', share btn, register CTA, cf-lb-rules with 5 bullets, cf-lb-cta-block visible. Logged-in (Bob) path: cf-lb-cta-block HIDDEN, hero register-cta HIDDEN, RecruiterProgressCard ('MA PROGRESSION / Programme Recruteur') rendered, pedagogy block still visible. Active cycle cycle_01573301c7e8.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_crowdfunding_recruit_iter170.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CrowdfundingLeaderboardPage.useEffect: axios.get for /recruiter/me has no try/catch — if it 401s mid-session the leaderboard fetch result is lost (Promise.all rejects). Acceptable for now since /me is only requested when user is set; consider settling individually.",
+    "Pedagogy block ('cf-lb-rules') uses emoji bullets in <li> via plain text — accessibility could be improved with aria-labels for screen readers.",
+    "Public /crowdfunding/leaderboard correctly skips ProtectedRoute. Backend /api/crowdfunding/recruiter/leaderboard already returns {items:[], me:null} when anon — clean."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Bob bob@japap.com/Test1234! used via /api/auth/login with captcha bypass JAPAP_E2E_BYPASS_2026; Admin admin@japap.com/JapapAdmin2024! for /api/admin/crowdfunding/recruit-reminders/run.",
+  "seed_data_creation": "test_notify_tier_awarded inserts 3 dummy crowdfunding_recruit_credits (recruit_user_id LIKE 'test_notify_%') for Bob then cleans up; test_race_safe_cap inserts/deletes 3 crowdfunding_invite_visits with ip_hash='ip_race'.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "iter170 fully validated. Public leaderboard route is anon-readable, tier notifications dispatch in-app + Resend email idempotently, advisory-lock anti-fraud caps to 3 visits even under 10-way concurrency, admin-only manual reminder trigger works and is idempotent across runs. No regressions detected.",
+  "rca of the issue": "n/a — no issues found"
+}

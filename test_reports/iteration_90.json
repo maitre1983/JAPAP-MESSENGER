@@ -1,0 +1,42 @@
+{
+  "summary": "Iter90 Support system + Wallet alert ack endpoints: 20/20 backend pytest PASS + frontend /support + /admin Support tab render with all expected data-testids. AI chat responds in FR with JAPAP context (Claude Sonnet 4.5). Ticket creation/listing/admin-transitions work end-to-end. Wallet alert unread_only/ack/ack-all verified (admin-only gates enforced).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/login", "issue": "Carry-over from iter88/89: intermittent 45s read-timeouts under load (login fixture has 3x retry)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter90_support.py",
+    "/app/test_reports/pytest/iter90_support.xml"
+  ],
+  "action_items": [
+    "None blocking — iter90 support module ready for closeout.",
+    "(Housekeeping) Test created SUP-2B3C678C & touched SUP-6C07729D. Admin may want to purge TEST_ tickets via SQL cleanup.",
+    "(Observation) Admin-tab-wallet-overview-badge disappears after our ack-all test (expected). If main agent wants a persistent badge for demo, re-trigger a KYC-gated withdraw to seed a new alert."
+  ],
+  "critical_code_review_comments": [
+    "routes/support.py L46-70 _ensure_ddl: uses module-level _DDL_DONE flag (not per-connection); first call creates table+indexes then later callers skip even if DB resets. Acceptable but document it.",
+    "routes/support.py L191-196: audit_logs INSERT builds JSON details via f-string — safe here since ticket_id/category are enum-constrained, but prefer jsonb_build_object() or parameterized json.dumps for defense-in-depth against future reuse.",
+    "routes/support.py L148-150: suggests_human_agent heuristic is case-insensitive substring match on FR phrases; will miss EN replies. Since system_prompt forces FR, acceptable, but worth flagging.",
+    "services/ops_notifications.py _fire() L56-61: fallback asyncio.run() inside 'no running loop' branch blocks caller in tests — not an issue in prod but could deadlock if called from a sync context within FastAPI startup.",
+    "SupportPage.js L64: sends last 10 msgs but backend accepts up to 20 — inconsistent cap, safe but redundant.",
+    "SupportPage.js: no loading state on AI error beyond a generic bubble; user can't retry the last message without retyping. Minor UX.",
+    "AdminPage.js L36: /api/admin/wallet/alerts?unread_only=true&limit=1 — limit=1 means we only get 1 item row even though unread_count is accurate; fine for badge count but wastes the item payload."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter90_support.py"
+  ],
+  "success_rate": {"backend": "100% (20/20)", "frontend": "100% (all testids present; AI chat responds; admin ticket admin-toggle + set-{status} buttons operational; Support badge visually rendered with count=1)"},
+  "test_credentials": "admin@japap.com / JapapAdmin2024! ; bob@japap.com / Test1234!",
+  "seed_data_creation": "2 tickets for Bob: SUP-2B3C678C (TEST_iter90 retrait bloqué, wallet, transitioned to resolved by test) and existing SUP-6C07729D (Problème avec mon retrait TRC20, open — left as-is for admin UI verification). Wallet alerts were ack-all'd by TestWalletAlertsAck.test_ack_all.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run: REACT_APP_BACKEND_URL=https://japap-refactor.preview.emergentagent.com python -m pytest backend/tests/test_iter90_support.py -v -p no:ethereum (~80s). AI chat test hits real Claude Sonnet 4.5 via EMERGENT_LLM_KEY — ~5s latency. Resend emails are sent async fire-and-forget (no assertion in backend tests; backend returns before mail send; main agent validated visually in inbox). /admin badges refresh every 30s; to demo wallet-overview badge re-appearing, trigger a KYC-required withdraw (e.g., Bob $600 TRC20) to insert a new admin_alert row.",
+  "rca of the issue": "N/A — no bugs found. Iter90 (support + alerts ack) is feature-complete."
+}

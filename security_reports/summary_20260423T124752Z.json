@@ -1,0 +1,22 @@
+{
+  "ts": "20260423T124752Z",
+  "findings": {
+    "bandit": {
+      "total": 113,
+      "high_or_critical": 2
+    },
+    "semgrep": {
+      "total": 542,
+      "high_or_critical": 0
+    },
+    "pip-audit": {
+      "total": 166,
+      "high_or_critical": 7
+    }
+  },
+  "tools_run": [
+    "bandit",
+    "semgrep",
+    "pip-audit"
+  ]
+}

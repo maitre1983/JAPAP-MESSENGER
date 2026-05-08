@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="iter130_quiz_phase3e" tests="35" failures="0">
+  <testcase classname="iter130" name="env_check">
+  </testcase>
+  <testcase classname="iter130" name="reset_state">
+  </testcase>
+  <testcase classname="iter130" name="login_alice">
+  </testcase>
+  <testcase classname="iter130" name="login_bob">
+  </testcase>
+  <testcase classname="iter130" name="login_admin">
+  </testcase>
+  <testcase classname="iter130" name="dc_status_alice_initial">
+  </testcase>
+  <testcase classname="iter130" name="dc_start_alice">
+  </testcase>
+  <testcase classname="iter130" name="dc_start_alice_5q_4opts">
+  </testcase>
+  <testcase classname="iter130" name="dc_start_alice_categories">
+  </testcase>
+  <testcase classname="iter130" name="history_populated_after_dc_start">
+  </testcase>
+  <testcase classname="iter130" name="dc_start_blocks_2nd_same_day_429">
+  </testcase>
+  <testcase classname="iter130" name="dc_submit_alice_200">
+  </testcase>
+  <testcase classname="iter130" name="dc_submit_alice_score_5_5_perfect_bonus">
+  </testcase>
+  <testcase classname="iter130" name="dc_submit_share_text_present">
+  </testcase>
+  <testcase classname="iter130" name="standard_quiz_start_after_dc_ok">
+  </testcase>
+  <testcase classname="iter130" name="standard_quiz_5q_returned">
+  </testcase>
+  <testcase classname="iter130" name="standard_quiz_start_2nd_ok">
+  </testcase>
+  <testcase classname="iter130" name="anti_repeat_no_overlap_consecutive_starts">
+  </testcase>
+  <testcase classname="iter130" name="distribution_50_20_15_15_approx">
+  </testcase>
+  <testcase classname="iter130" name="admin_distribution_get_200">
+  </testcase>
+  <testcase classname="iter130" name="admin_distribution_put_400_when_sum_ne_100">
+  </testcase>
+  <testcase classname="iter130" name="admin_distribution_put_200_when_sum_100">
+  </testcase>
+  <testcase classname="iter130" name="admin_categories_get">
+  </testcase>
+  <testcase classname="iter130" name="admin_categories_payload_keys">
+  </testcase>
+  <testcase classname="iter130" name="admin_categories_put_disable">
+  </testcase>
+  <testcase classname="iter130" name="admin_questions_obsolete_true">
+  </testcase>
+  <testcase classname="iter130" name="admin_questions_obsolete_false_revert">
+  </testcase>
+  <testcase classname="iter130" name="admin_generate_ai_total_4">
+  </testcase>
+  <testcase classname="iter130" name="admin_generate_ai_inserted_rows">
+  </testcase>
+  <testcase classname="iter130" name="admin_generate_ai_by_category_present">
+  </testcase>
+  <testcase classname="iter130" name="history_populated_quiz_standard">
+  </testcase>
+  <testcase classname="iter130" name="streak_consecutive_increments_to_4">
+  </testcase>
+  <testcase classname="iter130" name="streak_resets_after_gap_to_1">
+  </testcase>
+  <testcase classname="iter130" name="regression_champion_get_CM">
+  </testcase>
+  <testcase classname="iter130" name="regression_quiz_answer">
+  </testcase>
+</testsuite>

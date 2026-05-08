@@ -1,0 +1,37 @@
+{
+  "iteration": 139,
+  "summary": "Auth flow UX polish + PWA bump",
+  "auth_ux_improvements": {
+    "login": [
+      "autoComplete='username' on email input — browser autofill maintenant fonctionnel",
+      "autoComplete='current-password' + inputMode='email' + autoCapitalize='off' + autoCorrect='off' (mobile keyboard friction réduite)",
+      "formatApiError local supprimé → utilise extractErrorMessage (handle Pydantic 422 array, network error, all edge cases)"
+    ],
+    "register": [
+      "formatApiError supprimé (4 instances) → extractErrorMessage partout",
+      "Hardcoded 'Un nouveau code a été envoyé.' → t('auth.otp_resent_ok') ajouté dans 11 locales (FR/EN/PT/ES/AR/SW/LN/YO/HI/BN/TA)",
+      "OTP double-submit guard : `if (loading) return;` au début de submitOtp (était : paste auto-complete + click submit → 2 POSTs → 2nd toast 'OTP déjà utilisé' → confusion user)"
+    ]
+  },
+  "pwa_bump": {
+    "manifest": [
+      "id='/?source=pwa' (Chrome match installs reliably)",
+      "start_url='/?source=pwa' (était /feed → redirigeait vers /login pour les non-loggués → install screen vide)",
+      "launch_handler.client_mode='navigate-existing' (réutilise l'onglet PWA existant au lieu d'en ouvrir un nouveau)",
+      "display_override prepended 'window-controls-overlay' (desktop PWA sans titre bar custom)",
+      "categories ajout 'lifestyle'",
+      "shortcuts: ajout 'Jeux' (+ Messenger, Wallet, Services existants) → 4 shortcuts au long-press de l'icône"
+    ],
+    "service_worker": [
+      "SW_VERSION bumped v4-iter83 → v5-iter139 → invalide automatiquement TOUS les caches (shell + runtime + static-api) à la prochaine visite"
+    ]
+  },
+  "tests_e2e": [
+    "Login bob@japap.com → 200 + user_id ✓",
+    "manifest.json id=/?source=pwa start_url=/?source=pwa shortcuts=4 ✓",
+    "sw.js SW_VERSION=v5-iter139 ✓",
+    "yarn build clean en 62s",
+    "11 locales JSON valides (ar/bn/en/es/fr/hi/ln/pt/sw/ta/yo)"
+  ],
+  "verdict": "STABLE — login/register expérience client lissée (autofill OK, double-submit OFF, errors lisibles). PWA install upgradée (start_url propre, shortcuts riches, cache invalidation forced)."
+}

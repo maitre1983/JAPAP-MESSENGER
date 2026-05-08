@@ -1,0 +1,38 @@
+{
+  "summary": "Iter105 — Dynamic Surge Pricing Engine (Phase D) backend fully tested. 19/19 new tests GREEN. Regression iter102 (pricing Phase B+C) 29/29 GREEN. All 4 admin surge endpoints behave per spec: GET /admin/surge/config returns {country_code, config, defaults} (admin-only, 401/403 enforced); PUT /admin/surge/config merges partial config (max_surge alone does NOT wipe peak_uplift/label_threshold), inserts admin_audit_log row with action='transport.surge.config_update'; GET /admin/surge/preview returns {multiplier, raw_multiplier, label, factors{time,demand,urban,traffic,vehicle}, details{time_band,demand_supply_ratio,urban_score,traffic_kmh}, h3_cell, config_used} — label='Forte demande' iff multiplier>=label_threshold; GET /admin/surge/history returns {days, country_filter, min_multiplier, summary{total,surged,avg_multiplier,max_multiplier,extra_revenue}, items[...]}. Engine semantics verified: enabled=false short-circuits to multiplier=1.0; per-layer toggles (time/demand/urban/traffic) zero out their factor; max_surge is a HARD cap (raw=3.0 → final=1.5 when max_surge=1.5). Integration: /api/transport/estimate returns fare_low/fare_high/fare_estimated (back-compat = fare_low) + currency + surge_label + surge_applied. /api/transport/request snapshots surge_multiplier+surge_label on ride_requests, inserts surge_history row with full factor breakdown, and the wallet check uses the SURGED fare (rejected with 'Solde insuffisant' when wallet covers base but not surged total). Total runtime ~3m13s for iter105 + ~1m for iter102 regression.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration105_surge.py",
+    "/app/test_reports/pytest/iter105_surge.xml",
+    "/app/test_reports/pytest/iter105_regression_iter102.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "transport_surge.py L215-217: when online_drivers==0, the engine returns ds_high_uplift unconditionally — even if active_rides is also 0 (no demand AND no supply). Result: an empty city at 3am with 0 rides + 0 online drivers gets a +0.40 demand uplift, which then pushes multiplier to 1.40 and triggers 'Forte demande' label. Recommend short-circuit: if active_rides==0 return (0.0, 0.0).",
+    "transport_surge.py L195: grid_disk(h3_cell, 1) returns 7 cells, but the urban_factor (L231) and traffic_factor (L251) only look at the SINGLE cell. Inconsistent — the 'cell' that defines surge for the rider is computed slightly differently across layers. Document the choice or unify (e.g. all 3 layers query the 1-ring).",
+    "transport.py L150: fare_high_mult is computed as min(multiplier*1.2, max_surge). The CAP is correct, but the spec says 'fare_high = min(multiplier*1.2, max_surge) * base_fare' — the current implementation does exactly this, GOOD. However, when surge is already AT cap (e.g. multiplier=2.0, max_surge=2.0), fare_high == fare_low (no range). UI may want to widen the upper bound or hide the range chip in that case.",
+    "transport.py L266-271: log_surge_application is awaited INSIDE the same block as the INSERT but OUTSIDE conn.transaction() — meaning if the wallet/INSERT path raised, the helper would still run with stale data. In practice the path above raises with HTTPException before reaching the helper, so this is benign. Worth a comment to document the intent.",
+    "transport.py L1944: merged = {**current, **req.config} performs a SHALLOW merge. If a future config introduces nested objects (e.g. per-vehicle overrides), this will replace them wholesale instead of deep-merging. Add a note or switch to a proper deep-merge before the schema grows.",
+    "transport_surge.py L308 cap = float(cfg.get('max_surge', 2.0)): if an admin PUTs max_surge=0 (or negative) it would cap multiplier below 1.0 and the max(raw,1.0) would still floor to 1.0 — but the math would be confusing. Recommend Pydantic validator on PUT body to enforce max_surge >= 1.0.",
+    "transport_surge.py L330 config_used filters keys by prefix — the 'enabled' top-level key is NOT exposed in the preview response (no prefix match). The admin UI cannot tell from preview alone whether the engine is globally on. Include it explicitly.",
+    "Missing: GET /admin/surge/config currently returns the FULL merged config but does NOT return updated_at / updated_by. Useful audit metadata for the UI ('config last touched by admin@japap.com 2h ago').",
+    "transport.py L173-282 /request and L124-170 /estimate both re-query the user's country_code separately from _resolve_pricing — two SELECTs on users for the same column on the same request. Consolidate to one fetchrow returning country + grid in one round-trip."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration105_surge.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (19/19 iter105 + 29/29 iter102 regression)",
+    "frontend": "not_tested (per review_request testing_type=backend)"
+  },
+  "test_credentials": "admin@japap.com / JapapAdmin2024! (JWT minted via JWT_SECRET, HS256, type=access). Bob bob@japap.com used as non-admin for 403 + as the rider for /estimate + /request integration; Bob.country_code is forced to 'CM' and wallet to 50000 XAF in the per-test fixture.",
+  "seed_data_creation": "Module-scope autouse fixture and per-test autouse fixture wipe surge_config + surge_history + admin_audit_log (action='transport.surge.config_update') for country='CM', AND wipe ride_requests in the pickup H3 cell (computed via services.transport_geo.h3_cell from PICKUP_LAT=3.848, PICKUP_LNG=11.5021 ~ Yaoundé) so the demand/urban/traffic baseline is zero. Bob's country forced to 'CM' and wallet topped up to 50000 XAF; any active in-progress rides for Bob are cancelled to avoid the duplicate-active-ride 409 guard. Tests don't seed multi-driver/multi-ride scenarios for the demand/urban/traffic factor PROPER (those are validated via the toggle tests + the simpler vehicle-only path); to exercise the live demand factor the tester would need to insert N pending ride_requests in the same h3 cell + 1 online+approved driver — left as future enhancement.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter105 helpers use direct asyncpg seeding for clean isolation. The bootstrap fixture's first hit of the public URL has a cold-start latency >15s (first call wrapped in try/except with 60s timeout). The pytest plugin from web3 (pytest_ethereum) breaks collection — always use `-p no:ethereum`. The h3 cell for (3.848, 11.5021) is deterministic so the cell-scoped wipe is safe. To test demand/supply/urban/traffic LIVE (not just toggle off), insert ride_requests rows with status IN ('pending','accepted','en_route') and pickup_h3=<computed cell> in the last 5 minutes, AND ensure at least one row in `drivers` with is_online=TRUE + kyc_status='approved' exists. For traffic_factor specifically you need ride_requests rows with status='completed', pickup_h3=<cell>, distance_km>0.5 and started_at/completed_at in the last 60 min that compute to <15 km/h. The vehicle factor (premium) is the easiest knob and is the one used to drive the multiplier in the integration tests.",
+  "rca of the issue": "N/A — no failing functionality discovered. The only env hiccup was first-call cold-start latency on the public URL (>15s) which was wrapped with try/except in the bootstrap fixture. Subsequent calls all responded in <1s."
+}

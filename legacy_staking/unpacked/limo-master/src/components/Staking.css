@@ -1,0 +1,682 @@
+body {
+  background-color: #f2f2f2;
+}
+
+h1 {
+  padding: 20px auto !important;
+  margin: 20px auto !important;
+  text-align: center;
+}
+
+.staking-div-container {
+  max-width: 800px !important;
+  border: 1px solid #eee;
+  background-color: #fff;
+  margin: 0px auto;
+  padding: 30px 0px 10px 0px;
+}
+
+/** TOP SECTION BALANCE BOXES **/
+
+.row-earning {
+  margin: 20px 10px 10px 10px;
+  padding: 10px 0px 10px 0px;
+  display: flex;
+  justify-content: center;
+  margin-top: 0;
+
+}
+
+.row-earning-col {
+  display: flex;
+  gap: 20px;
+  justify-content: flex-start;
+  align-items: center;
+  background-color: #f0f8ff;
+  border-radius: 6px;
+  margin: 0px 6px;
+  padding: 20px 20px !important;
+  box-shadow: 0px 1px 6px rgba(46, 39, 165, 0.25);
+  width: 31.5%;
+  height: 80px;
+}
+
+.row-earning-col h2 {
+  font-size: 18px;
+  padding-top: 0px;
+  margin: 5px;
+}
+.row-earning-col h3 {
+  font-size: 14px;
+  margin: 5px;
+}
+
+/** SECTION COIN SELECT BOXES **/
+
+.row-selection-2 {
+  display: flex;
+  margin: 20px 10px 20px 20px;
+  justify-content: center;
+  align-items: center;
+}
+
+.row-selection-col1 {
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  display: flex;
+  background-color: #f0f8ff;
+  border-radius: 6px;
+  font-family: 'Poppins', sans-serif;
+  padding: 20px 10px 10px 10px !important;
+  box-shadow: 0px 1px 6px rgba(46, 39, 165, 0.25);
+  height: 170px;
+}
+.row-selection-col2 {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  background-color: #f0f8ff;
+  border-radius: 6px;
+  padding: 20px 10px !important;
+  box-shadow: 0px 1px 6px rgba(46, 39, 165, 0.25);
+}
+
+.currency-section {
+  display: flex;
+  justify-content: center;
+}
+
+.currency-logo-section {
+  text-align: center;
+  width: 120px;
+  align-items: center;
+}
+.currency-section p {
+  font-size: 14px;
+  margin: 10px 0px;
+  font-family: 'Poppins';
+  font-weight: 500;
+}
+.light {
+  position: relative;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 300;
+  color: #000;
+}
+
+.total-limo-staked1 {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  background-color: #f0f8ff;
+  border-radius: 6px;
+  margin: 0px 0px 10px 0px;
+  padding: 10px 20px !important;
+  box-shadow: 0px 1px 6px rgba(46, 39, 165, 0.25);
+  width: 100%;
+  height: 78px;
+}
+.total-limo-staked2 {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  background-color: #f0f8ff;
+  border-radius: 6px;
+  padding: 10px 20px !important;
+  box-shadow: 0px 1px 6px rgba(46, 39, 165, 0.25);
+  width: 100%;
+  height: 78px;
+}
+
+.total-limo-staked-col {
+  background-color: transparent;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  justify-content: space-between;
+}
+.total-limo-staked h2 {
+  font-size: 18px;
+  padding-top: 0px;
+  margin: 5px;
+}
+.total-limo-staked h3 {
+  font-size: 14px;
+  margin: 5px;
+}
+
+/**** SECTION3 ROW  ***/
+
+.row3-col {
+  display: flex;
+  align-items: center;
+  font-family: 'Poppins', sans-serif;
+  flex-direction: column;
+  justify-content: flex-start;
+  background-color: #f0f8ff;
+  border-radius: 6px;
+  margin: 0px 6px;
+  width: 245px;
+  padding: 20px 5px !important;
+  box-shadow: 0px 1px 6px rgba(46, 39, 165, 0.25);
+}
+
+.row-selection-3 {
+  margin: 10px auto;
+  justify-content: center;
+  padding: 0px 0px;
+}
+
+h2 {
+  font-size: 16px;
+  padding: 0px !important;
+  font-weight: 500;
+  margin: 5px;
+}
+h3 {
+  font-size: 14px;
+  margin: 5px;
+}
+.bold {
+  font-weight: 600;
+}
+p.min-limo {
+  margin: 15px 0px 5px 0px;
+  padding: 0px;
+  position: relative;
+  font-size: 14px;
+  font-weight: 300;
+  font-family: Poppins;
+  color: #000;
+  text-align: left;
+}
+
+/**** DROP DOWN BUTTON ***/
+.rm {
+  margin: 20px 10px;
+}
+.dropdown-menu.show {
+  background-color: #fff;
+  box-shadow: 0px 1px 6px rgba(46, 39, 165, 0.25);
+}
+
+.dropdown-item {
+  border-bottom: 1px solid #daecff;
+  padding: 0px 5px;
+}
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:focus,
+.dropdown-item:hover {
+  background-color: #daecff;
+  color: #000;
+}
+
+.drop-image {
+  padding: 5px 20px;
+}
+
+.dropdown-toggle {
+  border: 1px solid #daecff;
+  background-color: #f0f6fc !important;
+  box-shadow: 0px 1px 2px rgba(46, 39, 165, 0.25);
+}
+.dropdown-toggle:hover {
+  border: 1px solid #daecff;
+  box-shadow: 0px 1px 6px rgba(46, 39, 165, 0.25);
+}
+
+.dropdown-button:hover,
+.dropdown-toggle,
+.dropdown-button {
+  color: #000 !important;
+  font-size: 14px !important;
+  font-weight: 500;
+  font-family: 'Poppins', sans-serif;
+}
+
+.dropdown-toggle::after {
+  margin-left: 0.8em !important;
+}
+
+/******** TOP STAKES SECTION *****/
+
+.row-stakers-one {
+  margin: 20px 15px 5px 15px;
+  padding: 10px 0px 0px 0px;
+}
+.stakers-row-col-one {
+  display: flex;
+  gap: 20px;
+  justify-content: start;
+  align-items: center;
+  background-color: #f0f8ff;
+  border-radius: 6px;
+  margin: 0px 5px;
+  padding: 15px 20px !important;
+  box-shadow: 0px 1px 6px rgba(46, 39, 165, 0.25);
+}
+
+.stakers-container-inside {
+  height: 315px;
+  overflow-y: scroll;
+  overflow-x: none;
+  padding: 2px 20px 20px 20px;
+}
+.row-stakers {
+  margin: 5px auto;
+  padding: 5px 0px;
+}
+.stakers-row-col {
+  display: flex;
+  gap: 20px;
+  justify-content: start;
+  align-items: center;
+  background-color: #f0f8ff;
+  border-radius: 6px;
+  margin: 0px 5px;
+  padding: 10px 20px !important;
+  box-shadow: 0px 1px 6px rgba(46, 39, 165, 0.25);
+  position: relative;
+}
+
+.stakers-head-num {
+  width: 10%;
+  text-align: center;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.stakers-head-title {
+  width: 60%;
+}
+.stakers-head-title-inside {
+  width: 65%;
+}
+.stakers-head-title h2 {
+  font-size: 20px;
+  font-weight: 500;
+  font-family: 'Poppins', sans-serif;
+}
+.stakers-head-title h3 {
+  font-size: 14px;
+  font-weight: 400;
+  font-family: 'Poppins', sans-serif;
+}
+
+.staked-coins-head {
+  width: 18%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.staked-coins-head h2 {
+  font-size: 20px;
+  font-weight: 500;
+  margin-left: 15px;
+  font-family: 'Poppins', sans-serif;
+}
+.staked-coins-head h3 {
+  font-size: 16px;
+  font-weight: 400;
+  font-family: 'Poppins', sans-serif;
+}
+
+/* width */
+.stakers-container-inside::-webkit-scrollbar {
+  width: 10px;
+}
+
+/* Track */
+.stakers-container-inside::-webkit-scrollbar-track {
+  box-shadow: inset 0 0 5px grey;
+  border-radius: 10px;
+}
+
+/* Handle */
+.stakers-container-inside::-webkit-scrollbar-thumb {
+  background: #2e27a5 !important;
+  border-radius: 10px;
+}
+
+/* Handle on hover */
+.stakers-container-inside::-webkit-scrollbar-thumb:hover {
+  background: #171180;
+}
+
+/**** BUTTONS **/
+
+.stake-button,
+.unstake-button {
+  margin-top: 10px;
+  min-width: 150px;
+  background-color: #2e27a5;
+  font-size: 14px;
+  font-family: 'Poppins', sans-serif;
+  height: 40px;
+}
+.stake-button:hover,
+.unstake-button:hover {
+  margin-top: 10px;
+  min-width: 150px;
+  background-color: #171180;
+  font-size: 14px;
+  font-family: 'Poppins', sans-serif;
+}
+
+.early-withdraw p {
+  padding-top: 20px;
+  font-size: 12px !important;
+  margin: 0px;
+}
+
+/* @media (min-width: 768px) {
+  .row3-col {
+  }
+} */
+@media (max-width: 576px) {
+  .rm {
+    margin: 20px 0px;
+  }
+  .row-earning-col {
+    margin: 10px auto;
+    width: 100%;
+  }
+  .row-selection-2 {
+    margin: 10px;
+  }
+  .row-selection-col1 {
+    margin-bottom: 10px;
+    align-items: center;
+    padding: 0px;
+  }
+
+  .total-limo-staked-col {
+    margin: 0px !important;
+    padding: 0px;
+  }
+  .total-limo-staked {
+    width: 100%;
+    justify-content: center;
+    margin: 15px auto;
+  }
+  .row3-col {
+    width: 94% !important;
+    margin: 10px;
+  }
+  .stakers-container-inside {
+    overflow-y: scroll;
+    overflow-x: none;
+    padding: 0px;
+  }
+  .stakers-row-col {
+    margin: 0px 12px;
+  }
+  .row-stakers-one {
+    margin: 20px auto 10px auto !important;
+    padding: 10px 6px;
+  }
+  .stakers-head-num {
+    width: 5%;
+    font-size: 12px;
+  }
+
+  .stakers-head-title {
+    width: 60%;
+  }
+  .stakers-head-title h2 {
+    font-size: 14px;
+  }
+  .stakers-head-title-inside h3 {
+    font-size: 12px;
+  }
+  .stakers-head-title h3 {
+    font-size: 12px;
+  }
+  .staked-coins-head {
+    width: 10%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .staked-coins-head h2 {
+    font-size: 14px;
+  }
+  .staked-coins-head h3 {
+    font-size: 12px;
+  }
+}
+
+/****** TEXT SCROLL SECTION ******/
+
+.text-scroll-container {
+  background-color: #f0f8ff;
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  padding: 20px 20px;
+}
+
+.connect-button-div {
+  border: 1px solid #000;
+  background-color: #2e27a5 !important;
+  color: #000 !important;
+  margin: 0px auto;
+  display: flex;
+  padding: 10px;
+  justify-content: center;
+  text-align: center;
+}
+.connect-button-div .wui-text {
+  color: #000 !important;
+}
+
+.stars {
+  position: absolute;
+  left: 12px;
+  width: 28px;
+}
+
+/** MODAL CSS START HERE **/
+
+.modal-container .modal-content {
+  background-color: #fff;
+  text-align: center;
+  color: #171180;
+  max-width: 400px;
+  top: 30%;
+  border-radius: 20px;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+}
+.modal-heading {
+  padding: 30px 0px;
+}
+.modal-heading h3 {
+  font-weight: bold;
+  font-size: 18px;
+  color: #171180;
+  margin-top: 15px;
+}
+.modal-header button.btn-close {
+  color: #fff !important;
+}
+
+.modal-footer {
+  text-align: center;
+  justify-content: center;
+}
+.popup-btn {
+  width: 50%;
+  background-color: #2e27a5;
+  font-size: 16px;
+  font-family: sans-serif;
+  font-weight: bold;
+  text-transform: uppercase;
+  padding: 10px 0px;
+  margin-bottom: 20px;
+}
+.popup-btn:hover {
+  width: 50%;
+  background-color: #171180;
+  font-size: 16px;
+  font-family: sans-serif;
+  font-weight: bold;
+  text-transform: uppercase;
+  padding: 10px 0px;
+  margin-bottom: 20px;
+}
+.modal-footer,
+.modal-header,
+.modal-body {
+  border: none !important;
+}
+
+/** MODAL CSS ENDS HERE **/
+/** UNSTAKE MODAL CSS START HERE **/
+
+.unstake-modal-container .modal-content {
+  background-color: #fff;
+  text-align: center;
+  color: #171180;
+  top: 30%;
+  border-radius: 20px;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+}
+.unstake-modal-heading {
+  padding: 5px 0px;
+}
+.unstake-modal-heading h3 {
+  font-weight: bold;
+  font-size: 18px;
+  color: #171180;
+  margin-top: 15px;
+}
+.modal-header button.btn-close {
+  color: #fff !important;
+}
+
+.modal-footer {
+  text-align: center;
+  justify-content: center;
+  padding: 10px 20px 20px 20px;
+}
+.unstake-btn-div {
+  justify-content: center;
+  gap: 10px;
+}
+
+.unstake-popup-btn {
+  font-size: 12px;
+  width: 150px;
+  background-color: #171180 !important;
+  font-weight: 400;
+  text-transform: uppercase;
+  padding: 10px 10px !important;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  box-shadow: 1px 1px 6px #999;
+  border: none !important;
+}
+.unstake-popup-btn:hover {
+  background-color: #1b12c7;
+  box-shadow: 1px 1px 6px #eee;
+}
+.unstake-footer-div {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-footer,
+.modal-header,
+.modal-body {
+  border: none !important;
+}
+
+.modal-header.unstaking-madal-header {
+  padding: 20px 20px 0px 20px;
+}
+.modal-header h2 {
+  font-size: 20px;
+  font-weight: 400;
+}
+.unstake-btn-div {
+  padding: 0px 5px !important;
+}
+/** MODAL CSS ENDS HERE **/
+
+.staking-input {
+  border: none;
+  width: 200px;
+  border-radius: 5px;
+  padding: 8px;
+  color: #171180;
+  font-weight: 600;
+  border: 1px solid #a8c4e2;
+  background-color: #fff;
+  box-shadow: 1px 0px 5px rgba(46, 39, 165, 0.1);
+  text-align: center;
+}
+span.error {
+  font-size: 12px;
+  color: red;
+  letter-spacing: 0.4px;
+  font-weight: normal;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+
+  padding: 10px 4px;
+}
+span.proceed,
+span.reject {
+  font-size: 14px;
+  text-transform: uppercase;
+}
+.unstake-popup-btn-proceed {
+  background-color: #fe0000;
+}
+.unstake-popup-btn-reject {
+  background-color: #666;
+}
+.unstake-popup-btn-proceed:hover {
+  background-color: #e00101;
+}
+.unstake-popup-btn-reject:hover {
+  background-color: #444;
+}
+.unstake-popup-btn-reject,
+.unstake-popup-btn-proceed {
+  height: 40px;
+  min-width: 180px !important;
+  border: 0px;
+  display: flex;
+  justify-content: center;
+  border-radius: 50px;
+  box-shadow: 0px 1px 5px #999;
+  align-items: center;
+}
+
+span.unstake-popup-text {
+  font-size: 14px;
+  font-weight: 400;
+  color: #444;
+  line-height: 25px;
+}
+.active {
+  background-color: #a8c4e2;
+  padding: 20px;
+}
+.stake-button,
+.unstake-button {
+  border: none !important;
+}

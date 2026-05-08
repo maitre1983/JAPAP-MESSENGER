@@ -1,0 +1,57 @@
+{
+  "summary": "Sprint D AI pipeline (R2 -> Whisper -> Claude -> DB -> API) END-TO-END VERIFIED via isolated pytest. Found and FIXED a critical backend bug: services/call_ai_service.py was calling stt.transcribe_audio(file=str_path,...) — but the emergentintegrations OpenAISpeechToText API exposes .transcribe(file=fileobj, ...) (method renamed + must receive an opened file handle, not a path string). After fix: 3/3 of new test_iteration57_sprintD_ai_pipeline.py pass; real French speech sample -> Whisper transcript: 'Bonjour, ceci est un test... Bob doit envoyer le rapport...' -> Claude summary populated with 3 key_points, 1 decision, 1 action_item (Bob/envoyer rapport/avant midi), persisted via UPDATE call_summaries SET status='ready'. GET /api/calls/{id}/summary returns the full payload with key_points/decisions/action_items as proper JSON arrays. CallSummaryModal data-testids confirmed in source; modal mount path validated (CallContext setEndedSessionId fires on hangup when recordingId truthy). Frontend loads on mobile 390x844, login OK, summary endpoint returns 'ready' over the wire, /chat zero horizontal overflow. BLOCKER for full LiveKit-mediated E2E and for Sprint B regression: livekit_api_key/api_secret/ws_url ALL EMPTY in admin_settings (post infra-recovery they were lost; review_request claimed they were configured but DB row values are empty strings). Consequences: test_iteration53_livekit_sprintB.py FAILS 3/9 + 6 errors (all 503 'LiveKit non configuré'), and test_iteration56_sprintD_preflight.py FAILS at session fixture (same 503). The /api/calls/{session_id}/record/start path THEREFORE CANNOT BE EXERCISED LIVE until LiveKit creds are re-pushed; same for the Playwright record→hangup→modal flow (no session can be created without LiveKit). The AI-pipeline isolation pytest proves Whisper+Claude+R2+DB are GREEN; what remains gated is purely the LiveKit Egress hop.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "services/call_ai_service.py::transcribe_audio", "issue": "FIXED — was calling stt.transcribe_audio(file=str) but emergentintegrations exposes stt.transcribe(file=IO/PathLike). Two-line fix: rename method + open file as binary handle. Without this, EVERY recording would fail with AttributeError + the BG task would silently mark summary status='failed'. Verified GREEN after fix.", "priority": "CRITICAL"},
+      {"endpoint": "admin_settings.livekit_*", "issue": "All three livekit_api_key / livekit_api_secret / livekit_ws_url are EMPTY STRINGS in DB (post infra-recovery). /api/calls/test-livekit returns ok:false. /api/calls/session always 503 'Appels non disponibles'. Blocks Sprint B regression (test_iteration53) AND Sprint D preflight (test_iteration56) AND the live record→summary E2E. Main agent must re-push LiveKit creds via PUT /api/admin/settings (review_request claimed they were set but they aren't).", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "services/r2_storage_service.py::test_connection", "issue": "Returns ok:true with bucket=japap-recordings, endpoint=https://780f41872e4dabc1bd46952d7c623714.r2.cloudflarestorage.com — confirmed working. boto3 put_object/get_object/presigned_url all succeed."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "record→hangup→CallSummaryModal auto-open", "issue": "Could not be live-tested because LiveKit creds missing prevent any /api/calls/session from succeeding (503). Once main agent re-pushes LiveKit creds in admin_settings, this flow should work end-to-end (CallContext L113-131 endCall correctly sets endedSessionId when recordingId truthy; L585-590 mounts CallSummaryModal). Code path verified by inspection.", "affected_selectors": ["[data-testid=call-record-btn]", "[data-testid=recording-indicator]", "[data-testid=call-summary-modal]"]}
+    ],
+    "design_issues": [
+      {"screen": "/chat at 390x844 (mobile)", "issues": ["No horizontal overflow (sw==cw==390). Bottom nav visible. Empty state CTA buttons render correctly."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration57_sprintD_ai_pipeline.py",
+    "/app/backend/tests/fixtures/sample_audio.mp3",
+    "/app/test_reports/pytest/iter57_ai_pipeline.xml",
+    "/app/test_reports/pytest/iter57_sprintD.xml"
+  ],
+  "action_items": [
+    "(P0) Re-push LiveKit credentials into admin_settings (livekit_api_key, livekit_api_secret, livekit_ws_url=wss://japap-messenger-teqagzkq.livekit.cloud). Without these, /api/calls/session and the entire Sprint B/C/D flow returns 503 — both regression suites and the live record→summary E2E are blocked. SQL: UPDATE admin_settings SET value=$1::jsonb WHERE key='livekit_api_key' (and the other 2 keys).",
+    "(P0 — ALREADY APPLIED, DO NOT REVERT) Backend fix in services/call_ai_service.py L72-78: stt.transcribe(file=opened_handle) instead of stt.transcribe_audio(file=str_path). 3/3 isolation tests pass with real French speech sample → Whisper transcript + Claude JSON summary persisted. Keep this change.",
+    "(P1) After re-pushing LiveKit creds, re-run /app/backend/tests/test_iteration53_livekit_sprintB.py and /app/backend/tests/test_iteration56_sprintD_preflight.py — both should return GREEN as in iter55. Then run a Playwright 2-browser bob+carol audio call with record on mobile 375x667 to validate CallSummaryModal auto-opens.",
+    "(P2) Sample audio fixture committed at /app/backend/tests/fixtures/sample_audio.mp3 (~67KB, 8s French TTS via espeak-ng). Used by iter57 isolation pytest as a regression for the AI pipeline; will be reused in future iterations.",
+    "(P2) Consider adding a startup health log warning if EMERGENT_LLM_KEY is set but livekit/r2 are not — would have caught this misconfig faster post infra-recovery."
+  ],
+  "critical_code_review_comments": [
+    "call_ai_service.py L98-117 summarize_transcript: clean. system prompt is strict JSON, fences stripped, JSON parsed with safe fallback to raw text. claude-sonnet-4-5-20250929 model id is correct. Output capped (summary 2000 chars, key_points x6, decisions x10, actions x10) → safe.",
+    "call_ai_service.py L143-216 run_call_ai_pipeline: idempotent on summary_id (uses UPDATE when pre-created by /record/stop, INSERT otherwise) — this is exactly what eliminates the 'none' flash in CallSummaryModal polling. _mark_failed sets status='failed' + error_msg, which CallSummaryModal renders via [data-testid=summary-error]. Solid.",
+    "calls.py L390-452 record_stop: pre-creates summary_id row in 'pending' synchronously, returns it to client, then BG task transitions pending→transcribing→summarizing→ready. CallSummaryModal polling logic in CallSummaryModal.jsx L43-49 correctly stops on terminal {ready, failed} OR {none AND no recording}, keeps polling on {none AND has recording} (race-safe). Excellent UX design.",
+    "r2_storage_service.py: get_r2_config + presigned_get_url + build_recording_key + test_connection all correct. boto3 v4 signature, region='auto'. Verified end-to-end with real put_object + presign + Whisper download.",
+    "CallSummaryModal.jsx: bottom-sheet on mobile (sm:items-center fallback), max-h-[90vh] with internal scroll, audio player w-full, ALL data-testids present (call-summary-modal, summary-status, summary-text, summary-key-points, summary-decisions, summary-action-items, summary-toggle-transcript, summary-transcript, summary-audio-player, summary-loading, summary-error, summary-none, call-summary-close). Mobile-friendly per spec.",
+    "(P3) CallContext.js L52-127 endedSessionId only set when recordingId is truthy at hangup time. If user clicks record then immediately hangup (recording_id set) → modal opens. If user never records → no modal. Correct."
+  ],
+  "updated_files": [
+    "/app/backend/services/call_ai_service.py (CRITICAL bug fix: stt.transcribe_audio(file=str) → stt.transcribe(file=opened_binary_handle))",
+    "/app/backend/tests/test_iteration57_sprintD_ai_pipeline.py (NEW — 3 tests, all GREEN, isolates AI pipeline from LiveKit dependency)",
+    "/app/backend/tests/fixtures/sample_audio.mp3 (NEW — 8s French TTS speech sample, ~67KB, generated via espeak-ng + ffmpeg)"
+  ],
+  "success_rate": {
+    "backend": "AI pipeline isolation: 3/3 (100%) GREEN. Sprint B regression: 3/9 fails + 6 errors (BLOCKED on missing LiveKit creds — NOT a code regression, env config gap). Sprint D preflight: 1/8 + 7 errors (same root cause: LiveKit creds missing prevent session fixture).",
+    "frontend": "Login + chat load + summary GET over the wire + mobile 390 layout: 100%. Live record→modal E2E: BLOCKED on LiveKit creds (cannot create a session)."
+  },
+  "test_credentials": "bob@japap.com/Test1234! (re-registered + OTP-verified in this iter, user_id=user_c92a04b5c359), carol@japap.com/Test1234! (re-registered + OTP-verified, user_id=user_5e91b0e385f1), admin@japap.com/JapapAdmin2024!",
+  "seed_data_creation": "Seeded session sess_uitest88865901 (host=bob, status=ended) + recording rec_uitest* (status=ready, fake R2 URL) + summary sum_uitest* (status=ready, real summary/key_points/decisions/action_items/transcript) for frontend modal verification. Cleanup SQL: DELETE FROM call_summaries WHERE session_id='sess_uitest88865901'; DELETE FROM call_recordings WHERE session_id='sess_uitest88865901'; DELETE FROM call_participants WHERE session_id='sess_uitest88865901'; DELETE FROM call_sessions WHERE session_id='sess_uitest88865901';",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "1) AI pipeline (Whisper+Claude+R2+DB) is GREEN — keep iter57 pytest as canonical regression. 2) The blocker is LiveKit creds missing in admin_settings. Once main agent re-pushes them, immediately re-run iter53 + iter56 (should be GREEN as in iter55), then attempt the full Playwright 2-browser audio call with record at 375x667. Note: even with LiveKit creds back, headless Playwright cannot actually publish audio to LiveKit Egress (no real mic), so the live record→stop won't produce a real recording — fall back to validating up to record_start returning 200 + recording_id. The end-to-end Whisper+Claude assertion is already covered by iter57 isolation pytest. 3) Sample audio fixture at /app/backend/tests/fixtures/sample_audio.mp3 — DO NOT delete.",
+  "rca of the issue": "Root cause #1 (CRITICAL, FIXED): emergentintegrations 0.x's OpenAISpeechToText class exposes a method named 'transcribe' (not 'transcribe_audio'), and it requires the file param to be an opened binary handle / IOBase / PathLike instance — NOT a plain string path. The original code in call_ai_service.py used both the wrong method name AND a string path, so every record→AI pipeline run would AttributeError immediately and the BG task swallowed the exception (logger.warning only), leaving call_summaries stuck at status='transcribing' forever in production. Fix: rename to .transcribe + open(tmp_path, 'rb') wrapper. Verified with 3/3 GREEN isolation tests on real French speech (Whisper returned the exact transcript, Claude produced structured JSON with summary + 3 key_points + 1 decision + 1 action_item). Root cause #2 (CRITICAL, NOT fixed by testing agent — config issue, not code): post infra-recovery, the admin_settings table has empty string values for livekit_api_key/livekit_api_secret/livekit_ws_url. Main agent had pushed R2 creds but not LiveKit. Mitigation: PUT /api/admin/settings with the 3 livekit_* keys (values from the LiveKit Cloud dashboard). After that, re-run iter53+iter56 — they should pass."
+}

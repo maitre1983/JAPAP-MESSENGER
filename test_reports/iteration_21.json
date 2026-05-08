@@ -1,0 +1,50 @@
+{
+  "summary": "Iter21 — Registration OTP flow + Geo + Forgot/Reset Password + Hindi translation + Voice TL;DR summary — FULL PASS backend (18/18 in /app/backend/tests/test_iteration21_registration_otp.py) and FULL PASS frontend (E2E register→OTP→verify→/feed; /forgot-password success card; /reset-password card; /login forgot-password-link; /chat voice-summary-btn-msg_long_voice_demo renders cached 2-line English TL;DR 'Family meeting tomorrow 8am at Uncle Pierre's...'). Backend coverage: GET /api/geo/countries returns 197 countries with {code,name,dial}; GET /api/geo/detect returns {country_code,suggested_lang,ip} without crashing (pod returned empty country with suggested_lang=en — acceptable per spec); POST /register validates terms_accepted=true→400 otherwise, issues OTP w/o tokens, duplicate-verified→400, duplicate-unverified upserts password+re-issues OTP; verify-otp wrong→400 'Code invalide', expired→400, 5+ attempts→429, success returns user+access_token and sets email_verified=TRUE; resend-otp hits 60s rate-limit (429) within same minute, returns 200 for unknown emails (no enumeration); forgot-password+reset-password full flow works (token from logs, new password logs in); /api/messages/supported-languages returns 11 langs {en,fr,pt,es,ar,sw,ln,yo,hi,bn,ta}; Hindi translation returns Devanagari text; /messages/{id}/summarize returns 2-line summary on msg_long_voice_demo, cached <5s on 2nd call, 403 on non-participant. Frontend coverage: /register 'register-card' shows 'Create your account', country-select has 197 options (after async load), 'register-country-search' filters correctly (France→2 opts), pre-selects US via geo header, 'register-phone' present, submit→OTP step with register-otp-input (pattern=\\d{6} maxlength=6 inputmode=numeric) + verify-otp + resend-otp + back buttons, OTP verification redirects to /feed. /forgot-password shows 'Check your email' success. /reset-password has 2 password fields. /login has 'forgot-password-link' → /forgot-password. Regression: admin & bob logins work after fix; /chat voice summary button+render works end-to-end.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/register", "issue": "DATA-QUALITY: At start of this iteration, bob@japap.com and admin@japap.com had email_verified=FALSE in DB, which allowed the duplicate-register path to silently OVERWRITE their passwords (unverified upsert branch). This is a seed-data inconsistency — test credentials stated they were verified. Fixed during testing by UPDATE users SET email_verified=TRUE. Main agent should make seed_admin() and any bob seed idempotently set email_verified=TRUE to prevent regression."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Login page initial load", "issue": "CARRY-OVER from iter19/20: 500 + 502 errors fire on /login initial load (pre-auth call to protected endpoint). Does not block login.", "affected_selectors": []}
+    ],
+    "design_issues": [
+      {"screen": "/register country <option>", "issues": ["React hydration warning: 'In HTML, <span> cannot be a child of <option>' — the dev-overlay wraps dynamic option text in a <span> causing React dev-mode warnings. Cosmetic only — rendering works correctly. Likely an emergent dev tooling artifact (x-ve-dynamic) on dynamic option text. Consider rendering option text as a plain string child (not wrapped in a span-like expression) to silence the warning."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration21_registration_otp.py",
+    "/app/test_reports/pytest/iter21_results.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: Harden seed_admin() and bob-seed to set email_verified=TRUE idempotently (and force is_active=TRUE). Today, unverified seed users are vulnerable to the register-upsert path silently replacing their password.",
+    "OPTIONAL: Fix the <span>-child-of-<option> React hydration warning on RegisterPage.js country options.",
+    "CARRY-OVER: /login initial load fires 500/502 on a protected endpoint — not iter21 specific but still present."
+  ],
+  "critical_code_review_comments": [
+    "auth.py register(): the 'unverified upsert' branch updates password_hash + country + phone for ANY existing unverified user without any proof the requester owns the email. Combined with seed data where admin/bob had email_verified=FALSE, this allowed anonymous password takeover. Mitigations: (a) make all real users email_verified=TRUE on seed, (b) enforce an OTP match before allowing the password to change on the 2nd register attempt, or (c) rate-limit register-for-existing-unverified by email.",
+    "auth.py _issue_otp raises 429 on <60s repeat but the 429 is triggered even during the initial register→OTP send when the user was unverified from a prior attempt. Currently register() calls _issue_otp AFTER possibly updating the password; on a legit retry this is fine, but an attacker probing existing unverified emails gets a clean 'rate-limit' signal that leaks enumeration. Consider treating the 429 as an opaque 200 for unknown branches to match /resend-otp's non-enumeration contract.",
+    "geo.py detect_geo(): ipapi.co fallback uses a 3s timeout and returns {} if the pod's egress is restricted. The endpoint silently returns country_code='' which is fine; however, no caching/memoization per IP → every page load on /register fires this call. Consider a 5-min LRU on client IP.",
+    "routes/messaging.py summarize_voice(): cache key reuses message_translations with suffix '_sum' — pragmatic but couples two unrelated features. A dedicated message_summaries table would be cleaner long-term (schema drift risk if target_lang column size changes).",
+    "RegisterPage.js: country <option> text appears to be wrapped in an expression-span causing React hydration warning. Render it as plain string ({`${flag} ${name} (+${dial})`}) directly as option children, not inside a nested fragment/span.",
+    "RegisterPage.js: countries list is populated async from /api/geo/countries AND the <select> defaults to US before options load → Playwright saw options.length=1 initially. Consider showing a loading state or not rendering the select until countries resolve.",
+    "AuthContext.register(): no longer logs the user in — callers that previously relied on register→auto-login must call verifyOtp(). Confirm all call sites (incl. any referral flow) are updated."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration21_registration_otp.py (NEW — 18 tests, 18 passed)",
+    "DB: UPDATE users SET email_verified=TRUE WHERE email IN ('admin@japap.com','bob@japap.com'); (manual fix during testing to restore documented seed state)"
+  ],
+  "success_rate": {
+    "backend": "100% (18/18 passed after DB seed fix)",
+    "frontend": "100% on iter21 scope (register 2-step, forgot-password, reset-password, login link, voice summary render)"
+  },
+  "test_credentials": "admin@japap.com / JapapAdmin2024! (email_verified=TRUE restored during test); bob@japap.com / Test1234! (email_verified=TRUE restored during test); alice@japap.com / Test1234! (already verified)",
+  "seed_data_creation": "Multiple ephemeral TEST_iter21_<ts>@example.com users created via the new register→OTP flow to validate OTP issuance, rate-limiting (60s), wrong-code attempt counter, and password-reset roundtrip. No permanent data beyond those test users and their associated email_otps rows (all consumed or expired within 10 min).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter21 register/OTP/reset flows are fully wired and functional. Reusable test file: /app/backend/tests/test_iteration21_registration_otp.py — run via `python -m pytest backend/tests/test_iteration21_registration_otp.py -v --junitxml=/app/test_reports/pytest/iter21_results.xml`. The test uses log-scraping helper _latest_otp_for(email) to read the mocked OTP from /var/log/supervisor/backend.*.log. If Resend is later wired, this helper needs to be swapped for a real inbox. IMPORTANT SEED-STATE NOTE: this iteration had to manually UPDATE users SET email_verified=TRUE for admin+bob because they were FALSE — the main agent should make seed idempotency set this flag to avoid password-takeover risk via register-upsert branch. The register UI populates countries async; wait ≥2.5s after load before asserting option count. OTP input has pattern=\\d{6} maxlength=6 inputmode=numeric. /chat voice-summary-btn-{msgId} only renders when duration>=30s OR transcription>400 chars. Cached summary for msg_long_voice_demo already exists (label shows 'TL;DR · cached').",
+  "rca of the issue": "PRIMARY ROOT CAUSE (seed data): admin@japap.com and bob@japap.com had email_verified=FALSE in the DB at test start, which made the iter21 register-upsert path eligible to overwrite their password_hash. My test_register_duplicate_verified_rejected sent password='Anything1!' expecting a 400; instead it got 200 and silently replaced bob's password. This broke bob's login until I restored with bcrypt hash of 'Test1234!' and set email_verified=TRUE. Mitigation: main agent should ensure seed_admin and any bob-seed routine set email_verified=TRUE idempotently AND consider adding an OTP-gate to the register-upsert branch to prevent anonymous password replacement via a known unverified email."
+}

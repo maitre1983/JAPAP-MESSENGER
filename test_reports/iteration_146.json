@@ -1,0 +1,54 @@
+{
+  "summary": "iter146 testing — Auth bug fix (MIGRATION_RESET_REQUIRED guard) PASSES. Frontend Login + PWA banner code review GOOD. CRITICAL bug found in Trusted Device feature: fingerprint uses request.client.host which behind k8s ingress returns load-balanced upstream pod IPs (10.208.x.x) that change across requests. As a result, two consecutive logins from the SAME real user produce DIFFERENT fingerprints → counter never reaches threshold (2) → device never becomes trusted → 90-day refresh TTL is never issued. The whole Trusted Device feature (and reset-password untrust check) is non-functional in this environment.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "/api/auth/login (Trusted Device fingerprint)",
+        "issue": "ip = request.client.host is the kubernetes upstream pod IP, which varies per request (observed 10.208.139.2 vs 10.208.133.74 for same external client, same UA). Fingerprint = sha256(ip+ua) hence differs each call → successful_logins_count stays at 1 → is_trusted never flips → refresh_ttl_days stays 7. The CEO-promised 'stay logged in 90 days after 2 successful logins' UX does NOT work.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Login UI E2E with bypass captcha",
+        "issue": "AuthContext uses axios so the window.fetch override hack to inject TURNSTILE_TEST_BYPASS_TOKEN cannot be applied from a Playwright test. Running the E2E via the real captcha is impractical. Code review confirms logic is correct; recommend exposing a query-param or window-flag to inject bypass for E2E.",
+        "affected_selectors": ["[data-testid=login-migration-banner]", "[data-testid=login-migration-cta]", "[data-testid=login-migration-sent]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter146_auth_trusted.py",
+    "/app/test_reports/pytest/iter146_auth.xml"
+  ],
+  "action_items": [
+    "FIX (CRITICAL): In /app/backend/routes/auth.py around line 581/724, replace `ip = request.client.host` with the real-client IP, e.g. `ip = (request.headers.get('x-forwarded-for','').split(',')[0].strip() or (request.client.host if request.client else 'unknown'))`. The same value should be passed to record_successful_login() and to detect_new_device(). This is the single root cause for tests TestTrustedDevice, TestDevicesEndpoints (current device flag), TestResetPasswordUntrust, and TestRefreshTTL.test_trusted_refresh_ttl_90d failing. Note other endpoints (turnstile, math_captcha, wallet, connect, geo) already use this XFF pattern.",
+    "Consider adding an E2E captcha bypass mechanism on the frontend (e.g. ?e2e=1 in URL injecting captcha_id+answer at AuthContext.login level) so the migration banner Playwright flow can be automated end-to-end.",
+    "Optional: persist last_user_agent untruncated or normalise UA so minor UA churn (eg. version bumps) doesn't lose trust status."
+  ],
+  "critical_code_review_comments": [
+    "auth.py login: trusted-device IP source is the wrong layer (proxy IP vs real-client IP) — same root cause we hit in iter141/142 elsewhere.",
+    "trusted_device_service.py looks correct in isolation: SQL upsert is atomic and `newly_trusted` transition logic matches spec. No issue once the IP problem is fixed.",
+    "reset-password endpoint correctly invokes untrust_all() AND revoke_all_user_jtis() — defence in depth is good.",
+    "refresh endpoint wires get_refresh_ttl_days() correctly and re-issues cookie with right max_age — verified by code inspection.",
+    "LoginPage.js: MIGRATION_RESET_REQUIRED prefix handling and CTA → /forgot-password flow are clean; testids present (login-migration-banner / login-migration-cta / login-migration-sent / login-error).",
+    "PwaUpdateBanner: starts hidden until 'japap:sw-update-available' window event — correct UX (no false 'update available' on first visit). Verified empirically (data-testid='pwa-update-banner' absent at initial render)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter146_auth_trusted.py (new)"
+  ],
+  "success_rate": {
+    "backend": "33% (3/9 — Migration guard PASS x3, Trusted device flow + devices listing + reset untrust + refresh-trusted-90d FAIL due to single root cause; refresh-untrusted-7d also impacted)",
+    "frontend": "100% on inspectable items (login-page renders, pwa-update-banner correctly absent at first paint, all testids present in code) — full E2E migration banner flow not automated due to captcha"
+  },
+  "test_credentials": "Used /app/memory/test_credentials.md (Bob/Alice/baunestali). All correct.",
+  "seed_data_creation": "trusted_devices rows created/reset for Bob during tests. Cleanup done via DELETE in setup_method. No persistent test data leftover.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "After E1 fixes the XFF resolution in routes/auth.py, rerun: `cd /app/backend && PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest tests/test_iter146_auth_trusted.py -v --tb=short`. Expect all classes to pass. The 3 Migration guard tests already pass. The /api/auth/refresh tests use X-Requested-With XHR header to satisfy the CSRF middleware. Bob's brute-force counter is cleared on every successful login so no need to manually reset login_attempts.",
+  "rca_of_the_issue": "Root cause: `ip = request.client.host` returns the in-cluster upstream IP (varies because kubernetes Service load-balances across multiple FastAPI pods through different connection sockets). Two requests from the same external user therefore yield two different (ip, ua) tuples and two different sha256 fingerprints, splitting the 'successful_logins_count' across distinct trusted_devices rows. Reproduction: `cd /app/backend && python3 -c \"...SELECT fingerprint,last_ip,successful_logins_count FROM trusted_devices WHERE user_id='user_a1b203440a53'\"` shows two rows with the SAME UA but DIFFERENT IPs and count=1 each, after two consecutive logins. Mitigation: read X-Forwarded-For (first hop) before falling back to request.client.host — pattern already used in 6+ other backend modules."
+}

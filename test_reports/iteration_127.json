@@ -1,0 +1,28 @@
+{
+  "summary": "Phase 3.D backend testing — 41/41 tests passed across 9 areas: (1) GET /api/quiz/champion/admin/kpis as superadmin/admin returns the full ledger-sourced payload {challenges_total, by_mode, gmv, revenue_japap, refunds_total, engagement_bonus_pts, active_champions, top_countries[], top_refusers[]} with revenue/refunds/bonus/gmv ALL matching direct LEDGER queries to the cent (revenue=200, refunds=1750, bonus=200, gmv=2400); (2) anon → 401, Alice (non-admin) → 403; (3) leaderboard `paid` earnings now equal SUM(quiz_challenge_release.amount) for that user via JOIN on escrow_payout_tx_id (verified Alice earnings=1800.00 = 2×900 release rows, no more pot×0.9 approximation); (4) _lazy_expire idempotent: forced expires_at to past, expire-stale TWICE → exactly 1 refund row for the challenger (since pending = champion never locked), status flipped to 'expired' on first call and stays 'expired' on second, refund count unchanged; (5) race accept: two simultaneous POST /accept from Bob's two sessions → exactly one 200 + one 409 ('Statut actuel : accepted'), Bob's wallet debited exactly ONCE (50000→49500), exactly 1 lock TX from Bob; (6) scheduler smoke: `[QuizChampionScheduler ... loop started]` AND `[quiz-champion-promote] window=7d` both present in /var/log/supervisor/backend.err.log; (7) admin demote → GET /champion/CM = 404; (8) admin set re-promotes Bob, refusal_count_consecutive resets 3→0; (9) /admin/promote-all idempotent: 2nd call's `promoted` array empty (state converged after 1st). Frontend smoke: ChallengeShare.jsx contains all 3 testids (challenge-share-whatsapp/telegram/copy) and the deep-link path /games/quiz/champion/{country}.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter127_quiz_champion_phase3d.py",
+    "/app/test_reports/pytest/iter127_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "transactions.reference column is consistently empty for all quiz_challenge_* rows; the linkage to the originating challenge is only via a substring in `notes` (e.g. 'Lock for challenge qcc_xxx', 'Refund (expiry) for qcc_xxx'). This is fragile for analytics, indexing, and ledger queries. Recommend backfilling `reference = challenge_id` in lock_stake/refund_player/release helpers to enable indexed JOINs and clean SUM-by-challenge queries.",
+    "/admin/expire-stale takes a per-challenge row lock inside a transaction (good) and the idempotency guard inside _lazy_expire (status check on STATUS_PENDING/ACCEPTED/CHALLENGER_PLAYED/CHAMPION_PLAYED) is the actual barrier preventing double-refund — confirmed working under back-to-back invocations.",
+    "The race-condition guard on /challenge/{cid}/accept (FOR UPDATE row lock + status='pending' check) holds: 100% (1 200 / 1 409) over the parallel-thread firing in this run, and the wallet debit is single (lock_stake is inside the same transaction as the status flip).",
+    "/admin/kpis correctly sources every revenue figure from the transactions ledger (commission, refund, bonus rows) — manual SUM matches API to the cent. GMV is sourced from `quiz_champion_challenges` (sum stake×2 over completed paid in window) — also matches.",
+    "Leaderboard earnings query uses `quiz_champion_challenges JOIN transactions ON escrow_payout_tx_id = tx_id WHERE type='quiz_challenge_release'` — accurate even if commission_pct mutates mid-period (resolves the iter126 hard-coded 0.9 concern).",
+    "Scheduler boots cleanly under supervisor; no exceptions in 60s post-restart, expiry tick logged every 300s, promote tick logged daily after 03:00 UTC."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter127_quiz_champion_phase3d.py (new)"
+  ],
+  "success_rate": {"backend": "100% (41/41)", "frontend": "source-bundle smoke only (4/4 testids + deep-link present); Playwright not run (Turnstile blocks; out of scope for backend-only request)"},
+  "test_credentials": "alice@japap.com/Alice2026!  ;  bob@japap.com/Test1234!  ;  admin@japap.com/JapapAdmin2024! (used for admin endpoints — no 2FA)  ;  Turnstile bypass JAPAP_E2E_BYPASS_2026",
+  "seed_data_creation": "No new seed. Reused iter125/iter126 paid-challenge residue. Restored Bob as CM champion after promote-all naturally migrated CM to user_9ad70ec54565 (auto top-1 by points).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 3.D backend is solid. Two non-blocking observations: (a) transactions.reference is empty for all quiz_challenge_* rows, linkage to challenge is via NOTES substring — works but fragile; consider backfilling reference. (b) /admin/promote-all auto-elects user_9ad70ec54565 in CM (20 pts) over Bob — main agent's manual restore of Bob as champion is fine, but be aware that any test calling /admin/promote-all will demote Bob in CM. The test suite restores Bob at end. Frontend Playwright NOT run (backend-only directive + Turnstile barrier); ChallengeShare.jsx source verified to contain whatsapp/telegram/copy testids and the /games/quiz/champion/{country} deep-link path. Same login/csrf helper pattern as iter126 — login() then refresh_csrf() before every POST is mandatory once the session has done multiple GETs (the csrf_token cookie rotates and stale headers cause 403).",
+  "rca of the issue": "N/A — all 41 tests passed. Initial test run had 12 failures before two adjustments: (1) X-CSRF-Token header must be refreshed before every POST (csrf_token cookie rotates), (2) transactions are linked to challenges via `notes LIKE '%cid%'`, NOT via reference column. Both are test-harness concerns, not bugs in the API."
+}

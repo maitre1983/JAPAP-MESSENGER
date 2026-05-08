@@ -1,0 +1,46 @@
+{
+  "summary": "Iter22 — Admin Command Center Phase 1 + Currency + KYC + Spin tested end-to-end. Backend: 30/30 pytest PASSED (/app/backend/tests/test_iteration22_admin_phase1.py) after fixing one product bug (asyncpg date-filter bug in admin transactions list + CSV export). Frontend: Admin page 7 tabs all render & click (dashboard/users/transactions/kyc/spin/settings/audit); transactions tab shows filters (type/status/date_from/date_to/user_id), Export CSV button, 'Volume total: 102350' counter, and real transaction rows. Wallet page for Bob renders KYC banner 'Vérification d'identité (KYC) requise pour retirer des fonds' with 'Soumettre mes documents' button. Currency conversion verified: CM→XAF (FCFA, 605), NG→NGN (₦, 1560), GH→GHS (GH₵, 15.5). 75+ currency rates loaded. Settings bulk+single PUT persist, withdraw_enabled toggle yields 503, spin_enabled toggle yields 503, spin_max_daily_plays persists. KYC submit→admin approve flow works end-to-end (user becomes is_verified=TRUE).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/admin/kyc/pending-count", "issue": "Returns {'pending': N} — spec/review-request expected 'count' key. Either key works but keep consistent with AdminPage consumer."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Login initial load", "issue": "CARRY-OVER from iter21: /login fires 401/500 on pre-auth protected endpoint calls + WebSocket close before established. Does not block login or any functional flow.", "affected_selectors": []}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration22_admin_phase1.py",
+    "/app/test_reports/pytest/iter22_results.xml"
+  ],
+  "action_items": [
+    "RESOLVED (fixed during testing): /api/admin/transactions and /api/admin/transactions/export returned 500 when date_from/date_to filters were supplied — asyncpg refused to encode string bindings into timestamptz columns. Fixed /app/backend/routes/admin.py lines ~256-261 and ~481-484 by parsing the YYYY-MM-DD / ISO strings to datetime with UTC tz before binding, and dropping the ::timestamptz cast. Main agent: verify this change meets your spec (accepts both 'YYYY-MM-DD' and full ISO with Z).",
+    "OPTIONAL: Align /api/admin/kyc/pending-count response key with whatever the frontend AdminPage consumes — currently returns {'pending': N}; review request mentioned 'count'. Decide one and keep both producer and consumer in sync.",
+    "OPTIONAL CARRY-OVER: /login initial load fires 401/500 on a protected endpoint pre-auth — noisy but harmless.",
+    "OPTIONAL: /api/kyc/submit requires uploads ≥512 bytes — ensure the frontend file picker rejects sub-512B files with a friendly error rather than allowing a 400 round-trip."
+  ],
+  "critical_code_review_comments": [
+    "admin.py: date filter was passing raw str to $n::timestamptz — asyncpg resolves the prepared-statement param type from the cast and then requires a Python datetime object. Applied fix: parse to datetime in Python, bind as datetime, drop the inline cast. Consider adding a unit test for an invalid date string (should 400 not 500).",
+    "admin.py admin_list_transactions: same SQL string built with %s/format-style but asyncpg uses $n positional; `params` is mutated during function so there is a latent ordering-bug risk if order changes. Consider building a conditional WHERE helper.",
+    "wallet.py withdraw: returns 403 KYC_REQUIRED correctly, and 503 when withdraw_enabled=false. Good.",
+    "admin_settings.py: GET /api/admin/settings returns nested {settings, defaults, public_keys}. The AdminPage SettingsTab consumer must drill into data.settings; confirm (not verified in this run).",
+    "kyc.py _save_image: the 512-byte minimum could reject some legitimate tiny compressed previews. Consider bumping to a size check only when mimetype is not image/* AND logging the reject reason for the user.",
+    "games.py spin: spin_enabled=false returns 503 as required. Config endpoint exposes runtime shape {enabled,is_paid,cost_xaf,max_daily_plays,rewards}. Good.",
+    "admin.py admin_suspend_user: correctly deactivates + deletes sessions, creates audit log, sends notification. Login for suspended user correctly returns 401/403. Good."
+  ],
+  "updated_files": [
+    "/app/backend/routes/admin.py (fixed date filter binding in /transactions and /transactions/export)",
+    "/app/backend/tests/test_iteration22_admin_phase1.py (NEW — 30 tests, 30 passed)"
+  ],
+  "success_rate": {"backend": "100% (30/30 after 1 product fix)", "frontend": "100% on iter22 scope (admin 7 tabs + tx filters + export button + wallet KYC banner + modal DOM)"},
+  "test_credentials": "admin@japap.com / JapapAdmin2024! (admin, verified); bob@japap.com / Test1234! (user; NOT kyc-approved at start — KYC banner renders on /wallet); alice@japap.com / Test1234! (used for KYC submit-approve test)",
+  "seed_data_creation": "One ephemeral TEST_kyc_<hex>@example.com register to avoid polluting alice's KYC history; alice's KYC was then submitted via her token and approved by admin (alice is_verified=TRUE at end of run). Admin settings were toggled (withdraw_enabled, spin_enabled, spin_max_daily_plays, withdraw_disabled_message) and ALL reverted to defaults. bob was temporarily suspended then reactivated (login works at end).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run: python -m pytest /app/backend/tests/test_iteration22_admin_phase1.py -v --junitxml=/app/test_reports/pytest/iter22_results.xml. All 30 tests should pass in <10s. If /transactions returns 500 again, check admin.py date-binding fix. AdminPage /admin has all 7 tabs with data-testid='admin-tab-{id}' (dashboard/users/transactions/kyc/spin/settings/audit). WalletPage KYC banner data-testid='kyc-banner' and button data-testid='kyc-submit-btn' open modal data-testid='kyc-modal' containing kyc-full-name/id-type/id-number/id-photo/selfie/submit-form fields. KYC image upload requires ≥512 bytes. The /api/admin/settings GET returns {settings, defaults, public_keys} — consumer must drill into .settings. /api/admin/kyc/pending-count returns {pending: N} not {count}.",
+  "rca of the issue": "PRODUCT BUG FIXED: asyncpg's prepared-statement protocol resolves parameter types from inline ::timestamptz casts, which then requires a Python datetime object (not str) at bind time. admin.py was appending date_from/date_to as raw strings and relying on `$n::timestamptz`, producing TypeError: 'expected a datetime.date or datetime.datetime instance, got str'. This made the transactions-with-date-filter and CSV-export endpoints return 500 for any caller using date filters. Fix: parse str→datetime(UTC) in Python and bind as datetime (no cast needed). Verified with /api/admin/transactions?date_from=2020-01-01 → 200 with volume_total, and /api/admin/transactions/export?date_from=2020-01-01 → 200 text/csv + Content-Disposition attachment. Backwards-compatible with both 'YYYY-MM-DD' and full ISO strings (Z or +offset)."
+}

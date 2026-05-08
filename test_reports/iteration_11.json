@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration 11 testing complete — Referral Program (tiers 3/10) + WebRTC Call History APIs + UI. Backend: 19/19 pytest passed (referrals/me, list, validate-code, apply, claim with insufficient/invalid tier, leaderboard, register-with-code, post→activation trigger, calls initiate/end/history, self-call rejection, unknown callee 404, auth regression). Frontend: referral page renders all required testids (copy-code-btn, copy-link-btn, share-whatsapp/telegram/twitter, friends-list, leaderboard, code A8135138 visible). Profile link-referral present. Register page auto-fills referral_code from ?ref= URL param. Chat 1-1 header shows call-audio-btn and call-video-btn (correctly hidden in group chats). Migration integrity: users=6241, posts=18161, messages=2048, campaigns=5, blog_articles=608, referrals=6, calls=19. All flows working.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_referrals_calls.py",
+    "/app/test_reports/pytest/pytest_results_iter11.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Referral activation logic correctly fires from POST /api/feed/posts (uses 'text' field, not 'content'). Verified end-to-end: register→post→status flips to active.",
+    "Self-referral and double-referral are both rejected with 400 in /referrals/apply.",
+    "Tier 1 already 'rewarded' on admin (3 referrals consumed during dev tests as noted). Tier 2 insufficient case correctly returns 400 with French message.",
+    "/api/calls/initiate correctly rejects self-call (400) and unknown callee (404), and accepts type ∈ {audio, video}.",
+    "/api/calls/end correctly enforces caller_id/callee_id ownership, status whitelist, and creates 'call_missed' notification on rejected/missed for the callee.",
+    "/api/calls/history returns direction (incoming/outgoing) and 'other' user info, sorted by created_at DESC.",
+    "ReferralPage hero, stats (4 cards), tiers progress bars (5/3 and 5/10), friends list with masked emails, and leaderboard all render correctly in French.",
+    "Chat call buttons (Phone/VideoCamera icons) only render for non-group conversations (activeConv.type !== 'group'), as expected.",
+    "Register page correctly auto-fills referral_code from URL ?ref= param (tested with A8135138).",
+    "Minor: /api/referrals/me always assigns a referral_code on first call (ensure_referral_code) — good lazy initialization."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_referrals_calls.py"
+  ],
+  "success_rate": {
+    "backend": "100% (19/19 pytest passed)",
+    "frontend": "100% (all 22 UI assertions passed)"
+  },
+  "test_credentials": {
+    "admin": "admin@japap.com / JapapAdmin2024! (referral_code A8135138)",
+    "test_users": "testref_*_1776710*@japap.com / Test1234! (3 active referrals)"
+  },
+  "seed_data_creation": "test_register_with_referral_code creates new user testref_pytest_<ts>@japap.com (idempotent timestamp) and a TEST_referral_activation post on each run — leaves data behind but harmless.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 11 added: (1) Referral Program — /api/referrals/{me,list,validate-code,apply,claim,leaderboard}; activation triggered from feed/posts and wallet/send-money. Tier 1 = 3 actifs → 30j Star, Tier 2 = 10 → 90j. (2) WebRTC Calls — /api/calls/{initiate,end,history} + Socket.io signaling in server.py (call_invite, call_offer, call_answer, call_ice, call_end). UI: /referral page, Profile link, Register ref param, Chat 1-1 audio/video buttons + CallContext modal. Admin already has 3 rewarded + 2 active + 1 pending = 6 total referrals. To re-test tier 1 claim, create 3 new users + post as each.",
+  "rca of the issue": "N/A — no bugs found in this iteration."
+}

@@ -1,0 +1,52 @@
+{
+  "summary": "Iteration 13 — Backend pytest 29/29 PASS for /api/admin/stats enrichment, full /api/jobs/* CRUD + applications, full /api/transport/* flow (estimate, request, register, accept, complete with 15% commission, cancel, my-rides). One backend bug found and fixed: route ordering in jobs.py (/{job_id}/applications was matching before /my/applications causing 404 on GET /api/jobs/my/applications). Frontend: Admin /admin Dashboard tab renders correctly with admin-dashboard + admin-crowdfunding-stats + admin-gaming-stats + admin-jobs-stats + admin-transport-stats (all 4 new MiniStat sections visible with real values). Critical frontend bug found and fixed: ServicesPage.js had broken orphan JSX (38 lines of dead MarketplaceModule fragment) AFTER the component's closing brace, causing 'Compiled with problems: SyntaxError: Missing semicolon (386:3)' that broke ALL frontend pages. After cleanup the app compiles. HOWEVER another critical UI integration issue remains: Jobs and Transport service cards are NOT rendered as active in /services hub. Only 4 active cards render (marketplace, crypto, crowdfunding, games). 'Jobs' and 'Transport' do not appear at all in the active list — the Bientôt disponibles section shows 5 unrelated coming-soon items (Food Delivery, Publicités, Événements, Offres, E-commerce) but neither Jobs nor Transport. As a result the JobsModule and TransportModule cannot be reached from /services, so frontend e2e flows (jobs-page, transport-page, jobs-cat-*, create-job-btn, mode-rider/driver, fare-estimate, request-ride-btn, driver-register-form, driver-profile, available rides) could NOT be exercised. Backend modules are fully functional and proven via pytest, but the corresponding frontend cards are missing/not wired.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/jobs/my/applications & /api/jobs/my/postings", "issue": "Route ordering bug — these routes were declared AFTER /{job_id}/applications and /{job_id}, so FastAPI matched /{job_id}/applications with job_id='my' first → 404. Fixed by moving the /my/* routes above /{job_id} routes in jobs.py."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ServicesPage.js", "issue": "Broken orphan JSX (lines 386-423) AFTER component closing brace produced SyntaxError that prevented the entire frontend from compiling. Fixed by truncating dead code.", "selector": "n/a", "priority": "CRITICAL (was blocking all routes)"},
+      {"component": "ServicesPage.js — services list", "issue": "service-jobs and service-transport cards are NOT present in the active services grid. Only 4 cards render: service-marketplace, service-crypto, service-crowdfunding, service-games. Jobs and Transport modules are therefore unreachable from /services. The 'Bientôt disponibles' section unrelated.", "selector": "[data-testid='service-jobs'], [data-testid='service-transport']", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [
+      {"flow": "Jobs (/services → JobsModule)", "issue": "Cannot test — service-jobs card missing from ServicesPage. Backend /api/jobs/* fully working (29/29 pytest pass).", "affected_selectors": ["service-jobs","jobs-page","jobs-cat-tech","jobs-search","create-job-btn","create-job-modal","job-detail","apply-btn"]},
+      {"flow": "Transport (/services → TransportModule)", "issue": "Cannot test — service-transport card missing from ServicesPage. Backend /api/transport/* fully working including driver registration, accept, complete with 15% commission and wallet transfer.", "affected_selectors": ["service-transport","transport-page","mode-rider","mode-driver","fare-estimate","request-ride-btn","driver-register-form","driver-profile","available-ride-*","accept-ride-*"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_jobs_transport_admin.py",
+    "/app/test_reports/pytest/iter13_results.xml"
+  ],
+  "action_items": [
+    "Fix ServicesPage.js to expose service-jobs and service-transport as active cards (currently only 4 of the required 6). The cards should setView('jobs') / setView('transport') to mount JobsModule / TransportModule respectively (which already exist and work).",
+    "Verify after fix that clicking service-jobs renders [data-testid='jobs-page'] and clicking service-transport renders [data-testid='transport-page'] with all sub-selectors listed in the spec.",
+    "(Already fixed by tester) ServicesPage.js dead-code SyntaxError + jobs.py route ordering for /my/postings & /my/applications."
+  ],
+  "critical_code_review_comments": [
+    "Backend admin/stats correctly aggregates crowdfunding (by_category list), gaming (by_type list), jobs (total/open/applications), transport (rides_total/completed/revenue/drivers). Decimals serialised as strings, and 403 enforced for non-admin. Solid.",
+    "Transport haversine fare verified mathematically: 500 + d*200 (standard) / 500 + d*350 (premium). Commission 15% computed on completion; rider wallet debited fare and driver wallet credited net (fare - 15%). Transactions row created with type='ride_payment'. drivers.total_rides incremented.",
+    "Jobs anti-abuse correctly rejects: invalid category (400), salary_max < salary_min (400), self-application (400), duplicate application (400). Notifications inserted on apply and on ride_accept/complete.",
+    "ROUTE ORDERING BUG (now fixed by tester): jobs.py declared /{job_id} and /{job_id}/applications BEFORE /my/postings and /my/applications. FastAPI matched /api/jobs/my/applications against /{job_id}/applications with job_id='my', returning 404. Always declare static-prefix routes (/my/*, /search, etc.) BEFORE parametric ones.",
+    "ServicesPage.js had ~40 lines of orphan JSX after the component's closing brace (looked like a leftover from refactoring out the inline Marketplace fragment). This blocked Webpack compilation entirely. The main agent should sanity-check files end-to-end after large refactors.",
+    "ServicesPage.js does NOT expose service-jobs and service-transport cards even though the JobsModule and TransportModule files exist and the backend is fully functional. The integration is incomplete — only 4 of the required 6 service cards are rendered in the active grid.",
+    "Wallet integration in transport.complete_ride correctly uses FOR UPDATE on rider wallet but does NOT FOR UPDATE the driver wallet — minor concurrency consideration if a driver completes 2 rides in parallel.",
+    "transport.estimate exposes per_km and base in breakdown — good for transparency.",
+    "jobs.list returns full row including poster contact fields (first_name/last_name/avatar/username) joined from users — appropriate for display."
+  ],
+  "updated_files": [
+    "/app/backend/routes/jobs.py (moved /my/postings + /my/applications above /{job_id} routes)",
+    "/app/frontend/src/pages/ServicesPage.js (removed lines 386-423 orphan JSX that caused SyntaxError)",
+    "/app/backend/tests/test_jobs_transport_admin.py (NEW — 29 pytest tests, all passing)"
+  ],
+  "success_rate": {"backend": "100% (29/29)", "frontend": "Admin Dashboard 100% (5/5 testids visible). Services hub 67% (4/6 active cards). Jobs & Transport modules 0% — unreachable due to missing service cards."},
+  "test_credentials": "admin@japap.com / JapapAdmin2024! (admin), testref_1776710356@japap.com / Test1234! (registered driver), testref_2_1776710380@japap.com / Test1234! (applicant)",
+  "seed_data_creation": "Created 1 test job (TEST_DevPython_*) and 2 test ride_requests (1 completed end-to-end with payment, 1 pending then cancelled) via pytest. Driver profile updated for testref_1776710356.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend is solid; do NOT re-test backend unless changes. Focus retest on /services after main agent adds service-jobs + service-transport cards to ServicesPage.js. Once cards are clickable, run JobsModule flow (open create modal, post job, click card for detail, apply as different user) and TransportModule flow (rider mode → fare-estimate → request-ride; switch to driver mode with driver creds → accept → complete). Note that admin already has trillions XAF, so any wallet-debiting tests use admin as rider. Driver creds: testref_1776710356@japap.com / Test1234! (already registered with Toyota Corolla CE123AB / standard).",
+  "rca of the issue": "Main agent left a partial refactor in ServicesPage.js: dead JSX from the previous inline-Marketplace block was not deleted, producing a fatal SyntaxError. Additionally, the new active-services grid only declares 4 cards (marketplace/crypto/crowdfunding/games) — the Jobs and Transport entries were never added (or were placed in the 'Bientôt disponibles' coming-soon section). Reproduction: visit /services as admin → only 4 active cards render; no service-jobs / service-transport testids exist in the DOM. Mitigation: extend the activeServices array in ServicesPage.js to include jobs (icon Briefcase, setView('jobs')) and transport (icon Car, setView('transport')) with data-testid='service-jobs' and 'service-transport'; ensure setView routing mounts JobsModule and TransportModule (these files exist and their backends pass 29/29 pytest)."
+}

@@ -1,0 +1,38 @@
+{
+  "summary": "Phase 3.E (iter130) backend testing — 35/35 tests passed across all 14 areas requested. Daily Challenge full lifecycle works (Alice scored 5/5 = 175 pts = 125 base + 50 perfect_bonus + 0 streak_bonus on 1st day; share_text present; 2nd play same day blocked with 429 + correct French detail). Anti-repetition: 2 consecutive /quiz/start by Alice returned ZERO-overlap question_ids (5+5 with overlap=set()). Distribution: across 15 picked questions, buckets={africa:6, sport:3, econ:3, world:3} — matches expected ~50/20/15/15 plan with rounding. user_quiz_question_history correctly populated with source='daily_challenge' (5 rows) and source='quiz_standard' (10 rows). Admin distribution: GET returns full 4-bucket payload + quiz_anti_repeat_days; PUT with sum=95 → 400 'La distribution doit totaliser 100%'; PUT with sum=100 → 200. Admin categories: GET returns 6 items with all keys (category/active_count/obsolete_count/total/enabled/priority); PUT toggles enabled+priority correctly. Admin obsolete: POST flips quiz_questions.obsolete with proper UPDATE 1 row count. Admin AI generate (total=4) inserted 4 questions via Claude Sonnet 4.5 in ~25s, returned plan={africa:2, sport:1, econ:1, world:0} and by_category={afrique_monde:2, sport:1, economie:1}; bank grew 184→188. Standard /quiz/start works AFTER daily-challenge run (separate quota — confirms /quiz/start does NOT count DC runs toward 5/day cap). Streak: forced last_played_date=yesterday (current=3) → after submit current_streak=4 (consecutive); forced last_played_date=5d_ago (current=10) → after submit current_streak=1 (gap reset) AND longest_streak=10 preserved. Regressions: /api/quiz/champion/CM returns 200 with full champion payload; /api/quiz/answer returns 200 with {correct, question_idx, correct_option}.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter130_quiz_phase3e.py",
+    "/app/test_reports/pytest/iter130_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "quiz_question_picker._bucket_plan uses round() per bucket and absorbs remainder in the LAST bucket. With size=5 and default 50/20/15/15, plan=[3,1,1,0] (world gets 0 because round(0.75)=1 + 1 africa rounded down adds up to 4, world absorbs 1). Verified empirically over 15 picks: africa=6, sport=3, econ=3, world=3 — works because the picker re-balances when fallback path adds cross-bucket fill. Acceptable; document this 'last-bucket-absorbs-remainder' rule in admin UI tooltip so admins don't expect exact 50/20/15/15 over a single 5-question session.",
+    "/api/quiz/admin/questions/{qid}/obsolete uses query parameter `obsolete=true|false` rather than JSON body. Works fine but inconsistent with sibling endpoints (PUT /admin/categories takes JSON body). Consider adding a JSON body variant for API-client consistency.",
+    "Daily-challenge submit awards the streak_bonus only when correct_count > 0 (line 440-441 in quiz.py) — good anti-gaming guard. However a user playing 0/5 still ticks the streak (tick_streak runs on line 429). This means a user can keep their streak alive by playing 0/5 daily but won't get the streak_bonus until they get ≥1 correct again. Confirmed working. May want to expose this in product docs.",
+    "Picker fallback path (when bucket exhausted) drops the recent-exclusion guard but still respects already-chosen + obsolete + disabled-category. Logged via logger.warning + StartResponse field `fallback`. Caller of /quiz/start does NOT surface `fallback` to the client — it's logged-only. Acceptable for a 184-question bank, but on smaller/disabled banks UI cannot tell the user they are seeing repeats.",
+    "Streak: tick_streak's same-day branch (last == play_date) returns cur if cur > 0 else 1 — defensive but unreachable in practice because quiz_daily_challenge_runs blocks duplicate plays per day. Good belt-and-suspenders.",
+    "AI generate-ai endpoint executes 4-7 LLM calls inside a single HTTP request handler with no timeout cap on the route. Took 25s for total=4; total=100 may exceed Cloudflare 100s edge timeout. Consider switching to a background job (or chunking with progress endpoint) for total >= 50."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter130_quiz_phase3e.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (35/35)",
+    "frontend": "not run (backend-only directive)"
+  },
+  "test_credentials": "alice@japap.com/Alice2026!  ;  bob@japap.com/Test1234!  ;  admin@japap.com/JapapAdmin2024! (no 2FA)  ;  Turnstile bypass JAPAP_E2E_BYPASS_2026",
+  "seed_data_creation": "Reset state per run: cleared today's quiz_daily_challenge_runs + quiz_user_runs (Alice, Bob); wiped Alice's user_quiz_question_history + daily_quiz_streak. AI generate-ai inserted 4 fresh questions (bank: 184→188). Streak tests directly mutated daily_quiz_streak.last_played_date to simulate consecutive-day and gap-day scenarios.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 3.E backend is solid. CSRF pattern: refresh X-CSRF-Token cookie before EVERY POST/PUT (cookie rotates on auth state changes); X-Requested-With: XMLHttpRequest header is also required for state-changing requests. Bob's wallet is at default 50000 XAF after iter127's reset. Bank now has 188 active questions across 6 categories (afrique_monde 32, sport 31, economie 32, crypto 30, actualite 31, culture_generale 30+/-1). Streak tests left Bob with current_streak=1 longest_streak=10 last_played=today; Alice with current_streak=1 longest=1 last_played=today. quiz_country_champions.CM is currently held by user_9ad70ec54565 (auto_top1 from iter127's promote-all run) — main agent's restore-Bob script may be needed for downstream Champion tests.",
+  "rca of the issue": "N/A — all 35 tests passed first try. The fix mentioned in agent-to-agent context (StartResponse forward-reference + DDL + VALID_SOURCES) is verified correct: daily-challenge endpoints respond 200, points add via add_points with source='quiz_daily_challenge' without ValueError, and DDL self-heal creates user_quiz_question_history + quiz_category_status + quiz_daily_challenge_runs + daily_quiz_streak on first call."
+}

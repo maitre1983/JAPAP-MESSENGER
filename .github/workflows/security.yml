@@ -1,0 +1,75 @@
+name: JAPAP Security Scan
+
+# The private Emergent package index is injected via the `EMERGENT_PIP_INDEX_URL`
+# repo secret so the URL never appears in plain text in the codebase.
+# Set it in: GitHub → Settings → Secrets and variables → Actions → New repository secret
+# Name:  EMERGENT_PIP_INDEX_URL
+# Value: <private index URL provided by the Emergent platform team>
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * *'   # every night at 03:00 UTC
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install security tools
+        run: |
+          pip install bandit semgrep pip-audit
+
+      - name: Install backend deps
+        # `emergentintegrations` ships from a private Emergent CloudFront index,
+        # not from PyPI. We pass it as an extra index URL so pip tries PyPI first
+        # and falls back to the private index only for packages missing upstream.
+        # If the repo secret is absent (e.g. on a fork or first-time setup), we
+        # skip the private index and install from PyPI only — the scan still
+        # runs, it just skips packages that live exclusively on the private
+        # index. A warning is emitted instead of failing the whole workflow.
+        env:
+          EMERGENT_PIP_INDEX_URL: ${{ secrets.EMERGENT_PIP_INDEX_URL }}
+        run: |
+          if [ -n "$EMERGENT_PIP_INDEX_URL" ]; then
+            echo "Using private Emergent pip index"
+            pip install -r backend/requirements.txt \
+              --extra-index-url "$EMERGENT_PIP_INDEX_URL" || {
+                echo "::warning::pip install with private index failed — retrying without it"
+                pip install -r backend/requirements.txt || true
+              }
+          else
+            echo "::warning::EMERGENT_PIP_INDEX_URL secret is absent — installing from PyPI only. Packages that only live on the private Emergent index (e.g. emergentintegrations) will be skipped. To unlock full coverage, set the secret under Settings → Secrets → Actions."
+            pip install -r backend/requirements.txt || true
+          fi
+
+      - name: Run JAPAP scan
+        run: bash scripts/security/scan.sh
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: security_reports/
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: yarn audit (frontend)
+        working-directory: frontend
+        run: |
+          corepack enable
+          yarn install --frozen-lockfile --network-timeout 600000
+          yarn audit --level high || true

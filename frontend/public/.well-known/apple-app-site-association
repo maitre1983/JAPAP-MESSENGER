@@ -1,0 +1,24 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "REPLACE_WITH_TEAM_ID.com.japap.messenger"
+        ],
+        "components": [
+          { "/": "/pay/*", "comment": "Payment request landing pages" },
+          { "/": "/duel/*", "comment": "Duel challenge pages" },
+          { "/": "/r/*", "comment": "Referral redirect pages" },
+          { "/": "/p/*", "comment": "Referral preview pages" },
+          { "/": "/post/*", "comment": "Public post pages" },
+          { "/": "/track/*", "comment": "Public ride tracking pages" }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "REPLACE_WITH_TEAM_ID.com.japap.messenger"
+    ]
+  }
+}

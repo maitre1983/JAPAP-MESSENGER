@@ -1,0 +1,33 @@
+{
+  "summary": "iter225 — Quiz champion challenge USD canonical fix verified end-to-end. Backend pytest 1/1 (unit) + E2E 4/4 PASS. Frontend Tests 4-7 PASS (DefyChampionModal Bob in paid mode + ChallengePage Daf breakdown). All required data-testids present and correctly populated. The XAF mensonger bug is fixed: stake_currency='USD' canonical, with display currency '≈ XAF' shown separately. stake_min=1/stake_max=200 USD enforced both BE (400 with exact French messages) and FE (toast feedback). The breakdown card on the champion side renders BEFORE the accept/refuse buttons with Pot/Commission/Net winnings, and accept is enabled when balance is sufficient.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter225_challenge_enriched.py",
+    "/app/backend/tests/test_iter225_e2e.py",
+    "/app/test_reports/pytest/iter225_e2e.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Login API has high latency (12-15s+ p99 on preview, occasional 502). Tests had to add retry+long timeouts. Not blocking iter225 but worth investigating in a separate iteration (likely password hashing cost factor or DB connection pool).",
+    "DefyChampionModal correctly fetches /api/wallet/balance and gates the submit button on balance — confirmed visually (47 624 USD shown, 20 USD stake, breakdown +34 USD net).",
+    "ChallengeDetail card uses semantic data-testids matching spec exactly (challenge-stake-breakdown, challenge-opponent-name, challenge-stake-amount, challenge-net-winnings, challenge-balance-info, quiz-challenge-accept, quiz-challenge-refuse) — clean."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter225_e2e.py (new — backend E2E suite for iter225)"
+  ],
+  "success_rate": {"backend": "100% (5/5: 1 unit pytest + 4 E2E)", "frontend": "100% (Tests 4,5,6,7 + free-mode regression all green)"},
+  "test_credentials": "Bob: bob@japap.com / Test1234! ; Daf: mirtoken2022@gmail.com / Daf2026! ; captcha bypass: JAPAP_E2E_BYPASS_2026 / 0",
+  "seed_data_creation": "None. Demo challenge qcc_3a4b8467047e40f2 PRESERVED (NOT accepted/refused per instructions).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "iter225 fully validated. The enriched GET /api/quiz/champion/challenges/{cid} returns: stake_currency=USD, commission_pct=15.0, viewer_balance=81094.55 USD (Daf), challenger.name=Bob, champion.name='Daf Unity'. POST /challenge enforces stake_min=1 ('Mise minimale : 1 USD.') and stake_max=200 ('Mise maximale : 200 USD.'). DefyChampionModal shows USD canonical with XAF display approximation. ChallengePage shows full breakdown card (Pot/Commission/Gains nets) BEFORE accept/refuse buttons. Free mode regression: backend correctly returns 409 'Un défi ouvert existe déjà avec ce champion' (no 5xx).",
+  "rca of the issue": "N/A — no bugs found in iter225. Initial pre-iter225 bug (XAF mensonger in modal) was correctly fixed by main agent: DefyChampionModal now displays USD canonical via fetchWalletBalance + commission/pot breakdown component, and QuizChallengePage ChallengeDetail renders the breakdown card with all required data-testids before the accept/refuse buttons."
+}

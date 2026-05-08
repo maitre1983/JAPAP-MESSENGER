@@ -1,0 +1,42 @@
+{
+  "summary": "Iteration 42-43 — Hubtel native webhook + frontend deposit redirect flow validated. Backend: 9/9 pytest cases PASSED (native Hubtel payload {ResponseCode,Status,Data:{ClientReference,Status,CheckoutId,Amount}} credits wallet; idempotency returns already_completed; Failed status sets rejected and does not credit; legacy {tx_id,status:PAID,hubtel_ref} format still works; missing ClientReference -> 400; HMAC signature: missing->401, wrong->401, correct HMAC-SHA256 hex digest->200 with wallet credit; admin_settings PUT {settings:{...}} correctly toggles hubtel_webhook_secret on and off; hubtel_card deposit with current fake keys returns 502 'Erreur Hubtel : Hubtel 401 [401] : None' and does NOT credit the wallet). Frontend (bob@japap.com @1920x1080): /wallet loads -> Deposer button opens deposit form, all required data-testids present (deposit-button, deposit-method-hubtel_card, deposit-method-usdt_trc20, deposit-method-usdt_bep20, deposit-amount-input, confirm-deposit-button). Submitting hubtel_card $10 with invalid keys -> wallet-error alert shows French message 'Erreur Hubtel : Hubtel 401 [401] : None', page does NOT crash, no redirect (stays on /wallet). ?deposit=success&tx=dep_test123 -> success toast 'Paiement reçu pour dep_test123 — crédit en cours de confirmation.' and URL cleaned to /wallet. ?deposit=cancelled&tx=dep_test123 -> error toast 'Paiement annulé.' and URL cleaned. Auto-redirect to real Hubtel checkout_url when !mocked is wired via window.location.href after 1200ms (code inspected lines 105-108 of WalletPage.js) — not executable end-to-end because fake keys always 502.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/wallet/hubtel/webhook", "issue": "Error message surfaced to the frontend ('Hubtel 401 [401] : None') contains 'None' because hubtel_service.py line 125 reads body.get('message') without fallback when Hubtel returns an empty JSON. Cosmetic — user sees 'None' in the French error alert."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "All authenticated pages", "issues": ["Pre-existing socket.io WebSocket handshake failures (carried from iter36-40) — 'WebSocket connection to wss://.../api/socket.io/ failed: closed before connection established'. Not in iter43 scope."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration43_hubtel.py",
+    "/app/test_reports/pytest/iter43.xml"
+  ],
+  "action_items": [
+    "(Cosmetic) In hubtel_service.py _raise path, replace body.get('message') with body.get('message') or body.get('Message') or 'credentials invalides' so users don't see 'None' in the French alert.",
+    "(Pre-existing) Fix socket.io websocket handshake 500s carried over from prior iterations."
+  ],
+  "critical_code_review_comments": [
+    "routes/wallet.py hubtel_webhook (lines 524-571): JSON body is parsed after HMAC verification on the RAW body — correct order (signature must cover raw bytes). Good.",
+    "routes/wallet.py hubtel_webhook (lines 548-562): accepts both 'Data'/'data' and 'Status'/'status' case variants — good defensive parsing for Hubtel's inconsistent casing.",
+    "routes/wallet.py hubtel_webhook line 588: is_paid matches success|paid|completed|finished. Hubtel docs say 'Paid' is returned for OnlineCheckout success callbacks — check coverage is correct.",
+    "services/hubtel_service.py line 125: err formatter: body.get('message') returns None when Hubtel's error envelope uses 'Message' (capital M) or when body is non-dict; the resulting 'Hubtel 401 [401] : None' is what the user sees. Add a fallback chain.",
+    "WalletPage.js line 105-108: auto-redirect via window.location.href after 1200ms setTimeout — consider clearing timer on component unmount (memory leak / stale-redirect if user navigates away). Minor.",
+    "WalletPage.js line 57-71: URL-cleaning useEffect depends on [loadTransactions, refreshUser]. If either callback identity changes (they are wrapped in useCallback so OK for now), the success/cancel toast would fire twice. Safe today but fragile."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration43_hubtel.py (new)"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% — all iter43 flows validated (testids present, 502 error handled gracefully, success/cancel URL params handled with toasts + URL cleanup)"},
+  "test_credentials": "bob@japap.com / Test1234! ; admin@japap.com / JapapAdmin2024!",
+  "seed_data_creation": "Each test creates its own USDT pending deposit (dep_xxx) via POST /api/wallet/deposit with reference prefixed TEST_iter43_. Bob's wallet balance drifted up during tests from the 3 successful webhook credits (10+3+2=+15 USD). hubtel_webhook_secret admin setting was set to 'test_secret_123' during signature tests and cleared (empty string) at teardown.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Bob's wallet balance was incremented by ~15 USD total during iter43 (three successful native-format webhook credits: $10, $3, $2). If you need a clean slate: `sudo -u postgres psql japap_messenger -c \"UPDATE wallets SET balance=0 WHERE user_id=(SELECT user_id FROM users WHERE email='bob@japap.com'); DELETE FROM transactions WHERE to_user_id=(SELECT user_id FROM users WHERE email='bob@japap.com') AND notes LIKE '%TEST_iter43%';\"`. Admin Hubtel keys are currently fake -> real Hubtel API returns 401, so the frontend 502 error-path is always exercised end-to-end. To test the ACTUAL auto-redirect to payproxyapi.hubtel.com, admin would need to paste real sandbox keys via /admin -> Paiements. The hubtel_webhook_secret is left EMPTY (cleared at teardown); native-format unsigned webhooks will pass until the admin sets it again.",
+  "rca of the issue": "N/A — all acceptance criteria met. Only cosmetic issue flagged: 'None' literal appearing in the Hubtel error alert (hubtel_service.py message formatter)."
+}

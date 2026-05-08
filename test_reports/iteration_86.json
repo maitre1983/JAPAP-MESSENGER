@@ -1,0 +1,33 @@
+{
+  "summary": "Iter86 retest — Confirmed fix for HIGH issue from iter85. POST /api/tap/submit now correctly returns `cheated` and `suspicious` fields in SubmitResponse. Full backend suite re-run: 14/14 PASS (was 11/14). All 3 previously failing TapSuspicious tests are GREEN. Frontend smoke on /services → Jeux hub PASS : engagement-leaderboard, share-rank-btn (Partager mon rang #1 / enabled) and 3 leaderboard rows all render. TapChallengePage loads clean; new warning banner testids (tap-cheated-warning, tap-suspicious-warning) are correctly conditional on result.cheated/suspicious.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter85_shuffling_virality.py",
+    "/app/test_reports/pytest/iter86.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/tap.py L99-108 : SubmitResponse now declares `cheated: bool` and `suspicious: bool` — matches iter85 FR. Return statement L269-270 passes both values. Clean fix, no side-effects.",
+    "TapChallengePage.js L332-343 : ResultView renders both warning banners with proper data-testid. Banner is NOT shown when clean, suspicious-only shown when suspicious=true & cheated=false, cheated banner overrides suspicious when cheated=true (correct precedence).",
+    "All regression endpoints still healthy : /quiz/start shuffle, /quiz/admin/overview avg metrics, /tap/admin/overview p95+suspicious counts, /tap/admin/suspicious IP/UA exposure, /engagement/leaderboard/weekly top+me, /engagement/share-card.png 1080×1080 PNG >20KB. No regressions detected."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (14/14)",
+    "frontend": "100% (Jeux hub smoke + TapChallengePage load)"
+  },
+  "test_credentials": "admin@japap.com / JapapAdmin2024! ; bob@japap.com / Test1234!",
+  "seed_data_creation": "Uses admin /api/tap/admin/reset-user/{uid} + /api/quiz/admin/reset-user/{uid} between tests for deterministic quotas.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter85/86 scope is closed. Run `REACT_APP_BACKEND_URL=https://japap-refactor.preview.emergentagent.com python -m pytest backend/tests/test_iter85_shuffling_virality.py -v -p no:ethereum` (~80s, 14 tests). Note: /games direct URL redirects to /feed — Jeux hub is accessed via /services (the Services sidebar item mounts the games module directly in this build; clicking 'Jeux' in a tab is optional). Triggering the actual tap warning banners in the UI requires a full 10s tap run which is non-deterministic in headless; trust the conditional render (verified via code review + backend /submit response shape).",
+  "rca of the issue": "Previously fixed. Root cause was SubmitResponse omitting the already-computed cheated/suspicious booleans. Main agent added 2 fields to the Pydantic model and passed them in the return — confirmed by 3/3 TapSuspicious tests now green with exact expected values (25 → both false / 105 → suspicious=true cheated=false / 150 → both true, taps_valid=120, bonus=50)."
+}

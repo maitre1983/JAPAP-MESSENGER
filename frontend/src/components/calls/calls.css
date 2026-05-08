@@ -1,0 +1,199 @@
+/*
+ * Shared mobile-first styles for the Calls module (Sprint B/C/D).
+ * Kept minimal; most of the UI uses inline style tokens for brand consistency.
+ * NO horizontal scroll, full viewport height overlays, safe-area insets.
+ */
+
+/* Fullscreen modal shared by audio/video/incoming overlays */
+.jp-call-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #0B0542 0%, #0F056B 45%, #1A0B8C 100%);
+  color: #FFFFFF;
+  overflow: hidden;
+  padding-top: env(safe-area-inset-top, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.jp-call-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 8px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.jp-call-title {
+  flex: 1;
+  text-align: center;
+  font-family: 'Outfit', sans-serif;
+}
+
+.jp-call-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+  gap: 16px;
+  min-height: 0;
+}
+
+.jp-call-avatar {
+  width: 128px;
+  height: 128px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #E01C2E 0%, #FF4D5E 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 56px;
+  color: white;
+  box-shadow: 0 20px 60px rgba(224, 28, 46, 0.35);
+}
+
+.jp-call-name {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 26px;
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+
+.jp-call-status {
+  font-family: 'Manrope', sans-serif;
+  font-size: 14px;
+  opacity: 0.85;
+  text-align: center;
+  min-height: 20px;
+}
+
+.jp-call-timer {
+  font-variant-numeric: tabular-nums;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+}
+
+/* Control bar — fixed bottom, safe-area aware */
+.jp-call-controls {
+  display: grid;
+  gap: 12px;
+  padding: 16px 20px calc(24px + env(safe-area-inset-bottom, 0));
+  background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.2) 100%);
+}
+
+.jp-call-controls-row {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+}
+
+.jp-call-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.12s ease, background 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+
+.jp-call-btn:hover { background: rgba(255,255,255,0.22); }
+.jp-call-btn:active { transform: scale(0.93); }
+
+.jp-call-btn-active {
+  background: rgba(255,255,255,0.95);
+  color: #0F056B;
+}
+
+.jp-call-btn-end {
+  background: linear-gradient(135deg, #E01C2E 0%, #B91C2C 100%);
+  box-shadow: 0 10px 30px rgba(224, 28, 46, 0.4);
+}
+
+.jp-call-btn-accept {
+  background: linear-gradient(135deg, #16A34A 0%, #059669 100%);
+  box-shadow: 0 10px 30px rgba(16, 163, 74, 0.4);
+}
+
+/* Video grid — mobile 1 col, tablet 2 col, desktop auto */
+.jp-video-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  gap: 4px;
+  padding: 4px;
+  grid-template-columns: 1fr;
+  grid-auto-rows: 1fr;
+}
+
+@media (min-width: 480px) {
+  .jp-video-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (min-width: 960px) {
+  .jp-video-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+}
+
+.jp-video-tile {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.jp-video-tile video {
+  width: 100%; height: 100%; object-fit: cover;
+}
+
+.jp-video-tile-label {
+  position: absolute;
+  bottom: 8px; left: 8px;
+  padding: 4px 10px;
+  background: rgba(0,0,0,0.55);
+  border-radius: 999px;
+  font-size: 11px;
+  font-family: 'Manrope', sans-serif;
+  backdrop-filter: blur(4px);
+}
+
+.jp-video-tile-active {
+  outline: 2px solid #E01C2E;
+}
+
+/* Incoming call ringing animation */
+@keyframes jp-ring {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(224,28,46,0.55); }
+  50%      { transform: scale(1.06); box-shadow: 0 0 0 20px rgba(224,28,46,0); }
+}
+
+.jp-ringing { animation: jp-ring 1.8s ease-in-out infinite; }
+
+/* Recording dot */
+.jp-rec-dot {
+  width: 8px; height: 8px;
+  border-radius: 9999px;
+  background: #EF4444;
+  display: inline-block;
+  animation: jp-rec-blink 1.2s ease-in-out infinite;
+}
+@keyframes jp-rec-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}

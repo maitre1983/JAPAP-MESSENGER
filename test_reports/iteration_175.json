@@ -1,0 +1,36 @@
+{
+  "summary": "iter175 Marketplace Phase B (Sponsored Boost wallet-only + 24h View Counter + Produits Vedettes section) — fully validated end-to-end. Backend 9/9 PASS via /app/backend/tests/test_marketplace_iter175.py (regression). Backend extended 7/7 PASS via /app/backend/tests/test_marketplace_iter175_extended.py covering standard_7d plan ($5/7d, NOT homepage), DB ledger row in transactions (type='product_boost', currency='USD', status='completed', amount=5.00), product_boosts row (plan, price_usd, status='active', expires_at ~7d), product flag mutations (is_boosted=True, is_homepage_featured=False, last_boost_plan='standard_7d'), /featured filter (excludes non-homepage), and active_boost shape on GET product. Frontend on https://japap-refactor.preview.emergentagent.com fully verified: (A) Alice as non-owner on /marketplace/p/{pid} → mkt-views-24h yellow pill renders '1 personne a vu ce produit aujourd'hui' on 1st GET, dedup confirmed (text unchanged on reload), mkt-owner-boost hidden. (B) Bob as owner → mkt-owner-boost visible, click opens mkt-boost-modal listing all 3 plans (mkt-boost-plan-basic_24h $1, standard_7d $5, homepage_30d $10), mkt-boost-wallet-balance shows '200.00 USD', mkt-boost-confirm 'Booster pour $1' click → POST /boost-wallet → toast 'Boost 24h activé ✅' → modal closes → product page refreshes with badge 'Boosté · jusqu'au 30/04/2026'. (C) homepage_30d boost → /services?view=marketplace shows marketplace-featured-section ('Produits Vedettes 1' header, overflow-x: auto, featured-product-prod_6130b0e24d5d card with 'Vedette' badge). All wallet debits respect CEO rule: only canonical USD wallet, atomic (insufficient → 400 INSUFFICIENT_BALANCE with NO row in product_boosts/transactions), non-owner blocked 403, admin sweep correctly clears expired and removes from /featured.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "ServicesPage marketplace-featured-section", "issues": ["The 'Vedette' purple pill overlaps the product title text (TEST iter175 UI - Vélo...) on the featured card; consider top-right corner positioning instead of top-left so it does not cover the product title."]},
+      {"screen": "ServicesPage product card (main listing)", "issues": ["Pre-existing (not iter175): boosted product 12.50 USD (USD priced) is displayed as '12,5 XAF' on the listing card, currency code mismatch — but on detail page it correctly displays '12.50 USD'. Likely a card formatter that always appends XAF."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_marketplace_iter175.py",
+    "/app/backend/tests/test_marketplace_iter175_extended.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "marketplace.py boost_product_via_wallet: atomic asyncpg transaction (debit + transactions row + product_boosts row + UPDATE products flags) — verified by insufficient-balance test (400, NO partial DB writes). Excellent.",
+    "marketplace.py BOOST_PLANS dict at line 18 is the single source of truth for prices/durations/is_homepage flags — exposed via /boost/plans catalogue endpoint. Test [3] confirms 1.00/5.00/10.00 USD.",
+    "marketplace.py get_product view tracking: dedups by (user_id OR ip)+30min window via product_views table; owner views excluded via seller_id check. All 3 cases pass.",
+    "marketplace.py admin_sweep_expired_boosts: flips is_boosted/is_homepage_featured to FALSE based on timestamps and updates product_boosts.status='expired'. Idempotent and admin-gated. Returns clear counts {products_unboosted, homepage_cleared, boost_rows_expired}.",
+    "transactions ledger row uses type='product_boost', currency='USD' (canonical) — no Hubtel/NowPayments/Stripe path, fully respects CEO wallet-only rule.",
+    "MarketplaceProductPage.js BoostModal: shows current wallet balance via /api/wallet, disables confirm if balance<plan price, optimistic refresh of product after success — clean UX.",
+    "ServicesPage.js Produits Vedettes section: only renders when items.length>0, horizontally scrollable with snap-x, each card links to /marketplace/p/{pid}. Good progressive enhancement (no blank section on empty)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_marketplace_iter175_extended.py (new — extended coverage for standard_7d + DB ledger assertions)"
+  ],
+  "success_rate": {"backend": "100% (16/16: 9 smoke + 7 extended)", "frontend": "100% (12/12 checks)"},
+  "test_credentials": "Bob bob@japap.com/Test1234! (seller, balance reset to 200 USD then debited to 189), Alice alice@japap.com/Alice2026! (non-owner viewer), Admin admin@japap.com/JapapAdmin2024! (sweep). Captcha bypass JAPAP_E2E_BYPASS_2026 / 0.",
+  "seed_data_creation": "Created and cleaned up: 1 test product 'TEST iter175 UI - Vélo Bob' (prod_6130b0e24d5d) used for live UI boost flow + featured section. Reset Bob wallet to 200 USD before testing (note: problem statement claimed 48645 USD but actual was 95; reset to 200 to enable both basic_24h $1 and homepage_30d $10 flows). Final Bob balance: 189 USD (200 - $1 basic_24h - $10 homepage_30d). All test products deleted at teardown. iter175 smoke + extended test suites self-cleanup.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter175 Phase B ships green: 16/16 backend + 12/12 frontend. Wallet-only boost (no PSP), atomic debit, view counter dedup (user_id OR ip / 30min), owner view excluded, /featured shows only homepage_30d (not standard_7d), admin sweep idempotent and removes expired from /featured. Frontend testids in place: mkt-views-24h, mkt-owner-boost, mkt-boost-modal, mkt-boost-plan-{basic_24h|standard_7d|homepage_30d}, mkt-boost-wallet-balance, mkt-boost-confirm, marketplace-featured-section, featured-product-{id}. Two minor design polish items reported (Vedette pill overlap on featured card, XAF/USD label mismatch on listing card — pre-existing). NO blocking issues for E1.",
+  "rca of the issue": "n/a — feature ships green per spec."
+}

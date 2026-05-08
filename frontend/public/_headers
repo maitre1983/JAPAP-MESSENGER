@@ -1,0 +1,14 @@
+# Netlify / Cloudflare Pages / Render headers config.
+# Production deploys MUST honour Apple's strict requirement that the
+# apple-app-site-association file be served with Content-Type
+# application/json (without a .json extension).
+#
+# iter141nineE — Universal Links / App Links scaffolding.
+
+/.well-known/apple-app-site-association
+  Content-Type: application/json
+  Cache-Control: public, max-age=3600
+
+/.well-known/assetlinks.json
+  Content-Type: application/json
+  Cache-Control: public, max-age=3600

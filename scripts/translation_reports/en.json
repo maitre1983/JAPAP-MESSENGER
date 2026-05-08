@@ -1,0 +1,2024 @@
+[
+  {
+    "key": "chat.video",
+    "fr": "Vidéo",
+    "translation": "Video",
+    "ok": true
+  },
+  {
+    "key": "chat.envoye",
+    "fr": "Envoyé",
+    "translation": "Sent",
+    "ok": true
+  },
+  {
+    "key": "chat.recu",
+    "fr": "Reçu",
+    "translation": "Received",
+    "ok": true
+  },
+  {
+    "key": "chat.transfere",
+    "fr": "Transféré",
+    "translation": "Transferred",
+    "ok": true
+  },
+  {
+    "key": "wallet.la_photo_semble_trop_petite_30_kb_r",
+    "fr": "La photo semble trop petite (< 30 KB). Reprenez-la avec une meilleure résolution.",
+    "translation": "Photo seems too small (< 30 KB). Please retake it with a better resolution.",
+    "ok": true
+  },
+  {
+    "key": "wallet.verif",
+    "fr": "Vérif…",
+    "translation": "Verifying...",
+    "ok": true
+  },
+  {
+    "key": "wallet.verifier_mon_paiement",
+    "fr": "Vérifier mon paiement",
+    "translation": "Verify my payment",
+    "ok": true
+  },
+  {
+    "key": "wallet.soumettre_pour_verification",
+    "fr": "Soumettre pour vérification",
+    "translation": "Submit for verification",
+    "ok": true
+  },
+  {
+    "key": "admin.publicites",
+    "fr": "Publicités",
+    "translation": "Ads",
+    "ok": true
+  },
+  {
+    "key": "admin.parties_jouees",
+    "fr": "Parties jouées",
+    "translation": "Games played",
+    "ok": true
+  },
+  {
+    "key": "admin.credit_en_cours",
+    "fr": "Crédit en cours…",
+    "translation": "Credit pending...",
+    "ok": true
+  },
+  {
+    "key": "admin.bannir_definitivement",
+    "fr": "Bannir définitivement",
+    "translation": "Ban permanently",
+    "ok": true
+  },
+  {
+    "key": "admin.a_verifier",
+    "fr": "À vérifier",
+    "translation": "To verify",
+    "ok": true
+  },
+  {
+    "key": "admin.risque_eleve",
+    "fr": "Risque élevé",
+    "translation": "High risk",
+    "ok": true
+  },
+  {
+    "key": "admin.pre_verif_ia_indisponible",
+    "fr": "Pré-vérif IA indisponible",
+    "translation": "AI pre-verification unavailable",
+    "ok": true
+  },
+  {
+    "key": "admin.frais_specifique_pro_ex_0_5_0_5",
+    "fr": "Frais spécifique PRO (ex: 0.5 = 0.5%)",
+    "translation": "PRO-specific fee (e.g., 0.5 = 0.5%)",
+    "ok": true
+  },
+  {
+    "key": "admin.frais_minimum_absolu_0_desactive",
+    "fr": "Frais minimum (absolu, 0 = désactivé)",
+    "translation": "Minimum fee (absolute, 0 = disabled)",
+    "ok": true
+  },
+  {
+    "key": "admin.frais_maximum_cap_0_desactive",
+    "fr": "Frais maximum (cap, 0 = désactivé)",
+    "translation": "Maximum fee (cap, 0 = disabled)",
+    "ok": true
+  },
+  {
+    "key": "admin.plafond_journalier_par_utilisateur",
+    "fr": "Plafond journalier par utilisateur (0 = illimité)",
+    "translation": "Daily limit per user (0 = unlimited)",
+    "ok": true
+  },
+  {
+    "key": "admin.retraits_wallet_frais_methodes",
+    "fr": "Retraits Wallet — Frais & Méthodes",
+    "translation": "Wallet Withdrawals — Fees & Methods",
+    "ok": true
+  },
+  {
+    "key": "admin.retraits_actives_master_switch",
+    "fr": "Retraits activés (master switch)",
+    "translation": "Withdrawals enabled (master switch)",
+    "ok": true
+  },
+  {
+    "key": "admin.message_si_desactives",
+    "fr": "Message si désactivés",
+    "translation": "Message if disabled",
+    "ok": true
+  },
+  {
+    "key": "admin.depots_wallet_methodes_adresses",
+    "fr": "Dépôts Wallet — Méthodes & Adresses",
+    "translation": "Wallet Deposits — Methods & Addresses",
+    "ok": true
+  },
+  {
+    "key": "admin.depot_minimum_usd",
+    "fr": "Dépôt minimum (USD)",
+    "translation": "Minimum deposit (USD)",
+    "ok": true
+  },
+  {
+    "key": "admin.activer_depot_usdt_trc20",
+    "fr": "Activer dépôt USDT TRC20",
+    "translation": "Enable USDT TRC20 deposit",
+    "ok": true
+  },
+  {
+    "key": "admin.activer_depot_usdt_bep20",
+    "fr": "Activer dépôt USDT BEP20",
+    "translation": "Enable USDT BEP20 deposit",
+    "ok": true
+  },
+  {
+    "key": "admin.activer_depot_par_carte_hubtel",
+    "fr": "Activer dépôt par carte (Hubtel)",
+    "translation": "Enable card deposit (Hubtel)",
+    "ok": true
+  },
+  {
+    "key": "admin.adresse_depot_usdt_trc20_t",
+    "fr": "Adresse dépôt USDT TRC20 (T...)",
+    "translation": "USDT TRC20 deposit address (T...)",
+    "ok": true
+  },
+  {
+    "key": "admin.adresse_depot_usdt_bep20_0x",
+    "fr": "Adresse dépôt USDT BEP20 (0x...)",
+    "translation": "USDT BEP20 deposit address (0x...)",
+    "ok": true
+  },
+  {
+    "key": "admin.devise_de_base_systeme",
+    "fr": "Devise de base système",
+    "translation": "System base currency",
+    "ok": true
+  },
+  {
+    "key": "admin.detection_ip",
+    "fr": "Détection IP",
+    "translation": "IP detection",
+    "ok": true
+  },
+  {
+    "key": "admin.modules_systeme",
+    "fr": "Modules système",
+    "translation": "System modules",
+    "ok": true
+  },
+  {
+    "key": "admin.afficher_badge_vendeur_verifie",
+    "fr": "Afficher badge \"Vendeur vérifié\"",
+    "translation": "Show \"Verified Seller\" badge",
+    "ok": true
+  },
+  {
+    "key": "admin.escrow_marketplace_active",
+    "fr": "Escrow Marketplace activé",
+    "translation": "Escrow Marketplace enabled",
+    "ok": true
+  },
+  {
+    "key": "admin.commission_japap_cote_vendeur",
+    "fr": "Commission JAPAP (% côté vendeur)",
+    "translation": "JAPAP commission (% seller side)",
+    "ok": true
+  },
+  {
+    "key": "admin.litiges_acheteur_actives",
+    "fr": "Litiges acheteur activés",
+    "translation": "Buyer disputes enabled",
+    "ok": true
+  },
+  {
+    "key": "admin.boost_marketplace_active",
+    "fr": "Boost Marketplace activé",
+    "translation": "Marketplace Boost enabled",
+    "ok": true
+  },
+  {
+    "key": "admin.duree_boost_homepage_jours",
+    "fr": "Durée Boost Homepage (jours)",
+    "translation": "Homepage Boost duration (days)",
+    "ok": true
+  },
+  {
+    "key": "admin.ciblage_audience_active_ads_boost",
+    "fr": "Ciblage audience activé (Ads + Boost)",
+    "translation": "Audience targeting enabled (Ads + Boost)",
+    "ok": true
+  },
+  {
+    "key": "admin.autoriser_filtrage_par_age",
+    "fr": "Autoriser filtrage par âge",
+    "translation": "Allow age filtering",
+    "ok": true
+  },
+  {
+    "key": "admin.module_pro_active",
+    "fr": "Module Pro activé",
+    "translation": "Pro Module enabled",
+    "ok": true
+  },
+  {
+    "key": "admin.essais_gratuits_actives",
+    "fr": "Essais gratuits activés",
+    "translation": "Free trials enabled",
+    "ok": true
+  },
+  {
+    "key": "admin.duree_de_l",
+    "fr": "Durée de l\\",
+    "translation": "Duration",
+    "ok": true
+  },
+  {
+    "key": "admin.plans_eligibles_all_ou_starter_crea",
+    "fr": "Plans éligibles (all ou starter,creator)",
+    "translation": "Eligible plans (all or starter,creator)",
+    "ok": true
+  },
+  {
+    "key": "admin.duree_1_mois_disponible",
+    "fr": "Durée 1 mois disponible",
+    "translation": "1 month duration available",
+    "ok": true
+  },
+  {
+    "key": "admin.duree_3_mois_disponible",
+    "fr": "Durée 3 mois disponible",
+    "translation": "3 month duration available",
+    "ok": true
+  },
+  {
+    "key": "admin.duree_12_mois_disponible",
+    "fr": "Durée 12 mois disponible",
+    "translation": "12 month duration available",
+    "ok": true
+  },
+  {
+    "key": "admin.module_parrainage_active",
+    "fr": "Module Parrainage activé",
+    "translation": "Referral Module enabled",
+    "ok": true
+  },
+  {
+    "key": "admin.plan_pro_utilise_pour_recompenses_p",
+    "fr": "Plan Pro utilisé pour récompenses palier",
+    "translation": "Pro plan used for tier rewards",
+    "ok": true
+  },
+  {
+    "key": "admin.leaderboard_active",
+    "fr": "Leaderboard activé",
+    "translation": "Leaderboard enabled",
+    "ok": true
+  },
+  {
+    "key": "admin.fenetre_weekly_all_time",
+    "fr": "Fenêtre (weekly | all_time)",
+    "translation": "Window (weekly | all_time)",
+    "ok": true
+  },
+  {
+    "key": "admin.relances_auto_activees",
+    "fr": "Relances auto activées",
+    "translation": "Auto-reminders enabled",
+    "ok": true
+  },
+  {
+    "key": "admin.delai_rappel_jours",
+    "fr": "Délai rappel (jours)",
+    "translation": "Reminder delay (days)",
+    "ok": true
+  },
+  {
+    "key": "admin.module_connect_active",
+    "fr": "Module Connect activé",
+    "translation": "Connect module enabled",
+    "ok": true
+  },
+  {
+    "key": "admin.recompense_par_connexion_usd",
+    "fr": "Récompense par connexion (USD)",
+    "translation": "Reward per connection (USD)",
+    "ok": true
+  },
+  {
+    "key": "admin.recompense_par_minute_usd",
+    "fr": "Récompense par minute (USD)",
+    "translation": "Reward per minute (USD)",
+    "ok": true
+  },
+  {
+    "key": "admin.duree_minimum_de_session_s",
+    "fr": "Durée minimum de session (s)",
+    "translation": "Minimum session duration (s)",
+    "ok": true
+  },
+  {
+    "key": "admin.rayon_de_recherche_par_defaut_km",
+    "fr": "Rayon de recherche par défaut (km)",
+    "translation": "Default search radius (km)",
+    "ok": true
+  },
+  {
+    "key": "admin.boost_active",
+    "fr": "Boost activé",
+    "translation": "Boost enabled",
+    "ok": true
+  },
+  {
+    "key": "admin.debut_iso_ex_2026_03_01t00_00_00z_v",
+    "fr": "Début (ISO ex: 2026-03-01T00:00:00Z — vide = immédiat)",
+    "translation": "Start (ISO ex: 2026-03-01T00:00:00Z — empty = immediate)",
+    "ok": true
+  },
+  {
+    "key": "admin.fin_iso_vide_illimite",
+    "fr": "Fin (ISO — vide = illimité)",
+    "translation": "End (ISO — empty = unlimited)",
+    "ok": true
+  },
+  {
+    "key": "admin.appliquer_aux_paliers_recompenses_w",
+    "fr": "Appliquer aux paliers (récompenses wallet)",
+    "translation": "Apply to tiers (wallet rewards)",
+    "ok": true
+  },
+  {
+    "key": "admin.enregistrer_tous_les_parametres",
+    "fr": "Enregistrer tous les paramètres",
+    "translation": "Save all settings",
+    "ok": true
+  },
+  {
+    "key": "admin.bloque",
+    "fr": "Bloqué",
+    "translation": "Blocked",
+    "ok": true
+  },
+  {
+    "key": "admin.resolution",
+    "fr": "Résolution…",
+    "translation": "Resolving…",
+    "ok": true
+  },
+  {
+    "key": "admin.confirmer_la_decision",
+    "fr": "Confirmer la décision",
+    "translation": "Confirm decision",
+    "ok": true
+  },
+  {
+    "key": "crowdfunding.compte_a_rebours",
+    "fr": "Compte à rebours",
+    "translation": "Countdown",
+    "ok": true
+  },
+  {
+    "key": "crowdfunding.verrouille",
+    "fr": "Verrouillé",
+    "translation": "Locked",
+    "ok": true
+  },
+  {
+    "key": "crowdfunding.creation",
+    "fr": "Création…",
+    "translation": "Creating…",
+    "ok": true
+  },
+  {
+    "key": "crowdfunding.pas_encore_eligible",
+    "fr": "Pas encore éligible",
+    "translation": "Not yet eligible",
+    "ok": true
+  },
+  {
+    "key": "settings.mise_a_jour",
+    "fr": "Mise à jour…",
+    "translation": "Updating…",
+    "ok": true
+  },
+  {
+    "key": "settings.securite",
+    "fr": "Sécurité",
+    "translation": "Security",
+    "ok": true
+  },
+  {
+    "key": "settings.sessions_connectees_appareils_de_co",
+    "fr": "Sessions connectées, appareils de confiance",
+    "translation": "Logged-in sessions, trusted devices",
+    "ok": true
+  },
+  {
+    "key": "settings.confidentialite",
+    "fr": "Confidentialité",
+    "translation": "Privacy",
+    "ok": true
+  },
+  {
+    "key": "settings.compte_abonnes_publications",
+    "fr": "Compte, abonnés, publications",
+    "translation": "Account, followers, posts",
+    "ok": true
+  },
+  {
+    "key": "settings.parametres",
+    "fr": "Paramètres",
+    "translation": "Settings",
+    "ok": true
+  },
+  {
+    "key": "referral.parrain_filleul_boostes",
+    "fr": "Parrain & filleul boostés",
+    "translation": "Boosted referrer & referee",
+    "ok": true
+  },
+  {
+    "key": "referral.parrain_booste",
+    "fr": "Parrain boosté",
+    "translation": "Boosted referrer",
+    "ok": true
+  },
+  {
+    "key": "referral.filleul_booste",
+    "fr": "Filleul boosté",
+    "translation": "Boosted referee",
+    "ok": true
+  },
+  {
+    "key": "referral.reclamation",
+    "fr": "Réclamation…",
+    "translation": "Claim...",
+    "ok": true
+  },
+  {
+    "key": "referral.bloque",
+    "fr": "Bloqué",
+    "translation": "Blocked",
+    "ok": true
+  },
+  {
+    "key": "marketplace_ads.terminee",
+    "fr": "Terminée",
+    "translation": "Completed",
+    "ok": true
+  },
+  {
+    "key": "marketplace_ads.annulee",
+    "fr": "Annulée",
+    "translation": "Cancelled",
+    "ok": true
+  },
+  {
+    "key": "marketplace_ads.creation",
+    "fr": "Création…",
+    "translation": "Creating...",
+    "ok": true
+  },
+  {
+    "key": "connect.scannez_le_qr_affiche_par_l",
+    "fr": "Scannez le QR affiché par l\\",
+    "translation": "Scan the QR displayed by the\\",
+    "ok": true
+  },
+  {
+    "key": "connect.vous_n_avez_pas_encore_partage_de_w",
+    "fr": "Vous n'avez pas encore partagé de WiFi. Commencez maintenant pour gagner des récompenses.",
+    "translation": "You haven't shared any WiFi yet. Start now to earn rewards.",
+    "ok": true
+  },
+  {
+    "key": "connect.le_partage_de_hotspot_est_reserve_a",
+    "fr": "Le partage de hotspot est réservé aux abonnés Business Pro.",
+    "translation": "Hotspot sharing is reserved for Business Pro subscribers.",
+    "ok": true
+  },
+  {
+    "key": "connect.devenez_hote_japap_et_touchez_une_p",
+    "fr": "Devenez hôte JAPAP et touchez une part sur chaque abonnement Pro généré par vos utilisateurs connectés.",
+    "translation": "Become a JAPAP host and earn a share on every Pro subscription generated by your connected users.",
+    "ok": true
+  },
+  {
+    "key": "connect.aucun_credit_recu_pour_l_instant",
+    "fr": "Aucun crédit reçu pour l'instant.",
+    "translation": "No credits received yet.",
+    "ok": true
+  },
+  {
+    "key": "connect.vous_etes",
+    "fr": "Vous êtes",
+    "translation": "You are",
+    "ok": true
+  },
+  {
+    "key": "connect.wifi_importe_depuis_le_qr",
+    "fr": "WiFi importé depuis le QR ✓",
+    "translation": "WiFi imported from QR ✓",
+    "ok": true
+  },
+  {
+    "key": "super_admin.annee",
+    "fr": "Année",
+    "translation": "Year",
+    "ok": true
+  },
+  {
+    "key": "super_admin.aucune_donnee",
+    "fr": "Aucune donnée",
+    "translation": "No data",
+    "ok": true
+  },
+  {
+    "key": "super_admin.creation",
+    "fr": "Création…",
+    "translation": "Creating...",
+    "ok": true
+  },
+  {
+    "key": "super_admin.creer",
+    "fr": "Créer",
+    "translation": "Create",
+    "ok": true
+  },
+  {
+    "key": "games_admin.active",
+    "fr": "Activé",
+    "translation": "Enabled",
+    "ok": true
+  },
+  {
+    "key": "games_admin.desactive",
+    "fr": "Désactivé",
+    "translation": "Disabled",
+    "ok": true
+  },
+  {
+    "key": "games_admin.generation",
+    "fr": "Génération…",
+    "translation": "Generating...",
+    "ok": true
+  },
+  {
+    "key": "games_admin.enregistrer_le_defi_quotidien",
+    "fr": "Enregistrer le défi quotidien",
+    "translation": "Save daily challenge",
+    "ok": true
+  },
+  {
+    "key": "ads_user.approuve",
+    "fr": "Approuvé",
+    "translation": "Approved",
+    "ok": true
+  },
+  {
+    "key": "ads_user.termine",
+    "fr": "Terminé",
+    "translation": "Done",
+    "ok": true
+  },
+  {
+    "key": "ads_user.refuse",
+    "fr": "Refusé",
+    "translation": "Declined",
+    "ok": true
+  },
+  {
+    "key": "ads_user.banniere",
+    "fr": "Bannière",
+    "translation": "Banner",
+    "ok": true
+  },
+  {
+    "key": "ads_user.aucun_reel_a_promouvoir",
+    "fr": "Aucun reel à promouvoir",
+    "translation": "No reel to promote",
+    "ok": true
+  },
+  {
+    "key": "ads_user.aucun_post_a_promouvoir",
+    "fr": "Aucun post à promouvoir",
+    "translation": "No post to promote",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.a_reclamer",
+    "fr": "À réclamer",
+    "translation": "To claim",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.reclames",
+    "fr": "Réclamés",
+    "translation": "Claimed",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.reclame",
+    "fr": "Réclamé",
+    "translation": "Claimed",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.expire_gagnant",
+    "fr": "Expiré gagnant",
+    "translation": "Expired winner",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.expire_perdant",
+    "fr": "Expiré perdant",
+    "translation": "Expired loser",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.systeme_sain",
+    "fr": "Système sain",
+    "translation": "System healthy",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.trop_facile_ou_exploite",
+    "fr": "Trop facile ou exploité",
+    "translation": "Too easy or exploited",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.donnees_insuffisantes",
+    "fr": "Données insuffisantes",
+    "translation": "Insufficient data",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.desactive",
+    "fr": "Désactivé",
+    "translation": "Disabled",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.recurrent",
+    "fr": "Récurrent",
+    "translation": "Recurring",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.date",
+    "fr": "Daté",
+    "translation": "Outdated",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.complete",
+    "fr": "Complété",
+    "translation": "Completed",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.approuve",
+    "fr": "Approuvé",
+    "translation": "Approved",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.refuse",
+    "fr": "Refusé",
+    "translation": "Declined",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.expire",
+    "fr": "Expiré",
+    "translation": "Expired",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.echec",
+    "fr": "Échec",
+    "translation": "Failed",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.depot_refuse",
+    "fr": "Dépôt refusé",
+    "translation": "Deposit declined",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.retrait_refuse",
+    "fr": "Retrait refusé",
+    "translation": "Withdrawal declined",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.depots",
+    "fr": "Dépôts",
+    "translation": "Deposits",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.l_utilisateur_ne_sera_pas_credite",
+    "fr": "L'utilisateur ne sera pas crédité.",
+    "translation": "The user will not be credited.",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.le_montant_sera_automatiquement_rem",
+    "fr": "Le montant sera automatiquement remboursé sur le wallet de l'utilisateur.",
+    "translation": "The amount will be automatically refunded to the user's wallet.",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.enregistrer_les_parametres_de_paiem",
+    "fr": "Enregistrer les paramètres de paiement",
+    "translation": "Save payment settings",
+    "ok": true
+  },
+  {
+    "key": "migration_broadcast_admin.creer_une_nouvelle_campagne",
+    "fr": "Créer une nouvelle campagne",
+    "translation": "Create a new campaign",
+    "ok": true
+  },
+  {
+    "key": "migration_broadcast_admin.mode_broadcast_desactive_kill_switc",
+    "fr": "Mode broadcast désactivé (kill switch iter154)",
+    "translation": "Broadcast mode disabled (kill switch iter154)",
+    "ok": true
+  },
+  {
+    "key": "migration_broadcast_admin.details",
+    "fr": "Détails",
+    "translation": "Details",
+    "ok": true
+  },
+  {
+    "key": "migration_broadcast_admin.stoppee",
+    "fr": "STOPPÉE",
+    "translation": "STOPPED",
+    "ok": true
+  },
+  {
+    "key": "migration_broadcast_admin.terminee",
+    "fr": "TERMINÉE",
+    "translation": "FINISHED",
+    "ok": true
+  },
+  {
+    "key": "migration_broadcast_admin.programmee",
+    "fr": "PROGRAMMÉE",
+    "translation": "SCHEDULED",
+    "ok": true
+  },
+  {
+    "key": "migration_broadcast_admin.apercu_purge_dry_run",
+    "fr": "Aperçu purge (dry run)",
+    "translation": "Purge preview (dry run)",
+    "ok": true
+  },
+  {
+    "key": "migration_broadcast_admin.creation",
+    "fr": "Création…",
+    "translation": "Creating...",
+    "ok": true
+  },
+  {
+    "key": "migration_broadcast_admin.creer_lancer",
+    "fr": "Créer + lancer",
+    "translation": "Create + Launch",
+    "ok": true
+  },
+  {
+    "key": "games_engagement_admin.generation",
+    "fr": "Génération…",
+    "translation": "Generating...",
+    "ok": true
+  },
+  {
+    "key": "games_engagement_admin.regenerer_ia",
+    "fr": "Régénérer IA",
+    "translation": "Regenerate AI",
+    "ok": true
+  },
+  {
+    "key": "games_engagement_admin.precision",
+    "fr": "Précision",
+    "translation": "Accuracy",
+    "ok": true
+  },
+  {
+    "key": "now_payments_deposit_card.paiement_confirme",
+    "fr": "Paiement confirmé",
+    "translation": "Payment confirmed",
+    "ok": true
+  },
+  {
+    "key": "now_payments_deposit_card.credite_avec_succes",
+    "fr": "Crédité avec succès",
+    "translation": "Successfully credited",
+    "ok": true
+  },
+  {
+    "key": "now_payments_deposit_card.paiement_echoue",
+    "fr": "Paiement échoué",
+    "translation": "Payment failed",
+    "ok": true
+  },
+  {
+    "key": "now_payments_deposit_card.paiement_expire",
+    "fr": "Paiement expiré",
+    "translation": "Payment expired",
+    "ok": true
+  },
+  {
+    "key": "now_payments_deposit_card.paiement_partiel_detecte",
+    "fr": "Paiement partiel détecté",
+    "translation": "Partial payment detected",
+    "ok": true
+  },
+  {
+    "key": "now_payments_deposit_card.deja_credite_solde_a_jour",
+    "fr": "Déjà crédité ! Solde à jour.",
+    "translation": "Already credited! Balance updated.",
+    "ok": true
+  },
+  {
+    "key": "now_payments_deposit_card.verification",
+    "fr": "Vérification…",
+    "translation": "Verifying...",
+    "ok": true
+  },
+  {
+    "key": "now_payments_deposit_card.j_ai_paye",
+    "fr": "J'ai payé",
+    "translation": "I have paid",
+    "ok": true
+  },
+  {
+    "key": "ads_admin.approuve",
+    "fr": "Approuvé",
+    "translation": "Approved",
+    "ok": true
+  },
+  {
+    "key": "ads_admin.termine",
+    "fr": "Terminé",
+    "translation": "Completed",
+    "ok": true
+  },
+  {
+    "key": "ads_admin.refuse",
+    "fr": "Refusé",
+    "translation": "Rejected",
+    "ok": true
+  },
+  {
+    "key": "ads_admin.campagne_approuvee",
+    "fr": "Campagne approuvée ✓",
+    "translation": "Campaign approved ✓",
+    "ok": true
+  },
+  {
+    "key": "admin_error_monitor.elevee",
+    "fr": "Élevée",
+    "translation": "High",
+    "ok": true
+  },
+  {
+    "key": "admin_error_monitor.corrige",
+    "fr": "Corrigé",
+    "translation": "Corrected",
+    "ok": true
+  },
+  {
+    "key": "admin_error_monitor.ignore",
+    "fr": "Ignoré",
+    "translation": "Ignored",
+    "ok": true
+  },
+  {
+    "key": "admin_error_monitor.generation",
+    "fr": "Génération…",
+    "translation": "Generating...",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.la_bonne_reponse_est_en_vert",
+    "fr": "La bonne réponse est en vert",
+    "translation": "The correct answer is in green",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.mauvaise_reponse",
+    "fr": "Mauvaise réponse",
+    "translation": "Wrong answer",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.voir_le_resultat",
+    "fr": "Voir le résultat →",
+    "translation": "View results →",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.preparation",
+    "fr": "Préparation…",
+    "translation": "Preparing...",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.sans_faute_legendaire_vous_etes_au",
+    "fr": "Sans-faute légendaire ! Vous êtes au sommet 🏆",
+    "translation": "Legendary flawless run! You're at the top 🏆",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.bien_joue_continuez_sur_cette_lance",
+    "fr": "Bien joué ! Continuez sur cette lancée 💪",
+    "translation": "Well done! Keep up the good work 💪",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.chaque_expert_a_commence_ici_reessa",
+    "fr": "Chaque expert a commencé ici. Réessayez ! 🎯",
+    "translation": "Every expert started here. Try again! 🎯",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.le_quiz_est_exigeant_l_entrainement",
+    "fr": "Le quiz est exigeant — l'entraînement paie. On retente ? 💡",
+    "translation": "The quiz is challenging — practice pays off. Try again? 💡",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.defi_quiz_japap",
+    "fr": "Défi Quiz JAPAP",
+    "translation": "JAPAP Quiz Challenge",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.creation_du_defi",
+    "fr": "Création du défi…",
+    "translation": "Creating challenge...",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.defier_un_ami",
+    "fr": "Défier un ami",
+    "translation": "Challenge a friend",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.cote_d_ivoire",
+    "fr": "Côte d'Ivoire",
+    "translation": "Ivory Coast",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.senegal",
+    "fr": "Sénégal",
+    "translation": "Senegal",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.benin",
+    "fr": "Bénin",
+    "translation": "Benin",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.propose",
+    "fr": "Proposé",
+    "translation": "Proposed",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.archive",
+    "fr": "Archivé",
+    "translation": "Archived",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.rejete",
+    "fr": "Rejeté",
+    "translation": "Rejected",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.active",
+    "fr": "Activé",
+    "translation": "Enabled",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.desactive",
+    "fr": "Désactivé",
+    "translation": "Disabled",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.desactiver",
+    "fr": "Désactiver",
+    "translation": "Disable",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.execution",
+    "fr": "Exécution…",
+    "translation": "Executing...",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.claude_sonnet_4_5_propose_une_grill",
+    "fr": "Claude Sonnet 4.5 propose une grille adaptée au coût de la vie local.",
+    "translation": "Claude Sonnet 4.5 offers a grid adapted to the local cost of living.",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune.ca_tourne",
+    "fr": "Ça tourne…",
+    "translation": "Spinning...",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune.cycle_termine",
+    "fr": "Cycle terminé",
+    "translation": "Cycle complete",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune.vous_etes_a_mi_chemin_continuez_la",
+    "fr": "Vous êtes à mi-chemin. Continuez, la zone premium approche.",
+    "translation": "You're halfway there. Keep going, the premium zone is approaching.",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune.le_jackpot_peut_desormais_tomber_a",
+    "fr": "Le Jackpot peut désormais tomber à tout moment. Tournez pour le déclencher.",
+    "translation": "The Jackpot can now drop at any moment. Spin to trigger it.",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune.vous_avez_atteint_l_objectif_points",
+    "fr": "Vous avez atteint l'objectif points. Validez les 25 jours et réclamez votre Starter Pro.",
+    "translation": "You have reached the point goal. Validate the 25 days and claim your Starter Pro.",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune.preparation",
+    "fr": "Préparation…",
+    "translation": "Preparing...",
+    "ok": true
+  },
+  {
+    "key": "marketplace_product.reconditionne",
+    "fr": "Reconditionné",
+    "translation": "Refurbished",
+    "ok": true
+  },
+  {
+    "key": "marketplace_product.ideal_pour_tester_un_produit",
+    "fr": "Idéal pour tester un produit",
+    "translation": "Ideal for testing a product",
+    "ok": true
+  },
+  {
+    "key": "marketplace_product.le_meilleur_rapport_visibilite_prix",
+    "fr": "Le meilleur rapport visibilité/prix",
+    "translation": "Best value for visibility",
+    "ok": true
+  },
+  {
+    "key": "marketplace_product.supprime",
+    "fr": "Supprimé",
+    "translation": "Deleted",
+    "ok": true
+  },
+  {
+    "key": "marketplace_product.moderation_admin",
+    "fr": "Modération admin",
+    "translation": "Admin moderation",
+    "ok": true
+  },
+  {
+    "key": "marketplace_product.ex_photos_non_conformes_prix_incohe",
+    "fr": "Ex : Photos non conformes, prix incohérent…",
+    "translation": "E.g.: Non-compliant photos, inconsistent price...",
+    "ok": true
+  },
+  {
+    "key": "post_menu.publication_epinglee",
+    "fr": "Publication épinglée",
+    "translation": "Post pinned",
+    "ok": true
+  },
+  {
+    "key": "post_menu.publication_desepinglee",
+    "fr": "Publication désépinglée",
+    "translation": "Post unpinned",
+    "ok": true
+  },
+  {
+    "key": "post_menu.desepingler",
+    "fr": "Désépingler",
+    "translation": "Unpin",
+    "ok": true
+  },
+  {
+    "key": "post_menu.epingler",
+    "fr": "Épingler",
+    "translation": "Pin",
+    "ok": true
+  },
+  {
+    "key": "post_menu.partage_dans_le_groupe",
+    "fr": "Partagé dans le groupe",
+    "translation": "Shared in the group",
+    "ok": true
+  },
+  {
+    "key": "post_menu.partage_sur_la_page",
+    "fr": "Partagé sur la page",
+    "translation": "Shared on the page",
+    "ok": true
+  },
+  {
+    "key": "post_menu.partager_avec_tous_mes_abonnes",
+    "fr": "Partager avec tous mes abonnés",
+    "translation": "Share with all my followers",
+    "ok": true
+  },
+  {
+    "key": "post_menu.choisir_un_groupe_dont_vous_etes_me",
+    "fr": "Choisir un groupe dont vous êtes membre",
+    "translation": "Choose a group you are a member of",
+    "ok": true
+  },
+  {
+    "key": "post_menu.publier_sur_une_page_dont_vous_etes",
+    "fr": "Publier sur une page dont vous êtes propriétaire",
+    "translation": "Post on a page you own",
+    "ok": true
+  },
+  {
+    "key": "post_menu.message_prive",
+    "fr": "Message privé",
+    "translation": "Private message",
+    "ok": true
+  },
+  {
+    "key": "pro.annuler_immediatement",
+    "fr": "Annuler immédiatement ?",
+    "translation": "Cancel immediately?",
+    "ok": true
+  },
+  {
+    "key": "pro.annuler_a_la_fin_de_la_periode",
+    "fr": "Annuler à la fin de la période ?",
+    "translation": "Cancel at end of period?",
+    "ok": true
+  },
+  {
+    "key": "pro.edition_founders",
+    "fr": "Édition founders",
+    "translation": "Founders Edition",
+    "ok": true
+  },
+  {
+    "key": "pro.offre_limitee",
+    "fr": "Offre limitée",
+    "translation": "Limited offer",
+    "ok": true
+  },
+  {
+    "key": "driver_kyc_form.votre_dossier_a_bien_ete_recu_un_ad",
+    "fr": "Votre dossier a bien été reçu. Un administrateur le vérifiera sous 24h ouvrées. Vous recevrez une notification dès la décision.",
+    "translation": "Your application has been received. An administrator will review it within 24 business hours. You'll receive a notification once a decision is made.",
+    "ok": true
+  },
+  {
+    "key": "driver_kyc_form.compte_chauffeur_valide",
+    "fr": "Compte chauffeur validé",
+    "translation": "Driver account approved",
+    "ok": true
+  },
+  {
+    "key": "driver_kyc_form.vous_pouvez_desormais_aller_en_lign",
+    "fr": "Vous pouvez désormais aller en ligne et accepter des courses. Bonne route ! 🚕",
+    "translation": "You can now go online and accept rides. Drive safe! 🚕",
+    "ok": true
+  },
+  {
+    "key": "driver_kyc_form.dossier_refuse",
+    "fr": "Dossier refusé",
+    "translation": "Application rejected",
+    "ok": true
+  },
+  {
+    "key": "driver_kyc_form.vos_documents_necessitent_des_corre",
+    "fr": "Vos documents nécessitent des corrections. Lisez la raison ci-dessous puis resoumettez.",
+    "translation": "Your documents require corrections. Please read the reason below and resubmit.",
+    "ok": true
+  },
+  {
+    "key": "driver_kyc_form.votre_activite_chauffeur_est_tempor",
+    "fr": "Votre activité chauffeur est temporairement suspendue. Contactez le support pour rouvrir l'accès.",
+    "translation": "Your driver activity is temporarily suspended. Please contact support to regain access.",
+    "ok": true
+  },
+  {
+    "key": "driver_kyc_form.soumettre_a_nouveau",
+    "fr": "Soumettre à nouveau",
+    "translation": "Resubmit",
+    "ok": true
+  },
+  {
+    "key": "driver_kyc_form.mettre_a_jour_le_profil",
+    "fr": "Mettre à jour le profil",
+    "translation": "Update profile",
+    "ok": true
+  },
+  {
+    "key": "batch_safety_pane.basculer_en_mode_safe_aucun_email_r",
+    "fr": "Basculer en mode SAFE (aucun email réel envoyé) ?",
+    "translation": "Switch to SAFE mode (no real emails sent)?",
+    "ok": true
+  },
+  {
+    "key": "batch_safety_pane.envoi_reel_active",
+    "fr": "Envoi réel ACTIVÉ",
+    "translation": "Live sending ENABLED",
+    "ok": true
+  },
+  {
+    "key": "batch_safety_pane.mode_safe_active",
+    "fr": "Mode SAFE activé",
+    "translation": "SAFE mode enabled",
+    "ok": true
+  },
+  {
+    "key": "batch_safety_pane.aucun_email_reel_n",
+    "fr": "Aucun email réel n\\",
+    "translation": "No real emails",
+    "ok": true
+  },
+  {
+    "key": "batch_safety_pane.enregistrer_les_parametres",
+    "fr": "Enregistrer les paramètres",
+    "translation": "Save settings",
+    "ok": true
+  },
+  {
+    "key": "batch_safety_pane.aucun_email_reel_n_est_envoye",
+    "fr": "Aucun email réel n'est envoyé. Les envois sont simulés et loggés.",
+    "translation": "No real emails are sent. Deliveries are simulated and logged.",
+    "ok": true
+  },
+  {
+    "key": "batch_safety_pane.les_campagnes_envoient_de_vrais",
+    "fr": "Les campagnes envoient de vrais emails aux destinataires.",
+    "translation": "Campaigns send real emails to recipients.",
+    "ok": true
+  },
+  {
+    "key": "support_admin.resolus",
+    "fr": "Résolus",
+    "translation": "Resolved",
+    "ok": true
+  },
+  {
+    "key": "support_admin.fermes",
+    "fr": "Fermés",
+    "translation": "Closed",
+    "ok": true
+  },
+  {
+    "key": "support_admin.resolu",
+    "fr": "Résolu",
+    "translation": "Resolved",
+    "ok": true
+  },
+  {
+    "key": "support_admin.ferme",
+    "fr": "Fermé",
+    "translation": "Closed",
+    "ok": true
+  },
+  {
+    "key": "support.kyc_identite",
+    "fr": "KYC / Identité",
+    "translation": "KYC / Identity",
+    "ok": true
+  },
+  {
+    "key": "support.resolu",
+    "fr": "Résolu",
+    "translation": "Resolved",
+    "ok": true
+  },
+  {
+    "key": "support.ferme",
+    "fr": "Fermé",
+    "translation": "Closed",
+    "ok": true
+  },
+  {
+    "key": "support.je_n_arrive_pas_a_repondre_pour_le",
+    "fr": "Je n'arrive pas à répondre pour le moment. Cliquez sur \\",
+    "translation": "I can't respond right now. Click on \\",
+    "ok": true
+  },
+  {
+    "key": "super_admin_login.verification_2fa",
+    "fr": "Vérification 2FA",
+    "translation": "2FA Verification",
+    "ok": true
+  },
+  {
+    "key": "super_admin_login.saisissez_vos_identifiants_un_code",
+    "fr": "Saisissez vos identifiants. Un code 2FA sera envoyé à votre email.",
+    "translation": "Enter your credentials. A 2FA code will be sent to your email.",
+    "ok": true
+  },
+  {
+    "key": "super_admin_login.verification",
+    "fr": "Vérification…",
+    "translation": "Verifying…",
+    "ok": true
+  },
+  {
+    "key": "duel.ce_defi_a_expire_24_h",
+    "fr": "Ce défi a expiré (24 h).",
+    "translation": "This challenge has expired (24h).",
+    "ok": true
+  },
+  {
+    "key": "duel.resultat_duel_japap",
+    "fr": "Résultat duel JAPAP",
+    "translation": "JAPAP Duel Result",
+    "ok": true
+  },
+  {
+    "key": "duel.creation_de_la_revanche",
+    "fr": "Création de la revanche…",
+    "translation": "Creating rematch…",
+    "ok": true
+  },
+  {
+    "key": "duel.gagne",
+    "fr": "Gagné",
+    "translation": "Won",
+    "ok": true
+  },
+  {
+    "key": "duel.egalite",
+    "fr": "Égalité",
+    "translation": "Draw",
+    "ok": true
+  },
+  {
+    "key": "duel.preparation",
+    "fr": "Préparation…",
+    "translation": "Preparing…",
+    "ok": true
+  },
+  {
+    "key": "duel.defi_japap",
+    "fr": "Défi JAPAP",
+    "translation": "JAPAP Challenge",
+    "ok": true
+  },
+  {
+    "key": "duel.defaite",
+    "fr": "Défaite",
+    "translation": "Lost",
+    "ok": true
+  },
+  {
+    "key": "request_payment_modal.demander_a_recevoir",
+    "fr": "Demander à recevoir",
+    "translation": "Request to Receive",
+    "ok": true
+  },
+  {
+    "key": "request_payment_modal.demande_prete_a_partager",
+    "fr": "Demande prête à partager",
+    "translation": "Request Ready to Share",
+    "ok": true
+  },
+  {
+    "key": "request_payment_modal.generation",
+    "fr": "Génération…",
+    "translation": "Generating…",
+    "ok": true
+  },
+  {
+    "key": "request_payment_modal.generer_le_lien",
+    "fr": "Générer le lien",
+    "translation": "Generate Link",
+    "ok": true
+  },
+  {
+    "key": "in_call_screen.reactiver_le_micro",
+    "fr": "Réactiver le micro",
+    "translation": "Unmute Mic",
+    "ok": true
+  },
+  {
+    "key": "in_call_screen.arreter_l",
+    "fr": "Arrêter l\\",
+    "translation": "Stop \\",
+    "ok": true
+  },
+  {
+    "key": "in_call_screen.demarrer_l",
+    "fr": "Démarrer l\\",
+    "translation": "Start \\",
+    "ok": true
+  },
+  {
+    "key": "languages.francais",
+    "fr": "Français",
+    "translation": "French",
+    "ok": true
+  },
+  {
+    "key": "languages.portugues",
+    "fr": "Português",
+    "translation": "Portuguese",
+    "ok": true
+  },
+  {
+    "key": "languages.espanol",
+    "fr": "Español",
+    "translation": "Spanish",
+    "ok": true
+  },
+  {
+    "key": "languages.lingala",
+    "fr": "Lingála",
+    "translation": "Lingala",
+    "ok": true
+  },
+  {
+    "key": "languages.yoruba",
+    "fr": "Yorùbá",
+    "translation": "Yoruba",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.defi_en_cours",
+    "fr": "Défi en cours",
+    "translation": "Ongoing Challenge",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.en_attente_du_second_joueur",
+    "fr": "En attente du second joueur",
+    "translation": "Waiting for second player",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.egalite_bien_joue",
+    "fr": "Égalité — bien joué",
+    "translation": "Draw — well played",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.defaite",
+    "fr": "Défaite",
+    "translation": "Loss",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.defi_refuse",
+    "fr": "Défi refusé",
+    "translation": "Challenge declined",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.defi_expire",
+    "fr": "Défi expiré",
+    "translation": "Challenge expired",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.un_challenger_vous_defie",
+    "fr": "Un challenger vous défie",
+    "translation": "A challenger challenges you",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.bonus_30_pts_engagement_credite",
+    "fr": "Bonus +30 pts engagement crédité.",
+    "translation": "Engagement bonus +30 pts credited.",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.mises_remboursees_de_part_et_d",
+    "fr": "Mises remboursées de part et d\\",
+    "translation": "Stakes refunded to both parties.",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.mise_remboursee_bonus_engagement_cr",
+    "fr": "Mise remboursée + bonus engagement crédité.",
+    "translation": "Stake refunded + engagement bonus credited.",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.vous_avez_refuse_ce_defi",
+    "fr": "Vous avez refusé ce défi.",
+    "translation": "You declined this challenge.",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.validation_des_reponses",
+    "fr": "Validation des réponses…",
+    "translation": "Validating answers…",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.score_enregistre",
+    "fr": "Score enregistré ✓",
+    "translation": "Score saved ✓",
+    "ok": true
+  },
+  {
+    "key": "display_currency_selector.dollar_americain",
+    "fr": "Dollar américain",
+    "translation": "US Dollar",
+    "ok": true
+  },
+  {
+    "key": "display_currency_selector.cameroun_gabon_congo_tchad_rca_guin",
+    "fr": "Cameroun, Gabon, Congo, Tchad, RCA, Guinée Équatoriale",
+    "translation": "Cameroon, Gabon, Congo, Chad, CAR, Equatorial Guinea",
+    "ok": true
+  },
+  {
+    "key": "display_currency_selector.senegal_cote_d_ivoire_mali_burkina",
+    "fr": "Sénégal, Côte d'Ivoire, Mali, Burkina, Niger, Togo, Bénin",
+    "translation": "Senegal, Côte d'Ivoire, Mali, Burkina, Niger, Togo, Benin",
+    "ok": true
+  },
+  {
+    "key": "display_currency_selector.cedi_ghaneen",
+    "fr": "Cedi ghanéen",
+    "translation": "Ghanaian Cedi",
+    "ok": true
+  },
+  {
+    "key": "display_currency_selector.naira_nigerian",
+    "fr": "Naira nigérian",
+    "translation": "Nigerian Naira",
+    "ok": true
+  },
+  {
+    "key": "display_currency_selector.shilling_kenyan",
+    "fr": "Shilling kényan",
+    "translation": "Kenyan Shilling",
+    "ok": true
+  },
+  {
+    "key": "display_currency_selector.livre_egyptienne",
+    "fr": "Livre égyptienne",
+    "translation": "Egyptian Pound",
+    "ok": true
+  },
+  {
+    "key": "push_notifications_toggle.vous_recevrez_tips_messages_et_vire",
+    "fr": "Vous recevrez tips, messages et virements même si JAPAP est fermé.",
+    "translation": "You will receive tips, messages, and transfers even if JAPAP is closed.",
+    "ok": true
+  },
+  {
+    "key": "push_notifications_toggle.debloquez_les_dans_les_parametres_d",
+    "fr": "Débloquez-les dans les paramètres de votre navigateur.",
+    "translation": "Enable them in your browser settings.",
+    "ok": true
+  },
+  {
+    "key": "push_notifications_toggle.le_sdk_n_a_pas_pu_etre_charge_verif",
+    "fr": "Le SDK n'a pas pu être chargé. Vérifiez votre connexion et votre bloqueur de pubs.",
+    "translation": "The SDK could not be loaded. Check your connection and ad blocker.",
+    "ok": true
+  },
+  {
+    "key": "push_notifications_toggle.verifiez_vos_notifications",
+    "fr": "Vérifiez vos notifications.",
+    "translation": "Check your notifications.",
+    "ok": true
+  },
+  {
+    "key": "push_notifications_toggle.le_test_push_est_reserve_aux_admins",
+    "fr": "Le test push est réservé aux admins.",
+    "translation": "Push test is for admins only.",
+    "ok": true
+  },
+  {
+    "key": "push_notifications_toggle.actives_vous_serez_notifiee_pour_ti",
+    "fr": "Actives — vous serez notifié·e pour tips, virements et messages.",
+    "translation": "Active — you will be notified for tips, transfers, and messages.",
+    "ok": true
+  },
+  {
+    "key": "push_notifications_toggle.bloquees_par_le_navigateur_debloque",
+    "fr": "Bloquées par le navigateur. Débloquez-les dans les réglages.",
+    "translation": "Blocked by browser. Unblock them in settings.",
+    "ok": true
+  },
+  {
+    "key": "push_notifications_toggle.recevez_tips_virements_et_messages",
+    "fr": "Recevez tips, virements et messages même quand JAPAP est fermé.",
+    "translation": "Receive tips, transfers, and messages even when JAPAP is closed.",
+    "ok": true
+  },
+  {
+    "key": "my_tasks.ouvrir_la_conversation",
+    "fr": "Ouvrir la conversation",
+    "translation": "Open chat",
+    "ok": true
+  },
+  {
+    "key": "my_tasks.a_faire",
+    "fr": "À faire",
+    "translation": "To Do",
+    "ok": true
+  },
+  {
+    "key": "my_tasks.terminees",
+    "fr": "Terminées",
+    "translation": "Completed",
+    "ok": true
+  },
+  {
+    "key": "my_tasks.marquer_comme_a_faire",
+    "fr": "Marquer comme à faire",
+    "translation": "Mark as To Do",
+    "ok": true
+  },
+  {
+    "key": "my_tasks.marquer_comme_terminee",
+    "fr": "Marquer comme terminée",
+    "translation": "Mark as Completed",
+    "ok": true
+  },
+  {
+    "key": "my_tasks.aucune_tache_terminee_pour_l_instan",
+    "fr": "Aucune tâche terminée pour l'instant.",
+    "translation": "No completed tasks yet.",
+    "ok": true
+  },
+  {
+    "key": "my_tasks.tout_est_a_jour_pas_de_tache_en_cou",
+    "fr": "Tout est à jour 🎉 Pas de tâche en cours.",
+    "translation": "All up to date 🎉 No tasks in progress.",
+    "ok": true
+  },
+  {
+    "key": "my_tasks.aucune_tache_activez_l_enregistreme",
+    "fr": "Aucune tâche. Activez l'enregistrement pendant un appel pour générer des tâches automatiquement.",
+    "translation": "No tasks. Enable recording during a call to automatically generate tasks.",
+    "ok": true
+  },
+  {
+    "key": "ride_lifecycle_panel.chauffeur_trouve_en_chemin",
+    "fr": "Chauffeur trouvé · en chemin",
+    "translation": "Driver found · en route",
+    "ok": true
+  },
+  {
+    "key": "ride_lifecycle_panel.chauffeur_arrive_preparez_vous",
+    "fr": "Chauffeur arrive — préparez-vous",
+    "translation": "Driver arriving — get ready",
+    "ok": true
+  },
+  {
+    "key": "ride_lifecycle_panel.course_terminee",
+    "fr": "Course terminée",
+    "translation": "Ride completed",
+    "ok": true
+  },
+  {
+    "key": "ride_lifecycle_panel.course_annulee",
+    "fr": "Course annulée",
+    "translation": "Ride cancelled",
+    "ok": true
+  },
+  {
+    "key": "ride_lifecycle_panel.annulee_par_le_chauffeur",
+    "fr": "Annulée par le chauffeur",
+    "translation": "Cancelled by driver",
+    "ok": true
+  },
+  {
+    "key": "call_summary_modal.synthese_ia_en_cours",
+    "fr": "Synthèse IA en cours…",
+    "translation": "AI summary in progress…",
+    "ok": true
+  },
+  {
+    "key": "call_summary_modal.pret",
+    "fr": "Prêt",
+    "translation": "Ready",
+    "ok": true
+  },
+  {
+    "key": "call_summary_modal.echec",
+    "fr": "Échec",
+    "translation": "Failed",
+    "ok": true
+  },
+  {
+    "key": "call_summary_modal.pas_de_resume_disponible",
+    "fr": "Pas de résumé disponible",
+    "translation": "No summary available",
+    "ok": true
+  },
+  {
+    "key": "call_summary_modal.resume_partage_dans_la_conversation",
+    "fr": "Résumé partagé dans la conversation.",
+    "translation": "Summary shared in chat.",
+    "ok": true
+  },
+  {
+    "key": "call_summary_modal.partage",
+    "fr": "Partagé ✓",
+    "translation": "Shared ✓",
+    "ok": true
+  },
+  {
+    "key": "deposit_return.paiement_annule",
+    "fr": "Paiement annulé",
+    "translation": "Payment cancelled",
+    "ok": true
+  },
+  {
+    "key": "deposit_return.tu_as_annule_le_paiement_aucun_mont",
+    "fr": "Tu as annulé le paiement. Aucun montant n'a été débité.",
+    "translation": "You cancelled the payment. No amount was debited.",
+    "ok": true
+  },
+  {
+    "key": "deposit_return.paiement_echoue",
+    "fr": "Paiement échoué",
+    "translation": "Payment failed",
+    "ok": true
+  },
+  {
+    "key": "deposit_return.la_transaction_a_expire_avant_confi",
+    "fr": "La transaction a expiré avant confirmation.",
+    "translation": "Transaction expired before confirmation.",
+    "ok": true
+  },
+  {
+    "key": "tap_challenge.preparation",
+    "fr": "Préparation…",
+    "translation": "Preparing...",
+    "ok": true
+  },
+  {
+    "key": "tap_challenge.defi_tap_challenge",
+    "fr": "Défi Tap Challenge",
+    "translation": "Tap Challenge",
+    "ok": true
+  },
+  {
+    "key": "tap_challenge.creation_du_defi",
+    "fr": "Création du défi…",
+    "translation": "Creating challenge...",
+    "ok": true
+  },
+  {
+    "key": "tap_challenge.defier_un_ami",
+    "fr": "Défier un ami",
+    "translation": "Challenge a friend",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenges.termines",
+    "fr": "Terminés",
+    "translation": "Completed",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenges.aucun_defi_en_attente",
+    "fr": "Aucun défi en attente.",
+    "translation": "No pending challenges.",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenges.aucun_defi_en_cours",
+    "fr": "Aucun défi en cours.",
+    "translation": "No active challenges.",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenges.aucun_defi_termine",
+    "fr": "Aucun défi terminé.",
+    "translation": "No completed challenges.",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenges.a_vous_de_jouer",
+    "fr": "À vous de jouer",
+    "translation": "Your turn",
+    "ok": true
+  },
+  {
+    "key": "public_ride_track.chauffeur_arrive_bientot",
+    "fr": "Chauffeur arrive bientôt",
+    "translation": "Driver arriving soon",
+    "ok": true
+  },
+  {
+    "key": "public_ride_track.course_terminee",
+    "fr": "Course terminée 🎉",
+    "translation": "Ride completed 🎉",
+    "ok": true
+  },
+  {
+    "key": "public_ride_track.course_annulee",
+    "fr": "Course annulée",
+    "translation": "Ride cancelled",
+    "ok": true
+  },
+  {
+    "key": "public_ride_track.lien_expire",
+    "fr": "Lien expiré",
+    "translation": "Link expired",
+    "ok": true
+  },
+  {
+    "key": "call_context.acces_camera_micro_refuse_autorisez",
+    "fr": "Accès caméra/micro refusé. Autorisez-les dans les réglages du navigateur.",
+    "translation": "Camera/mic access denied. Enable them in browser settings.",
+    "ok": true
+  },
+  {
+    "key": "call_context.acces_micro_refuse_autorisez_le_dan",
+    "fr": "Accès micro refusé. Autorisez-le dans les réglages du navigateur.",
+    "translation": "Mic access denied. Enable it in browser settings.",
+    "ok": true
+  },
+  {
+    "key": "call_context.acces_camera_micro_refuse",
+    "fr": "Accès caméra/micro refusé.",
+    "translation": "Camera/mic access denied.",
+    "ok": true
+  },
+  {
+    "key": "call_context.acces_micro_refuse",
+    "fr": "Accès micro refusé.",
+    "translation": "Mic access denied.",
+    "ok": true
+  },
+  {
+    "key": "messaging_api.prenom",
+    "fr": "Prénom",
+    "translation": "First name",
+    "ok": true
+  },
+  {
+    "key": "messaging_api.taches_en_attente",
+    "fr": "Tâches en attente",
+    "translation": "Pending tasks",
+    "ok": true
+  },
+  {
+    "key": "messaging_api.envoyee",
+    "fr": "Envoyée",
+    "translation": "Sent",
+    "ok": true
+  },
+  {
+    "key": "messaging_api.echec",
+    "fr": "Échec",
+    "translation": "Failed",
+    "ok": true
+  },
+  {
+    "key": "messaging_api.cote_d",
+    "fr": "Côte d\\",
+    "translation": "Côte d'",
+    "ok": true
+  },
+  {
+    "key": "media_filters.cinema",
+    "fr": "Cinéma",
+    "translation": "Cinema",
+    "ok": true
+  },
+  {
+    "key": "media_filters.beaute",
+    "fr": "Beauté",
+    "translation": "Beauty",
+    "ok": true
+  },
+  {
+    "key": "media_filters.sepia",
+    "fr": "Sépia",
+    "translation": "Sepia",
+    "ok": true
+  },
+  {
+    "key": "quiz_champion.senegal",
+    "fr": "Sénégal",
+    "translation": "Senegal",
+    "ok": true
+  },
+  {
+    "key": "quiz_champion.cote_d",
+    "fr": "Côte d\\",
+    "translation": "Côte d'Ivoire",
+    "ok": true
+  },
+  {
+    "key": "quiz_champion.benin",
+    "fr": "Bénin",
+    "translation": "Benin",
+    "ok": true
+  },
+  {
+    "key": "my_duels_sent.expire",
+    "fr": "Expiré",
+    "translation": "Expired",
+    "ok": true
+  },
+  {
+    "key": "my_duels_sent.termine",
+    "fr": "Terminé",
+    "translation": "Completed",
+    "ok": true
+  },
+  {
+    "key": "my_duels_sent.defi_quotidien",
+    "fr": "Défi quotidien",
+    "translation": "Daily Challenge",
+    "ok": true
+  },
+  {
+    "key": "analytics_pane.emails_envoyes",
+    "fr": "Emails envoyés",
+    "translation": "Emails Sent",
+    "ok": true
+  },
+  {
+    "key": "analytics_pane.delivres",
+    "fr": "Délivrés",
+    "translation": "Delivered",
+    "ok": true
+  },
+  {
+    "key": "analytics_pane.desabonnements",
+    "fr": "Désabonnements",
+    "translation": "Unsubscriptions",
+    "ok": true
+  },
+  {
+    "key": "translate_button.francais",
+    "fr": "Français",
+    "translation": "French",
+    "ok": true
+  },
+  {
+    "key": "translate_button.portugues",
+    "fr": "Português",
+    "translation": "Portuguese",
+    "ok": true
+  },
+  {
+    "key": "translate_button.espanol",
+    "fr": "Español",
+    "translation": "Spanish",
+    "ok": true
+  }
+]

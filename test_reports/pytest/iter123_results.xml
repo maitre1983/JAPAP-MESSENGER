@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<testsuite name="iter123_quiz_champion" tests="52" failures="0">
+  <testcase name="admin login (2FA)"></testcase>
+  <testcase name="admin/CM/set seeds Bob"></testcase>
+  <testcase name="GET /champion/CM returns 200 with full payload"></testcase>
+  <testcase name="source = 'admin_set' after admin/set"></testcase>
+  <testcase name="GET /champion/ZZ returns 404 when no champion"></testcase>
+  <testcase name="GET /champion/'X' returns 400"></testcase>
+  <testcase name="GET /champion/'XYZ' returns 400"></testcase>
+  <testcase name="GET /champion/'12' returns 400"></testcase>
+  <testcase name="admin/set as non-admin → 403"></testcase>
+  <testcase name="promote-all returns full struct"></testcase>
+  <testcase name="promote-all idempotent (2nd call works)"></testcase>
+  <testcase name="GET /admin/list returns items with refusal_count_30d"></testcase>
+  <testcase name="self-challenge → 400"></testcase>
+  <testcase name="mode=paid → 501"></testcase>
+  <testcase name="no champion in country → 404"></testcase>
+  <testcase name="create challenge → 200 + challenge_id"></testcase>
+  <testcase name="duplicate open challenge → 409"></testcase>
+  <testcase name="non-champion accept → 403"></testcase>
+  <testcase name="champion accept → 200, status=accepted"></testcase>
+  <testcase name="re-accept → 409"></testcase>
+  <testcase name="Alice /play 200 with full payload"></testcase>
+  <testcase name="/play does NOT leak correct_index"></testcase>
+  <testcase name="timer_per_question_seconds=15"></testcase>
+  <testcase name="Alice double /play → 409"></testcase>
+  <testcase name="Bob /play 200"></testcase>
+  <testcase name="options_order shuffled INDEPENDENTLY per side (DB-verified)"></testcase>
+  <testcase name="non-participant submit → 403"></testcase>
+  <testcase name="Alice submit 5/5 → 200"></testcase>
+  <testcase name="Alice double submit → 409"></testcase>
+  <testcase name="Bob submit completes challenge"></testcase>
+  <testcase name="winner = Alice (5 > 4)"></testcase>
+  <testcase name="scores recorded correctly"></testcase>
+  <testcase name="/challenges/me Alice sees challenge as 'challenger'"></testcase>
+  <testcase name="/challenges/me Bob sees challenge as 'champion' (filter status=completed)"></testcase>
+  <testcase name="/challenges/{cid} for participant ok, can_play=false (completed)"></testcase>
+  <testcase name="/challenges/{cid} admin can view (200)"></testcase>
+  <testcase name="admin/challenges with filters → 200"></testcase>
+  <testcase name="refuse #1 → 200 with outcome"></testcase>
+  <testcase name="refuse #1: consecutive=1, demoted=false"></testcase>
+  <testcase name="refuse #2 → 200 with outcome"></testcase>
+  <testcase name="refuse #2: consecutive=2, demoted=false"></testcase>
+  <testcase name="refuse #3 → 200 with outcome"></testcase>
+  <testcase name="refuse #3: consecutive=3, demoted=false"></testcase>
+  <testcase name="refuse #4 → 200 with outcome"></testcase>
+  <testcase name="refuse #4: consecutive=4, demoted=false"></testcase>
+  <testcase name="refuse #5 → 200 with outcome"></testcase>
+  <testcase name="refuse #5: demoted=true, reason set"></testcase>
+  <testcase name="After 5 refuses, GET /champion/CM → 404"></testcase>
+  <testcase name="admin/list?include_demoted=true shows demoted Bob/CM"></testcase>
+  <testcase name="admin/CM/demote → 200"></testcase>
+  <testcase name="After admin demote, GET /champion/CM → 404"></testcase>
+  <testcase name="/api/quiz/start works for Bob"></testcase>
+</testsuite>

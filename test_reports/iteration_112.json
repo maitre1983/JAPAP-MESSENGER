@@ -1,0 +1,34 @@
+{
+  "summary": "RETEST iter111 — Module Parrainage Phases A/B/C: 100% GREEN end-to-end. Turnstile bypass token 'JAPAP_E2E_BYPASS_2026' is active and accepted by /api/auth/register. UTMs (whatsapp/share/spring2026) persist correctly in referrals table after register. referral.invited email log row created on register. verify-otp activates the referral (status pending->active), credits referrer wallet, and writes referral.activated email log row. NameError regression on double-register is fixed (returns 200 / 429 cooldown, never 500). Frontend /p/BOB2026X shows the 'B' fallback initial via absolute layer above broken avatar URL. localStorage persists japap_pending_ref + japap_pending_utm_*. CTA carries UTM+ref into /register. Short link /r/BOB2026X redirects to /register?ref=BOB2026X.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter111_referral_phases_abc.py",
+    "/app/test_reports/pytest/iter112_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "middleware/turnstile.py: bypass is properly env-gated (TURNSTILE_TEST_BYPASS_TOKEN) and only accepted when client sends EXACTLY that string — safe for prod (token absent => normal Turnstile flow).",
+    "ReferralPreviewPage.js lines 140-150: avatar fallback initial sits in an absolute layer behind the <img> (or fully visible when img errors out via onError display:none). Verified visually for Bob: 'B' renders crisp.",
+    "Backend WatchFiles still reloads on edits in /app/backend/tests/. When running pytest immediately after a file edit, first request can timeout (503/502) for ~30-60s — added implicit retry awareness. Consider --reload-exclude tests/ in supervisor for smoother CI.",
+    "routes/auth.py register: terms_accepted is required (returns 400 'Vous devez accepter les Termes et Conditions'). Tests now send terms_accepted=True. Frontend register page collects it via checkbox.",
+    "Referrals UTM caps confirmed via DB: utm_source/medium=40 chars, utm_campaign=80 chars (matches Pydantic + ensure_referrals_utm_columns)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter111_referral_phases_abc.py"
+  ],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "100% (avatar fallback, localStorage UTM, CTA forward, short-link redirect)"},
+  "test_credentials": "bob@japap.com/Test1234! (BOB2026X), TURNSTILE_TEST_BYPASS_TOKEN=JAPAP_E2E_BYPASS_2026 in /app/backend/.env",
+  "seed_data_creation": "Generated ephemeral testref_<uuid>@japap.com users + testref_re_<uuid>@japap.com for re-register regression. Cleaned up via teardown_class (DELETE referrals/email_otps/wallets/users).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phases A/B/C are validated end-to-end via pytest at /app/backend/tests/test_iter111_referral_phases_abc.py (11 tests). Bypass requires terms_accepted=True + turnstile_token=JAPAP_E2E_BYPASS_2026 in payload. Frontend Phase B fully covered (avatar fallback letter, UTM localStorage with japap_pending_* keys, CTA URL chain, /r/:code redirect). Pytest must be run with PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 to avoid web3.tools import error from pytest_ethereum (eth_typing.ContractName missing).",
+  "rca_of_the_issue": "Previous iteration was blocked by Turnstile having no test bypass. Main agent added an env-gated bypass in /app/backend/middleware/turnstile.py (lines 53-63): if TURNSTILE_TEST_BYPASS_TOKEN env var is set AND incoming token equals it, verification short-circuits to True. Confirmed working: full register->verify-otp->activate->wallet-credit pipeline runs cleanly, UTMs land in referrals table, both referral.invited and referral.activated rows appear in referral_email_log with success=TRUE. NameError fix (referrer_user_id_for_email init at top of function) is also confirmed: re-register branch returns 429 cooldown / 200 otp_sent, never 500."
+}

@@ -1,0 +1,37 @@
+{
+  "summary": "iter113 Wheel of Fortune — 4 livrables tous validés. (1) BUG ANIMATION CUMULATIVE FIXED: 3 spins consécutifs Bob -> rotation deltas [2452.5°, 2160.0°, 2160.0°] — la roue entière (2e SVG dans wheel-fortune-casino) tourne >=6 tours à chaque spin, plus aucun spin court. (2) COHERENCE SLOT/POINTS: code backend lignes 781-784 confirme iter113 fix `if base_points == 0 and not jackpot and slot_idx not in (1,): slot_idx = 1; near_miss = False`. Aucune incohérence détectée pendant les 3 spins live (COHERENCE_ISSUES=[]). Toast 'Pas cette fois' visible à l'écran correspond au slot 'Perdu' atterri visuellement. (3) PHASE_DISTRIBUTIONS[1] = [(1,5),(2,35),(4,30),(6,20),(7,10)] — Perdu réduit à 5% en Phase 1. (4) GLOW + MUTE: data-testid='wheel-slot-glow' présent dans le code (lignes 369-385), mute toggle persiste localStorage 'wheel_muted' (None -> '1'). Pytest 46/46 passent.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/wheel/history", "issue": "Anciennes lignes (id <=71) contiennent prize_slot=-1 (données pré-fix). Pas un bug actuel mais peut perturber le rendu d'historique. À nettoyer ou mapper -1 -> 1 côté frontend."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_wheel_fortune.py",
+    "/app/test_reports/pytest/iter113_wheel.xml"
+  ],
+  "action_items": [
+    "Optionnel: backfill ou mapper prize_slot=-1 -> 1 dans /api/wheel/history (anciens enregistrements avant iter113)."
+  ],
+  "critical_code_review_comments": [
+    "/app/frontend/src/components/games/WheelFortuneCasino.jsx lignes 131-206: fix cumulative rotation correct via angleRef.current + delta forward + 6 full turns. Vérifié en E2E: deltas [2452.5°, 2160.0°, 2160.0°] sur 3 spins.",
+    "/app/backend/routes/wheel_fortune.py lignes 781-784: garde iter113 sur cohérence slot/points correctement implémentée. Le clamp à new_total (lignes 759-772) réduit base_points à 0, puis re-mappe slot_idx=1 pour cohérence visuelle/logique. ✅",
+    "PHASE_DISTRIBUTIONS[1] (lignes 142-146): Perdu (slot 1) à 5% en Phase 1, 15% Phase 2, 35% Phase 3 — courbe de tension dopamine loop correctement progressive.",
+    "Glow halo (lignes 369-385): keyframe wheelSlotGlow 1.6s ease-out 2 itérations (~2.2s total), couleur #FFD700 si gain (base_points>0) sinon #FF4D4D. data-testid='wheel-slot-glow' présent.",
+    "Mute toggle (ligne 438-449): data-testid='wheel-mute-toggle' présent, persiste localStorage 'wheel_muted', vérifié en E2E (None -> '1').",
+    "Vibration: navigator.vibrate appelé dans hapticLand() lignes 158-164 — pattern 60-50-120-50-220 si jackpot, 35-40-70 sinon."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (46/46 pytests)", "frontend": "100% (animation cumulative + cohérence + mute + glow présents)"},
+  "test_credentials": "bob@japap.com / Test1234! — login via /api/auth/login avec turnstile_token=JAPAP_E2E_BYPASS_2026 puis pose des cookies httpOnly access_token+refresh_token+csrf_token. Wheel page accessible.",
+  "seed_data_creation": "Aucune. 3 spins ont été ajoutés au cycle Bob existant (cycle in_progress, points 2902 -> ~3032, plays_today 2 -> 4).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Pour tester /api/wheel/spin via curl, attention CSRF (cookie csrf_token + header X-CSRF-Token requis) — préférer Playwright via page.context.request qui gère cookies automatiquement. URL frontend: https://japap-refactor.preview.emergentagent.com. Bypass turnstile pour /api/auth/login: 'JAPAP_E2E_BYPASS_2026' dans body JSON. Mesure rotation: page.evaluate sur 2e SVG dans [data-testid='wheel-fortune-casino'], parser style.transform via regex rotate(Xdeg). Cooldown 30s entre spins en config par défaut, mais le test a vu 5s à l'écran ('Cooldown 5s') — ajusté admin probablement.",
+  "rca_of_the_issue": "Bug #1: ancien code utilisait `setAngle(360*6 - X)` (angle absolu) → 2e spin pouvait avoir nouvelle valeur < courante donc CSS transition ne déclenchait quasi pas de rotation. Fix iter113 utilise angleRef.current pour cumuler: `currentAngle + 6*360 + forwardDelta`. Bug #2: clamp mathématique (new_total = min(uncapped, POINTS_GOAL-1) tant que days<25) réduisait base_points à 0 SANS toucher slot_idx → roue atterrissait sur '+25' visuellement mais points_awarded=0 d'où toast 'Pas cette fois'. Fix iter113 lignes 781-784 force slot_idx=1 dans ce cas pour cohérence visuelle/backend/toast."
+}

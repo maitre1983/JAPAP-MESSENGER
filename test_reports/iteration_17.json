@@ -1,0 +1,46 @@
+{
+  "summary": "Iteration 17 — Emoji reactions + modern emoji picker. Backend 11/11 PASS on /app/backend/tests/test_iteration17_reactions.py (allowed-reactions list, toggle add, toggle remove same emoji, add different emoji keeps both, invalid emoji 400, non-existent msg 404, non-participant 403, reactions array in GET conv with correct mine flags per viewer, send-text regression, send-money regression). 1 test skipped: feed like/comment/tip regression because `posts` table does NOT exist in the freshly-reset Postgres (UndefinedTableError: relation \"posts\" does not exist) — this is infra/migration gap from the pod reset, NOT iter17 regression. Frontend smoke PASS: emoji-picker-button opens emoji-picker; all 5 category buttons emoji-cat-{smileys,hearts,gestures,money,objects} switch category grid; clicking emoji-pick-* inserts char into message-input and auto-closes picker; hover on message reveals react-trigger-{msg_id}; clicking trigger opens quick-reactions-{msg_id} bar with 6 buttons (❤️🔥💸😂👍😮). Reaction chips render on BOTH money bubbles AND text bubbles (visible in screenshot: ❤️1, 🔥1, 💸1, 👍1, 🔥2 on different msgs). Toggle working (backend endpoint verified). WebSocket realtime still broken (carry-over).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/feed/posts (POST)", "issue": "500 InternalServerError — asyncpg UndefinedTableError: relation \"posts\" does not exist. DB reset on pod did not recreate feed.posts table. Breaks entire feed module (like/comment/tip). Pre-existing infra issue, not an iter17 regression."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Socket.IO realtime reactions/messages", "issue": "wss://…/api/socket.io WebSocket handshake fails ('closed before established') — same carry-over from iter14/15/16. Socket event 'message_reaction' server-side emit is wired correctly (sio.emit to room=conv_id) but will never reach browsers until ingress websocket upgrade is fixed. 2-browser realtime test therefore NOT verifiable E2E; HTTP fallback via toggleReaction+response reconciliation keeps single-browser UX functional.", "affected_selectors": ["[data-testid^='reaction-chip-']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration17_reactions.py",
+    "/app/test_reports/pytest/iter17_results.xml"
+  ],
+  "action_items": [
+    "HIGH: Run the missing `posts` / feed migrations on the reset DB. Check /app/backend/database.py init_db() — verify it creates `posts`, `post_likes`, `post_comments`, `tips` tables. If they're defined but not being called after pod reset, either re-run init or fix init ordering. Without this, feed module is 100% broken.",
+    "HIGH (carry-over): Fix /api/socket.io WebSocket handshake. Same issue flagged in iter14/15/16. Required for realtime reactions broadcast to the other participant. Suspect Kubernetes ingress Upgrade/Connection headers or sio mount path. All reaction HTTP flows work without it, but cross-browser realtime chip updates cannot be verified.",
+    "LOW: EmojiPicker allows only the 20 ALLOWED_REACTIONS for chat reactions, but the picker itself exposes ~100 emojis across 5 categories for the COMPOSE input — good separation. However if a user tries to react with a non-whitelisted emoji (e.g., 🍆) via any future UI, backend correctly rejects 400 'Emoji non autorisé'. Consider exposing the whitelist to frontend and disabling non-whitelist emojis in react context if a picker-for-reactions is ever added."
+  ],
+  "critical_code_review_comments": [
+    "messaging.py react_to_message: emoji whitelist check is on `emoji in ALLOWED_REACTIONS` — good. But `(req.emoji or '').strip()` may fail to match '❤️' vs '❤' due to VS16 variation selector. Current allow-list has '❤️' (with VS16), frontend QUICK_REACTIONS has '❤️' (with VS16) — matches. Safe for now; document that frontend MUST send the exact VS16 form.",
+    "messaging.py _reactions_for_messages uses `BOOL_OR(user_id = $2) AS mine` which is correct and efficient. ORDER BY count DESC for stable chip ordering is a nice touch.",
+    "messaging.py react endpoint: the DELETE+INSERT toggle is done in separate statements without a transaction — under high concurrency the ON CONFLICT guard prevents duplicates, but a user double-clicking could race. Acceptable for reactions (idempotent end-state).",
+    "EmojiPicker.jsx: closes on emoji-pick click (good UX). But the compose picker opens via emoji-picker-button (bottom bar) and the REACTION trigger is a separate react-trigger-{msg_id} — two clearly separated flows, good architecture. Both use the same whitelist-agnostic EmojiPicker for COMPOSE while QUICK_REACTIONS array is a separate 6-emoji subset for react bar.",
+    "ChatPage.js socket 'message_reaction' handler updates setMessages with new reactions array — correctly dedupes via msg_id map. When WebSocket comes back online, chips will update in realtime without code changes.",
+    "Regression risk: toggleReaction handler optimistically relies on API response (not optimistic UI) — sets state only after `data.reactions` arrives. If network slow, chip appears with slight lag. Consider optimistic update with rollback on error for snappier UX."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration17_reactions.py (new — 12 tests, 11 pass, 1 skipped)"
+  ],
+  "success_rate": {
+    "backend": "100% on iter17 reactions scope (11/11). Feed regression skipped due to pre-existing DB migration gap (posts table missing).",
+    "frontend": "95% — emoji picker + reaction bar + chips + toggle all working on both money and text messages per DOM and screenshot. 5% deduction for WebSocket-realtime E2E cross-browser unverifiable."
+  },
+  "test_credentials": "admin@japap.com / JapapAdmin2024! ; bob@japap.com / Test1234!",
+  "seed_data_creation": "Added: 3+ reaction rows on admin↔bob conversation messages (❤️🔥💸👍). Multiple TEST_iter17 text messages and 200/100 XAF chat_money transfers. No cleanup required — test data prefixed TEST_iter17.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter17 emoji reactions + picker are BACKEND and FRONTEND complete & working. Two outstanding items unchanged from prior iterations: (1) /api/socket.io WebSocket handshake failing → blocks cross-browser realtime (all HTTP flows OK); (2) `posts` table missing in freshly-reset Postgres → entire feed module returns 500. Test file /app/backend/tests/test_iteration17_reactions.py is reusable — covers toggle, multi-emoji, validation, auth, mine flag per viewer. Run with: `export $(grep -v '^#' /app/frontend/.env | xargs) && pytest /app/backend/tests/test_iteration17_reactions.py -v`.",
+  "rca of the issue": "Feed 500 RCA: backend/routes/feed.py create_post issues raw INSERT INTO posts (...) but asyncpg raises UndefinedTableError. Reproduction: POST /api/feed/posts {text:'hi'} → 500. Root cause: postgres was reinstalled fresh during iter16/17 prep; database.py init_db likely missing `posts` table creation or init_db not re-run after recreation. Mitigation: re-run DB migrations or add IF NOT EXISTS CREATE for feed tables in init_db. WebSocket RCA: unchanged from iter15/16 — wss upgrade not passing through ingress."
+}

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="148.199" timestamp="2026-04-25T12:09:45.076822+00:00" hostname="agent-env-8b343572-668a-4145-bfbd-eff93a871360"><testcase classname="tests.test_iter115_boost_schedules.TestBoostScheduleWorkerE2E" name="test_worker_activates_then_deactivates" time="148.082"><failure message="AssertionError: Worker did not activate boost within 80s&#10;assert False">tests/test_iter115_boost_schedules.py:289: in test_worker_activates_then_deactivates
+    assert active, "Worker did not activate boost within 80s"
+E   AssertionError: Worker did not activate boost within 80s
+E   assert False</failure></testcase></testsuite></testsuites>

@@ -1,0 +1,74 @@
+{
+  "theme": "light",
+  "archetype": "Swiss & High-Contrast with Earthy Accents",
+  "typography": {
+    "headings": {
+      "family": "Outfit",
+      "weights": ["400", "500", "700"],
+      "strategy": "Geometric and authoritative. Tight tracking on large headings."
+    },
+    "body": {
+      "family": "Manrope",
+      "weights": ["400", "500", "600"],
+      "strategy": "Highly legible at small sizes, ideal for dense chat and transaction data."
+    }
+  },
+  "colors": {
+    "primary": "#1B4332",
+    "primary_hover": "#2D6A4F",
+    "secondary": "#E07A5F",
+    "secondary_hover": "#F4A261",
+    "background": "#FCFBF8",
+    "surface": "#FFFFFF",
+    "surface_secondary": "#F3F2F0",
+    "text_primary": "#0A0A0A",
+    "text_secondary": "#4A4A4A",
+    "border": "#E5E4E2",
+    "success": "#2D6A4F",
+    "error": "#D90429"
+  },
+  "layout": {
+    "strategy": "Control Room Grid (Dense, functional, F-pattern scanning). Left sidebar for navigation (collapsible). Main area for chat/wallet.",
+    "spacing_scale": "p-2, p-4, p-6, p-8, p-12",
+    "border_radius": "rounded-xl (8px to 12px for surfaces, fully rounded for avatars)",
+    "borders": "1px solid border with subtle shadows for active elements. Surfaces should have crisp edges or subtle roundness."
+  },
+  "components": {
+    "buttons": "Flat solid colors for primary. Subtle hover states (lighter hue). High contrast.",
+    "cards": "Flat background (surface_secondary), 1px subtle border, no shadow by default. Hover adds slight lift and subtle shadow.",
+    "inputs": "Shadcn defaults customized with our border radius and focus ring (primary color).",
+    "chat_bubbles": "Primary color for user (white text), surface_secondary for received (text_primary).",
+    "wallet_dashboard": "Bento grid style widgets. Big bold typography for balances. Fast scanability."
+  },
+  "motion": {
+    "strategy": "Micro-interactions for feedback. Fast and snappy. No slow fades. Focus on real-time feel."
+  },
+  "icons": {
+    "library": "@phosphor-icons/react",
+    "style": "Duotone or regular weight, matching text color."
+  },
+  "media": {
+    "images": [
+      {
+        "category": "auth_background",
+        "url": "https://images.unsplash.com/photo-1697383904932-94304530a3dd?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwxfHxhZnJpY2FuJTIwd29tYW4lMjB1c2luZyUyMHBob25lJTIwc21pbGluZ3xlbnwwfHx8fDE3NzY2OTc2NTd8MA&ixlib=rb-4.1.0&q=85",
+        "description": "African woman using phone smiling - for Auth page background"
+      },
+      {
+        "category": "user_avatar_placeholder",
+        "url": "https://images.unsplash.com/photo-1717068342612-64ed5d77124d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDZ8MHwxfHNlYXJjaHwzfHxwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdCUyMHBlcnNvbiUyMGZhY2V8ZW58MHx8fHwxNzc2Njk3NjYxfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Man avatar placeholder"
+      }
+    ]
+  },
+  "accessibility": {
+    "contrast": "Ensure APCA/WCAG AA compliance. Dark text on light backgrounds.",
+    "focus": "Clear focus rings on all interactive elements.",
+    "motion": "Respect prefers-reduced-motion."
+  },
+  "instructions_to_main_agent": "Implement a Left-Sidebar layout for desktop, converting to a bottom-nav or hamburger for mobile. Use the Control Room Grid for the Wallet dashboard to ensure dense, scannable financial data. Chat interface should prioritize speed, using Outfit for headers and Manrope for message bodies. Ensure all interactive elements have data-testid attributes (e.g. data-testid='send-money-button'). Follow the specific color palette exactly, avoiding default blue/teal. Use .js/.jsx extensions instead of .ts/.tsx.",
+  "tech_stack": {
+    "framework": "React (JS), Tailwind CSS, Shadcn UI",
+    "icon_installation": "yarn add @phosphor-icons/react"
+  }
+}

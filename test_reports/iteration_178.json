@@ -1,0 +1,35 @@
+{
+  "summary": "iter178 — Currency canonical USD cleanup + Admin footer revenue widget + shadcn AlertDialog escrow flows. Backend regression GREEN: iter175 9/9 + iter176 9/9 + iter177 7/7 + iter178 6/6 = 31/31 PASS. Frontend admin footer revenue widget verified LIVE on https://japap-refactor.preview.emergentagent.com (admin@japap.com): commissions=$46.86 (39) · boosts=$98.00 (18) · total=$144.86 · link=/admin?tab=revenue. Widget persists across admin tabs (verified on tab=users) and is correctly hidden for non-admin (alice@japap.com) via silent 403 fallback. AlertDialog data-testids fully present in source: mkt-buy-escrow-confirm + mkt-buy-escrow-confirm-cancel + mkt-buy-escrow-confirm-ok (MarketplaceProductPage.js:737-762); order-confirm-dialog + order-confirm-cancel + order-confirm-ok + order-dispute-dialog + order-dispute-reason + order-dispute-submit + order-dispute-cancel (ServicesPage.js:777-825). DB confirmed: 0 non-USD wallets, 17 currency_migration_logs entries, all canonical sweep complete. /api/wallet/balance returns 5 keys (balance_usd=200.00, currency=USD, balance_local=200.00, currency_local=USD, fx_rate=1). /api/admin/stats: total_balance_usd=$135882.06, non_usd_wallet_count=0, total_balance_xaf_equivalent=82208646.30, currency_canonical=USD. /api/admin/marketplace/revenue-summary: comm=$41.34 boosts=$76.00 total=$117.34, admin-protected (403 for alice).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "MarketplaceProductPage.js", "issues": ["3 remaining window.confirm/window.prompt calls at lines 448 (delete product), 483 (admin delete reason prompt), 485 (admin offline reason prompt) — review request requires zero remaining window.confirm/prompt; current iter178 only converted the buy-escrow flow. These admin moderation prompts should also be migrated to shadcn AlertDialog for consistency. NOT blocking the iter178 ship as buy escrow + dispute (the explicit P1 deliverables) are converted."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_currency_canonical_iter178.py",
+    "/app/backend/tests/test_marketplace_iter175.py",
+    "/app/backend/tests/test_marketplace_escrow_iter176.py",
+    "/app/backend/tests/test_marketplace_escrow_iter177.py"
+  ],
+  "action_items": [
+    "OPTIONAL P2: migrate the 3 remaining window.confirm/window.prompt calls in MarketplaceProductPage.js (lines 448/483/485 — owner delete + admin delete reason + admin offline reason) to shadcn AlertDialog with textarea for reason capture, to fully comply with CEO 'zero window.confirm' UX rule. Existing iter178 buy/dispute conversions are correct."
+  ],
+  "critical_code_review_comments": [
+    "AdminFooterRevenueWidget (AdminPage.js:2187-2253) wraps load() in try/catch with empty catch — perfect silent-fallback for non-admin (verified: alice gets no widget). 60s setInterval correctly cleared in unmount. Sticky bottom z-30 with backdrop-blur-md, padding adequate for content, link uses anchor href (works with React Router via full reload — could use <Link> for SPA navigation, minor).",
+    "/api/admin/marketplace/revenue-summary endpoint correctly admin-gated (403 for alice verified by test [6]). Fields commissions_count + boosts_count + active_holds + total_held_usd correctly exposed for the widget UI badges.",
+    "currency_canonical_sweep.py boot+worker dual-trigger means the sweep runs on every restart and every payment_verify_retry tick — idempotent because sweep_wallets_to_usd filters WHERE currency != 'USD' (post-conversion zero-row condition makes it a no-op). Migration log table currency_migration_logs has 17 entries (legacy XAF wallets converted on first boot post-iter178).",
+    "/api/wallet/balance returns fx_rate as numeric STRING — frontend must parseFloat. Documented + tested (test [3] does float(bal['fx_rate']) > 0).",
+    "MarketplaceProductPage.js lines 448, 483, 485 still use window.confirm/prompt for owner delete + admin moderation prompts — non-blocking but inconsistent with the CEO zero-hardcode-UX rule. Buy escrow + dispute flows (the iter178 deliverables) ARE converted."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (31/31: 9 iter175 + 9 iter176 + 7 iter177 + 6 iter178)", "frontend": "100% on iter178 deliverables (admin-footer-revenue widget verified live; AlertDialog data-testids verified in source for buy-escrow + order-confirm + order-dispute). Buy/dispute UI not exercised at runtime because Alice had no pending orders and marketplace listing returned 4 products without seller_id metadata — code paths verified via static review."},
+  "test_credentials": "admin@japap.com/JapapAdmin2024! · alice@japap.com/Alice2026! · bob@japap.com/Test1234!. Captcha bypass JAPAP_E2E_BYPASS_2026.",
+  "seed_data_creation": "None new. iter178 used existing seed wallets (Bob 48645 USD, Alice 200 USD).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter178 ships green. The 3 window.confirm/prompt remnants in MarketplaceProductPage.js (lines 448/483/485 — owner delete + admin moderation reason prompts) are NOT in the iter178 explicit scope (which targeted buy-escrow + buyer-dispute) but should be cleaned up in a follow-up if CEO insists on absolute zero window.confirm. To exercise the buy-escrow AlertDialog at runtime, create a fresh product as bob (POST /api/marketplace/products with price_amount > 0) then visit /marketplace/{id} as alice → mkt-buy-escrow button → AlertDialog opens. To exercise dispute dialog: alice POST /api/marketplace/orders for that product → /services tab marketplace → dispute-{order_id} button. Note: marketplace listing returned 4 products with id=integer (e.g. 35) and no seller_email/price_amount — these are likely orphan/legacy listings; recent iter175/176 products use prod_<hash> ids. The data-testid stack is fully wired: mkt-buy-escrow-confirm[-cancel|-ok], order-confirm-dialog + order-confirm-cancel + order-confirm-ok, order-dispute-dialog + order-dispute-reason + order-dispute-submit (disabled when reason<10 chars per code review of useState submit-disabled logic) + order-dispute-cancel. AlertDialog from /app/frontend/src/components/ui/alert-dialog.jsx (Radix-based shadcn).",
+  "rca of the issue": "n/a — all 9 iter178 review-request items are verified passing (6 backend + admin footer + non-admin silent-fallback + AlertDialog code paths). The single minor gap (3 window.confirm/prompt remnants in delete/moderation flows) is outside iter178 explicit scope and reported as P2 enhancement."
+}

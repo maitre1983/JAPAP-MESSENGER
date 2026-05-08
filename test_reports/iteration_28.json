@@ -1,0 +1,35 @@
+{
+  "summary": "Iter28 — Social Proof widget on /pro + notify_connect_revshare realtime + DYNAMIC connect_revshare_pct. Backend: 8/8 pytest PASS covering endpoint shape, auth gating, dynamic pct propagation to 3 APIs, DB seeding, and the Socket.IO helper payload. Frontend (Playwright): widget renders with [data-testid=pro-social-proof/sp-pct/sp-owners/sp-total] correctly populated from a seeded referral_rewards_log row; after admin PUT connect_revshare_pct='7.5' the widget sp-pct updates from '2%' to '7.5%' without reload. ConnectPage hero uses me.revshare.pct dynamically (no hardcoded 2%).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/pro social proof banner", "issues": ["Minor: 'TOTAL REVERSÉ' right-column overlaps slightly with the headline on narrow widths — cosmetic only."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration28_social_proof_realtime.py",
+    "/app/test_reports/pytest/iter28_social_proof.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/pro.py /social-proof: correct — reads get_float('connect_revshare_pct', 2.0) each request, no cache, so admin edits propagate instantly. OK.",
+    "routes/realtime.py notify_connect_revshare: payload keys (type, priority, amount_usd, amount_local, currency, plan_name, pct) match RealtimeContext.js listener expectations. OK.",
+    "routes/connect.py credit_hotspot_owner_from_pro: uses pct_label = f'{float(pct):g}' so '5' prints as '5' (not '5.0'); dynamic and clean. Fire-and-forget socket emit is wrapped in try/except outside transaction as required.",
+    "ProPage.js widget gating logic `enabled && pct>0 && (last_30d.owner_count>0 || all_time.owner_count>0)` is correctly implemented — widget is hidden when no revshare rows exist.",
+    "ConnectPage.js uses rs.pct dynamically in Hero, GatingBanner share, EarningsPanel, HowItWorks; grep for hardcoded '2%' turned up nothing outside test seeds. OK.",
+    "RealtimeContext.js notify_connect_revshare listener: toast duration 7000ms and unread count increment match spec. Fallback 'votre part' when pct=0 prevents empty-string display. OK.",
+    "Minor: /api/pro/social-proof is authenticated via get_current_user but the widget data is non-sensitive; consider exposing read-only via /api/settings/public OR keeping auth-only — current choice is fine."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration28_social_proof_realtime.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin@japap.com / JapapAdmin2024!, bob@japap.com / Test1234!",
+  "seed_data_creation": "Pytest seeds 2 TEST_iter28 rows in referral_rewards_log (role='connect_revshare') via direct asyncpg — identified by details->>'reason'='TEST_iter28_<hex>' and auto-cleaned in test_cleanup. Also manually seeded 1 row for Playwright visual check and deleted it afterwards. Admin setting connect_revshare_pct cycled 2.0 → 5.5 → 2.0 (bulk test) and 2.0 → 7.5 → 2.0 (UI test); restored to 2.0 at end.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Dynamic pct confirmed end-to-end: admin PUT /api/admin/settings {settings:{connect_revshare_pct:'X'}} immediately reflects in /api/pro/social-proof, /api/connect/me.revshare.pct and /api/settings/public. Widget requires at least 1 row in referral_rewards_log WHERE role='connect_revshare' to render — the dataset is empty in steady state, so a live trigger (user with last_connect_owner_id + subscribe to Pro) will be needed to see it organically. The Socket.IO event 'notify_connect_revshare' is unit-verified via direct call to notify_connect_revshare(); no full websocket client round-trip was run — RealtimeContext listener code matches the emitted payload. test_iteration28_social_proof_realtime.py is idempotent and leaves no residue.",
+  "rca of the issue": "N/A — all behaviour matched the spec. One small detour: first DB insert used wrong column name ('reward_id' — table has no such column, only auto-increment 'id'); fixed by using details->>'reason' as the unique test marker."
+}

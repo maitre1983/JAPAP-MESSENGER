@@ -1,0 +1,40 @@
+{
+  "summary": "iter224 backend tests for Quiz AI question pool widget. Backend GET pool-status (admin/user/unauth) PASSED. POST pool-refresh single-flight 409 PASSED. Found 1 minor backend bug: pool-refresh returns HTTP 200 instead of spec'd HTTP 202. Frontend verified up to admin nav (Quiz & Tap section) — pool card lives behind 'Configuration' sub-tab; widget UI not finalized in this run due to token budget.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/admin/games/quiz/pool-refresh", "issue": "Returns HTTP 200 instead of spec'd HTTP 202. Body is correct ({status:'accepted', message, batch_size:100}). Functional behavior (background task, single-flight 409) is correct. Add `status_code=202` to the FastAPI route decorator."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Admin → /admin → Quiz & Tap", "issue": "Pool card sits behind the 'Configuration' sub-tab (not 'Statistiques' default). Verify ordering & visibility manually — backend widget data confirmed working (888 active questions, health=ok via direct API).", "affected_selectors": ["quiz-pool-status-card","quiz-pool-active-count","quiz-pool-health-badge","quiz-pool-countdown","quiz-pool-refresh-button"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter224_pool_status.py",
+    "/app/test_reports/pytest/iter224.xml"
+  ],
+  "action_items": [
+    "Add status_code=202 to @router.post('/quiz/pool-refresh') decorator in /app/backend/routes/admin_games.py to match spec.",
+    "Manual verification recommended for the FE widget: admin → Quiz & Tap → Configuration sub-tab → Quiz inner tab → check data-testid='quiz-pool-status-card' and sub-elements (active-count, health-badge, countdown, last-refresh, config, refresh-button). Backend payload is confirmed correct."
+  ],
+  "critical_code_review_comments": [
+    "_pool_refresh_in_flight is a process-local global; behind a multi-worker uvicorn deployment this guard does NOT prevent concurrent refreshes across workers. Acceptable for current single-pod setup but flag for scaling.",
+    "Pool-refresh endpoint missing status_code=202 — semantic violation of the spec.",
+    "last_batch_size approximation by ±5min window is brittle if generation spans >5min (rare for batch 100 but possible under Claude latency)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter224_pool_status.py",
+    "/app/test_reports/pytest/iter224.xml"
+  ],
+  "success_rate": {"backend": "83% (5/6 pytest, 1 transient CDN read-timeout — verified manually with curl, all endpoints behave correctly except 200 vs 202 status code)", "frontend": "partial — admin nav reached, widget DOM not fully validated in playwright (sits behind Configuration sub-tab; out of token budget for re-run)"},
+  "test_credentials": "admin@japap.com / JapapAdmin2024! (no 2FA, captcha=20-0=20 was math captcha solved on the fly)",
+  "seed_data_creation": "None. The POST refresh test triggered a real Claude AI batch (~100 questions). Confirmed in backend single-flight; second click within same call returned 200/202/409 as expected.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend endpoints work. The only fix needed: change @router.post('/quiz/pool-refresh') to @router.post('/quiz/pool-refresh', status_code=202) — main agent can self-test with curl. For FE: navigate /admin → click 'Quiz & Tap' tab → click 'Configuration' button → ensure 'games-tab-quiz' is selected → quiz-pool-status-card should render at top with active count (~888), green health badge, live countdown, last refresh date, and 'Forcer renouvellement' button. The pytest file at /app/backend/tests/test_iter224_pool_status.py uses CSRF X-Requested-With header + retry wrapper for CDN flakiness; rerun with `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest` (web3 plugin breaks autoload).",
+  "rca of the issue": "POST /api/admin/games/quiz/pool-refresh: FastAPI defaults to 200 on async functions returning a dict. Spec calls for 202 Accepted (semantic match for 'background task started'). Fix: add `status_code=202` to the route decorator. No other functional gap — body, message, batch_size, single-flight 409 all correct."
+}

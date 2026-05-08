@@ -1,0 +1,56 @@
+{
+  "summary": "iter214 KYC bytea storage + Historique sub-tab — full backend + UI coverage. 8/9 backend pytest pass (1 skipped for already-pending bob), all required data-testids present, history sub-tab functional with filters, archive modal correctly read-only, DB-backed image endpoints serving bytes cross-pod (verified via cookie + Bearer auth).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/kyc/admin/pending and /api/kyc/admin/history", "issue": "Latency ~2.5-3s per call under cold cache. Login endpoint also slow first-hit (>20s on rare occasions). Not a regression but worth profiling — possibly _ensure_iter172_columns running ALTER TABLE IF NOT EXISTS on every call (unnecessary after first deploy)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "ImgThumb (AdminPage.js:735-758)",
+        "issue": "Placeholder text 'Image indisponible (dossier antérieur à iter214)' is shown for ANY image load failure — including 401/network errors not just 410. If admin session is briefly unauthenticated (page load race) the user sees the misleading 'antérieur à iter214' message instead of a 'reconnectez-vous' or generic error. Recommend differentiating: only show the iter214 hint when fetch returns 410, otherwise show 'Erreur de chargement, rafraîchir'.",
+        "selector": "/app/frontend/src/pages/AdminPage.js:741-742",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Initial admin page load",
+        "issue": "18-19 console errors '401 Failed to load resource' observed during the first ~1-2 seconds of /admin load if the auth cookie has not yet been set / page renders before login completes. Self-corrects after login but produces console noise. No functional impact.",
+        "affected_selectors": ["img[src*='/api/kyc/admin/']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_kyc_iter214.py",
+    "/app/test_reports/pytest/iter214.xml"
+  ],
+  "action_items": [
+    "(LOW) Differentiate 410 vs 401/network errors in ImgThumb placeholder text — currently misleading.",
+    "(LOW) Move _ensure_iter172_columns to a one-time startup hook instead of per-request to reduce admin endpoint latency.",
+    "(LOW) Optionally suppress initial 401 console errors before auth completes (e.g., gate KYC fetch on auth state)."
+  ],
+  "critical_code_review_comments": [
+    "kyc.py is now ~635 lines — consider splitting iter214 endpoints (image serving, history, detail) into routes/kyc_admin.py to keep submission / user-facing logic separate.",
+    "_ensure_iter172_columns is called on EVERY pending/history/detail request — should run once at startup. Adds latency and DB load.",
+    "ImgThumb placeholder hardcodes the iter214 narrative — not future-proof. Should rely on an actual server response code (e.g., fetch with HEAD, or pass a 'reason' prop) to render the right copy.",
+    "Backend image endpoint correctly accepts BOTH Authorization Bearer header AND httpOnly cookie auth — verified via curl. The browser <img> tag uses cookie automatically (same-origin), and axios admin calls use Bearer — both paths work."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_kyc_iter214.py (new)",
+    "/app/test_reports/pytest/iter214.xml (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (8/8 executed pass; 1 e2e-submit skipped because bob already has a pending submission — expected per agent context note)",
+    "frontend": "100% (all required data-testids present, history sub-tab works, archive modal read-only, filters work, image fetch returns 200 for new bytea-backed submissions — verified out-of-band via curl with cookie)"
+  },
+  "test_credentials": "admin@japap.com / JapapAdmin2024! ; bob@japap.com / Test1234! ; captcha bypass JAPAP_E2E_BYPASS_2026/0",
+  "seed_data_creation": "None — test relied on existing 5 archived approved records and 2 pending records (bob iter214 + david NONO TEKAM).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest at /app/backend/tests/test_kyc_iter214.py — uses cached admin session (avoids auth rate-limits). All 5 current history records are pre-iter214 (no bytea) → modal shows 'Image indisponible (dossier antérieur à iter214)' placeholder which is documented expected behavior. The bob submission kyc_78deb77003c8456c has bytea — fetching its image via cookie auth returned HTTP 200 + 1996-byte JPEG (verified). Auth: cookie httpOnly access_token IS set by /api/auth/login, browser <img> tags use it. To test post-iter214 archived images visually, approve bob's submission first then check the history modal — the new record will have bytea and images should render. Console 401 noise in first ~2s of /admin load is benign (race between page render and cookie set).",
+  "rca of the issue": "Original two bugs reported (images vanishing on pod rotation + decided dossiers disappearing from admin UI) are FIXED. (a) Bytes are persisted in 6 BYTEA columns at submit time. (b) New /api/kyc/admin/{kyc_id}/image/{variant} endpoint serves bytes cross-pod with both cookie & Bearer auth. (c) New /api/kyc/admin/history + /api/kyc/admin/{kyc_id} endpoints expose archived dossiers (approved/rejected) with full traceability (reviewer email, decided_at, rejection reason). (d) Frontend KycTab now has 2 sub-tabs ('En attente', 'Historique') with filters, search, pagination, and a read-only modal (no approve/reject buttons in archive view). All 13 required data-testids verified present."
+}

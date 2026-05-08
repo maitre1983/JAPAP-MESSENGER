@@ -1,0 +1,2024 @@
+[
+  {
+    "key": "chat.video",
+    "fr": "Vidéo",
+    "translation": "வீடியோ",
+    "ok": true
+  },
+  {
+    "key": "chat.envoye",
+    "fr": "Envoyé",
+    "translation": "அனுப்பப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "chat.recu",
+    "fr": "Reçu",
+    "translation": "பெறப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "chat.transfere",
+    "fr": "Transféré",
+    "translation": "பரிமாற்றப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "wallet.la_photo_semble_trop_petite_30_kb_r",
+    "fr": "La photo semble trop petite (< 30 KB). Reprenez-la avec une meilleure résolution.",
+    "translation": "புகைப்படம் மிகச் சிறியதாகத் தெரிகிறது (< 30 KB). சிறந்த தெளிவுத்திறனுடன் மீண்டும் எடுக்கவும்.",
+    "ok": true
+  },
+  {
+    "key": "wallet.verif",
+    "fr": "Vérif…",
+    "translation": "சரிபார்ப்பு...",
+    "ok": true
+  },
+  {
+    "key": "wallet.verifier_mon_paiement",
+    "fr": "Vérifier mon paiement",
+    "translation": "எனது கட்டணத்தைச் சரிபார்க்கவும்",
+    "ok": true
+  },
+  {
+    "key": "wallet.soumettre_pour_verification",
+    "fr": "Soumettre pour vérification",
+    "translation": "சரிபார்ப்புக்குச் சமர்ப்பி",
+    "ok": true
+  },
+  {
+    "key": "admin.publicites",
+    "fr": "Publicités",
+    "translation": "விளம்பரங்கள்",
+    "ok": true
+  },
+  {
+    "key": "admin.parties_jouees",
+    "fr": "Parties jouées",
+    "translation": "விளையாடப்பட்ட ஆட்டங்கள்",
+    "ok": true
+  },
+  {
+    "key": "admin.credit_en_cours",
+    "fr": "Crédit en cours…",
+    "translation": "கடன் செயலாக்கத்தில் உள்ளது...",
+    "ok": true
+  },
+  {
+    "key": "admin.bannir_definitivement",
+    "fr": "Bannir définitivement",
+    "translation": "நிரந்தரமாகத் தடைசெய்",
+    "ok": true
+  },
+  {
+    "key": "admin.a_verifier",
+    "fr": "À vérifier",
+    "translation": "சரிபார்க்கப்பட வேண்டும்",
+    "ok": true
+  },
+  {
+    "key": "admin.risque_eleve",
+    "fr": "Risque élevé",
+    "translation": "அதிக ஆபத்து",
+    "ok": true
+  },
+  {
+    "key": "admin.pre_verif_ia_indisponible",
+    "fr": "Pré-vérif IA indisponible",
+    "translation": "AI முன்-சரிபார்ப்பு கிடைக்கவில்லை",
+    "ok": true
+  },
+  {
+    "key": "admin.frais_specifique_pro_ex_0_5_0_5",
+    "fr": "Frais spécifique PRO (ex: 0.5 = 0.5%)",
+    "translation": "PRO குறிப்பிட்ட கட்டணம் (எ.கா: 0.5 = 0.5%)",
+    "ok": true
+  },
+  {
+    "key": "admin.frais_minimum_absolu_0_desactive",
+    "fr": "Frais minimum (absolu, 0 = désactivé)",
+    "translation": "குறைந்தபட்சக் கட்டணம் (முழுமையானது, 0 = முடக்கப்பட்டது)",
+    "ok": true
+  },
+  {
+    "key": "admin.frais_maximum_cap_0_desactive",
+    "fr": "Frais maximum (cap, 0 = désactivé)",
+    "translation": "அதிகபட்சக் கட்டணம் (வரம்பு, 0 = முடக்கப்பட்டது)",
+    "ok": true
+  },
+  {
+    "key": "admin.plafond_journalier_par_utilisateur",
+    "fr": "Plafond journalier par utilisateur (0 = illimité)",
+    "translation": "ஒரு பயனருக்கான தினசரி வரம்பு (0 = வரம்பற்றது)",
+    "ok": true
+  },
+  {
+    "key": "admin.retraits_wallet_frais_methodes",
+    "fr": "Retraits Wallet — Frais & Méthodes",
+    "translation": "வாலட் பணம் எடுப்பு — கட்டணங்கள் & முறைகள்",
+    "ok": true
+  },
+  {
+    "key": "admin.retraits_actives_master_switch",
+    "fr": "Retraits activés (master switch)",
+    "translation": "பணம் எடுப்பு இயக்கப்பட்டது (முதன்மை ஸ்விட்ச்)",
+    "ok": true
+  },
+  {
+    "key": "admin.message_si_desactives",
+    "fr": "Message si désactivés",
+    "translation": "முடக்கப்பட்டால் செய்தி",
+    "ok": true
+  },
+  {
+    "key": "admin.depots_wallet_methodes_adresses",
+    "fr": "Dépôts Wallet — Méthodes & Adresses",
+    "translation": "வாலட் வைப்புத்தொகை — முறைகள் & முகவரிகள்",
+    "ok": true
+  },
+  {
+    "key": "admin.depot_minimum_usd",
+    "fr": "Dépôt minimum (USD)",
+    "translation": "குறைந்தபட்ச வைப்புத்தொகை (USD)",
+    "ok": true
+  },
+  {
+    "key": "admin.activer_depot_usdt_trc20",
+    "fr": "Activer dépôt USDT TRC20",
+    "translation": "USDT TRC20 வைப்புத்தொகையை இயக்கு",
+    "ok": true
+  },
+  {
+    "key": "admin.activer_depot_usdt_bep20",
+    "fr": "Activer dépôt USDT BEP20",
+    "translation": "USDT BEP20 டெபாசிட்டை இயக்கு",
+    "ok": true
+  },
+  {
+    "key": "admin.activer_depot_par_carte_hubtel",
+    "fr": "Activer dépôt par carte (Hubtel)",
+    "translation": "அட்டை டெபாசிட்டை இயக்கு (Hubtel)",
+    "ok": true
+  },
+  {
+    "key": "admin.adresse_depot_usdt_trc20_t",
+    "fr": "Adresse dépôt USDT TRC20 (T...)",
+    "translation": "USDT TRC20 டெபாசிட் முகவரி (T...)",
+    "ok": true
+  },
+  {
+    "key": "admin.adresse_depot_usdt_bep20_0x",
+    "fr": "Adresse dépôt USDT BEP20 (0x...)",
+    "translation": "USDT BEP20 டெபாசிட் முகவரி (0x...)",
+    "ok": true
+  },
+  {
+    "key": "admin.devise_de_base_systeme",
+    "fr": "Devise de base système",
+    "translation": "கணினி அடிப்படை நாணயம்",
+    "ok": true
+  },
+  {
+    "key": "admin.detection_ip",
+    "fr": "Détection IP",
+    "translation": "IP கண்டறிதல்",
+    "ok": true
+  },
+  {
+    "key": "admin.modules_systeme",
+    "fr": "Modules système",
+    "translation": "கணினி தொகுதிகள்",
+    "ok": true
+  },
+  {
+    "key": "admin.afficher_badge_vendeur_verifie",
+    "fr": "Afficher badge \"Vendeur vérifié\"",
+    "translation": "\"சரிபார்க்கப்பட்ட விற்பனையாளர்\" பேட்ஜைக் காட்டு",
+    "ok": true
+  },
+  {
+    "key": "admin.escrow_marketplace_active",
+    "fr": "Escrow Marketplace activé",
+    "translation": "எஸ்க்ரோ சந்தை செயல்படுத்தப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "admin.commission_japap_cote_vendeur",
+    "fr": "Commission JAPAP (% côté vendeur)",
+    "translation": "JAPAP கமிஷன் (% விற்பனையாளர் பக்கம்)",
+    "ok": true
+  },
+  {
+    "key": "admin.litiges_acheteur_actives",
+    "fr": "Litiges acheteur activés",
+    "translation": "வாங்குபவர் தகராறுகள் செயல்படுத்தப்பட்டன",
+    "ok": true
+  },
+  {
+    "key": "admin.boost_marketplace_active",
+    "fr": "Boost Marketplace activé",
+    "translation": "பூஸ்ட் மார்க்கெட்பிளேஸ் செயல்படுத்தப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "admin.duree_boost_homepage_jours",
+    "fr": "Durée Boost Homepage (jours)",
+    "translation": "முகப்புப் பக்க பூஸ்ட் காலம் (நாட்கள்)",
+    "ok": true
+  },
+  {
+    "key": "admin.ciblage_audience_active_ads_boost",
+    "fr": "Ciblage audience activé (Ads + Boost)",
+    "translation": "பார்வையாளர் இலக்கு செயல்படுத்தப்பட்டது (விளம்பரங்கள் + பூஸ்ட்)",
+    "ok": true
+  },
+  {
+    "key": "admin.autoriser_filtrage_par_age",
+    "fr": "Autoriser filtrage par âge",
+    "translation": "வயது வடிகட்டுதலை அனுமதி",
+    "ok": true
+  },
+  {
+    "key": "admin.module_pro_active",
+    "fr": "Module Pro activé",
+    "translation": "ப்ரோ மாட்யூல் செயல்படுத்தப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "admin.essais_gratuits_actives",
+    "fr": "Essais gratuits activés",
+    "translation": "இலவச சோதனைகள் செயல்படுத்தப்பட்டன",
+    "ok": true
+  },
+  {
+    "key": "admin.duree_de_l",
+    "fr": "Durée de l\\",
+    "translation": "கால அளவு",
+    "ok": true
+  },
+  {
+    "key": "admin.plans_eligibles_all_ou_starter_crea",
+    "fr": "Plans éligibles (all ou starter,creator)",
+    "translation": "தகுதியான திட்டங்கள் (அனைத்து அல்லது ஸ்டார்ட்டர், கிரியேட்டர்)",
+    "ok": true
+  },
+  {
+    "key": "admin.duree_1_mois_disponible",
+    "fr": "Durée 1 mois disponible",
+    "translation": "1 மாத காலம் உள்ளது",
+    "ok": true
+  },
+  {
+    "key": "admin.duree_3_mois_disponible",
+    "fr": "Durée 3 mois disponible",
+    "translation": "3 மாத காலம் உள்ளது",
+    "ok": true
+  },
+  {
+    "key": "admin.duree_12_mois_disponible",
+    "fr": "Durée 12 mois disponible",
+    "translation": "12 மாத காலம் உள்ளது",
+    "ok": true
+  },
+  {
+    "key": "admin.module_parrainage_active",
+    "fr": "Module Parrainage activé",
+    "translation": "பரிந்துரை மாட்யூல் செயல்படுத்தப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "admin.plan_pro_utilise_pour_recompenses_p",
+    "fr": "Plan Pro utilisé pour récompenses palier",
+    "translation": "சலுகைப் பலன்களுக்கு ப்ரோ திட்டம் பயன்படுத்தப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "admin.leaderboard_active",
+    "fr": "Leaderboard activé",
+    "translation": "லீடர்போர்டு செயல்படுத்தப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "admin.fenetre_weekly_all_time",
+    "fr": "Fenêtre (weekly | all_time)",
+    "translation": "கால அளவு (வாராந்திர | எல்லா நேரமும்)",
+    "ok": true
+  },
+  {
+    "key": "admin.relances_auto_activees",
+    "fr": "Relances auto activées",
+    "translation": "தானியங்கு நினைவூட்டல்கள் செயல்படுத்தப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "admin.delai_rappel_jours",
+    "fr": "Délai rappel (jours)",
+    "translation": "நினைவூட்டல் தாமதம் (நாட்கள்)",
+    "ok": true
+  },
+  {
+    "key": "admin.module_connect_active",
+    "fr": "Module Connect activé",
+    "translation": "கனெக்ட் மாதிரி செயல்படுத்தப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "admin.recompense_par_connexion_usd",
+    "fr": "Récompense par connexion (USD)",
+    "translation": "ஒரு உள்நுழைவுக்கான வெகுமதி (USD)",
+    "ok": true
+  },
+  {
+    "key": "admin.recompense_par_minute_usd",
+    "fr": "Récompense par minute (USD)",
+    "translation": "ஒரு நிமிடத்திற்கான வெகுமதி (USD)",
+    "ok": true
+  },
+  {
+    "key": "admin.duree_minimum_de_session_s",
+    "fr": "Durée minimum de session (s)",
+    "translation": "குறைந்தபட்ச அமர்வு நேரம் (வி)",
+    "ok": true
+  },
+  {
+    "key": "admin.rayon_de_recherche_par_defaut_km",
+    "fr": "Rayon de recherche par défaut (km)",
+    "translation": "இயல்புநிலை தேடல் ஆரம் (கி.மீ)",
+    "ok": true
+  },
+  {
+    "key": "admin.boost_active",
+    "fr": "Boost activé",
+    "translation": "பூஸ்ட் செயல்படுத்தப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "admin.debut_iso_ex_2026_03_01t00_00_00z_v",
+    "fr": "Début (ISO ex: 2026-03-01T00:00:00Z — vide = immédiat)",
+    "translation": "தொடக்கம் (ISO எ.கா: 2026-03-01T00:00:00Z — காலியாக இருந்தால் = உடனடியாக)",
+    "ok": true
+  },
+  {
+    "key": "admin.fin_iso_vide_illimite",
+    "fr": "Fin (ISO — vide = illimité)",
+    "translation": "முடிவு (ISO — காலியாக இருந்தால் = வரம்பற்றது)",
+    "ok": true
+  },
+  {
+    "key": "admin.appliquer_aux_paliers_recompenses_w",
+    "fr": "Appliquer aux paliers (récompenses wallet)",
+    "translation": "அடுக்குகளுக்குப் பயன்படுத்து (வாலட் வெகுமதிகள்)",
+    "ok": true
+  },
+  {
+    "key": "admin.enregistrer_tous_les_parametres",
+    "fr": "Enregistrer tous les paramètres",
+    "translation": "அனைத்து அமைப்புகளையும் சேமி",
+    "ok": true
+  },
+  {
+    "key": "admin.bloque",
+    "fr": "Bloqué",
+    "translation": "தடுக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "admin.resolution",
+    "fr": "Résolution…",
+    "translation": "தீர்வு காணப்படுகிறது…",
+    "ok": true
+  },
+  {
+    "key": "admin.confirmer_la_decision",
+    "fr": "Confirmer la décision",
+    "translation": "முடிவை உறுதிப்படுத்து",
+    "ok": true
+  },
+  {
+    "key": "crowdfunding.compte_a_rebours",
+    "fr": "Compte à rebours",
+    "translation": "கவுண்டவுன்",
+    "ok": true
+  },
+  {
+    "key": "crowdfunding.verrouille",
+    "fr": "Verrouillé",
+    "translation": "பூட்டப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "crowdfunding.creation",
+    "fr": "Création…",
+    "translation": "உருவாக்கப்படுகிறது…",
+    "ok": true
+  },
+  {
+    "key": "crowdfunding.pas_encore_eligible",
+    "fr": "Pas encore éligible",
+    "translation": "இன்னும் தகுதியற்றவர்",
+    "ok": true
+  },
+  {
+    "key": "settings.mise_a_jour",
+    "fr": "Mise à jour…",
+    "translation": "புதுப்பிக்கப்படுகிறது…",
+    "ok": true
+  },
+  {
+    "key": "settings.securite",
+    "fr": "Sécurité",
+    "translation": "பாதுகாப்பு",
+    "ok": true
+  },
+  {
+    "key": "settings.sessions_connectees_appareils_de_co",
+    "fr": "Sessions connectées, appareils de confiance",
+    "translation": "இணைக்கப்பட்ட அமர்வுகள், நம்பகமான சாதனங்கள்",
+    "ok": true
+  },
+  {
+    "key": "settings.confidentialite",
+    "fr": "Confidentialité",
+    "translation": "தனியுரிமை",
+    "ok": true
+  },
+  {
+    "key": "settings.compte_abonnes_publications",
+    "fr": "Compte, abonnés, publications",
+    "translation": "கணக்கு, பின்தொடர்பவர்கள், இடுகைகள்",
+    "ok": true
+  },
+  {
+    "key": "settings.parametres",
+    "fr": "Paramètres",
+    "translation": "அமைப்புகள்",
+    "ok": true
+  },
+  {
+    "key": "referral.parrain_filleul_boostes",
+    "fr": "Parrain & filleul boostés",
+    "translation": "மேம்படுத்தப்பட்ட பரிந்துரையாளர் மற்றும் பரிந்துரைக்கப்பட்டவர்",
+    "ok": true
+  },
+  {
+    "key": "referral.parrain_booste",
+    "fr": "Parrain boosté",
+    "translation": "மேம்படுத்தப்பட்ட பரிந்துரையாளர்",
+    "ok": true
+  },
+  {
+    "key": "referral.filleul_booste",
+    "fr": "Filleul boosté",
+    "translation": "மேம்படுத்தப்பட்ட பரிந்துரைக்கப்பட்டவர்",
+    "ok": true
+  },
+  {
+    "key": "referral.reclamation",
+    "fr": "Réclamation…",
+    "translation": "கோரிக்கை...",
+    "ok": true
+  },
+  {
+    "key": "referral.bloque",
+    "fr": "Bloqué",
+    "translation": "தடுக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "marketplace_ads.terminee",
+    "fr": "Terminée",
+    "translation": "நிறைவுற்றது",
+    "ok": true
+  },
+  {
+    "key": "marketplace_ads.annulee",
+    "fr": "Annulée",
+    "translation": "ரத்துசெய்யப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "marketplace_ads.creation",
+    "fr": "Création…",
+    "translation": "உருவாக்கப்படுகிறது...",
+    "ok": true
+  },
+  {
+    "key": "connect.scannez_le_qr_affiche_par_l",
+    "fr": "Scannez le QR affiché par l\\",
+    "translation": "காண்பிக்கப்படும் QR-ஐ ஸ்கேன் செய்யவும்\\",
+    "ok": true
+  },
+  {
+    "key": "connect.vous_n_avez_pas_encore_partage_de_w",
+    "fr": "Vous n'avez pas encore partagé de WiFi. Commencez maintenant pour gagner des récompenses.",
+    "translation": "நீங்கள் இன்னும் வைஃபை பகிரவில்லை. வெகுமதிகளைப் பெற இப்போதே தொடங்குங்கள்.",
+    "ok": true
+  },
+  {
+    "key": "connect.le_partage_de_hotspot_est_reserve_a",
+    "fr": "Le partage de hotspot est réservé aux abonnés Business Pro.",
+    "translation": "ஹாட்ஸ்பாட் பகிர்வு பிசினஸ் ப்ரோ சந்தாதாரர்களுக்கு மட்டுமே.",
+    "ok": true
+  },
+  {
+    "key": "connect.devenez_hote_japap_et_touchez_une_p",
+    "fr": "Devenez hôte JAPAP et touchez une part sur chaque abonnement Pro généré par vos utilisateurs connectés.",
+    "translation": "JAPAP ஹோஸ்ட்டாக மாறி, உங்களுடன் இணைந்த பயனர்களால் உருவாக்கப்பட்ட ஒவ்வொரு ப்ரோ சந்தாவிலும் ஒரு பங்கைப் பெறுங்கள்.",
+    "ok": true
+  },
+  {
+    "key": "connect.aucun_credit_recu_pour_l_instant",
+    "fr": "Aucun crédit reçu pour l'instant.",
+    "translation": "இதுவரை எந்தக் கடனும் பெறப்படவில்லை.",
+    "ok": true
+  },
+  {
+    "key": "connect.vous_etes",
+    "fr": "Vous êtes",
+    "translation": "நீங்கள்",
+    "ok": true
+  },
+  {
+    "key": "connect.wifi_importe_depuis_le_qr",
+    "fr": "WiFi importé depuis le QR ✓",
+    "translation": "QR-லிருந்து வைஃபை இறக்குமதி செய்யப்பட்டது ✓",
+    "ok": true
+  },
+  {
+    "key": "super_admin.annee",
+    "fr": "Année",
+    "translation": "ஆண்டு",
+    "ok": true
+  },
+  {
+    "key": "super_admin.aucune_donnee",
+    "fr": "Aucune donnée",
+    "translation": "தரவு இல்லை",
+    "ok": true
+  },
+  {
+    "key": "super_admin.creation",
+    "fr": "Création…",
+    "translation": "உருவாக்கப்படுகிறது...",
+    "ok": true
+  },
+  {
+    "key": "super_admin.creer",
+    "fr": "Créer",
+    "translation": "உருவாக்கவும்",
+    "ok": true
+  },
+  {
+    "key": "games_admin.active",
+    "fr": "Activé",
+    "translation": "செயல்படுத்தப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "games_admin.desactive",
+    "fr": "Désactivé",
+    "translation": "செயலிழக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "games_admin.generation",
+    "fr": "Génération…",
+    "translation": "உருவாக்கப்படுகிறது...",
+    "ok": true
+  },
+  {
+    "key": "games_admin.enregistrer_le_defi_quotidien",
+    "fr": "Enregistrer le défi quotidien",
+    "translation": "தினசரி சவாலை சேமிக்கவும்",
+    "ok": true
+  },
+  {
+    "key": "ads_user.approuve",
+    "fr": "Approuvé",
+    "translation": "அங்கீகரிக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "ads_user.termine",
+    "fr": "Terminé",
+    "translation": "நிறைவுற்றது",
+    "ok": true
+  },
+  {
+    "key": "ads_user.refuse",
+    "fr": "Refusé",
+    "translation": "நிராகரிக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "ads_user.banniere",
+    "fr": "Bannière",
+    "translation": "பதாகை",
+    "ok": true
+  },
+  {
+    "key": "ads_user.aucun_reel_a_promouvoir",
+    "fr": "Aucun reel à promouvoir",
+    "translation": "விளம்பரப்படுத்த ரீல் எதுவும் இல்லை",
+    "ok": true
+  },
+  {
+    "key": "ads_user.aucun_post_a_promouvoir",
+    "fr": "Aucun post à promouvoir",
+    "translation": "விளம்பரப்படுத்த இடுகை எதுவும் இல்லை",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.a_reclamer",
+    "fr": "À réclamer",
+    "translation": "கோரப்பட உள்ளது",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.reclames",
+    "fr": "Réclamés",
+    "translation": "கோரப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.reclame",
+    "fr": "Réclamé",
+    "translation": "கோரப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.expire_gagnant",
+    "fr": "Expiré gagnant",
+    "translation": "காலாவதியான வெற்றியாளர்",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.expire_perdant",
+    "fr": "Expiré perdant",
+    "translation": "காலாவதியான தோற்றவர்",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.systeme_sain",
+    "fr": "Système sain",
+    "translation": "சிஸ்டம் நன்றாக உள்ளது",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.trop_facile_ou_exploite",
+    "fr": "Trop facile ou exploité",
+    "translation": "மிகவும் எளிதானது அல்லது தவறாகப் பயன்படுத்தப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.donnees_insuffisantes",
+    "fr": "Données insuffisantes",
+    "translation": "போதிய தரவு இல்லை",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.desactive",
+    "fr": "Désactivé",
+    "translation": "செயலிழக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.recurrent",
+    "fr": "Récurrent",
+    "translation": "தொடர்ச்சியானது",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune_admin.date",
+    "fr": "Daté",
+    "translation": "காலாவதியானது",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.complete",
+    "fr": "Complété",
+    "translation": "நிறைவுற்றது",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.approuve",
+    "fr": "Approuvé",
+    "translation": "அங்கீகரிக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.refuse",
+    "fr": "Refusé",
+    "translation": "நிராகரிக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.expire",
+    "fr": "Expiré",
+    "translation": "காலாவதியானது",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.echec",
+    "fr": "Échec",
+    "translation": "தோல்வி",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.depot_refuse",
+    "fr": "Dépôt refusé",
+    "translation": "வைப்பு நிராகரிக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.retrait_refuse",
+    "fr": "Retrait refusé",
+    "translation": "பணம் எடுத்தல் நிராகரிக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.depots",
+    "fr": "Dépôts",
+    "translation": "வைப்புகள்",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.l_utilisateur_ne_sera_pas_credite",
+    "fr": "L'utilisateur ne sera pas crédité.",
+    "translation": "பயனர் கணக்கில் வரவு வைக்கப்பட மாட்டார்.",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.le_montant_sera_automatiquement_rem",
+    "fr": "Le montant sera automatiquement remboursé sur le wallet de l'utilisateur.",
+    "translation": "தொகை தானாகவே பயனரின் wallet-க்குத் திருப்பி அனுப்பப்படும்.",
+    "ok": true
+  },
+  {
+    "key": "payments_admin.enregistrer_les_parametres_de_paiem",
+    "fr": "Enregistrer les paramètres de paiement",
+    "translation": "கட்டண அமைப்புகளைச் சேமிக்கவும்",
+    "ok": true
+  },
+  {
+    "key": "migration_broadcast_admin.creer_une_nouvelle_campagne",
+    "fr": "Créer une nouvelle campagne",
+    "translation": "புதிய பிரச்சாரத்தை உருவாக்கவும்",
+    "ok": true
+  },
+  {
+    "key": "migration_broadcast_admin.mode_broadcast_desactive_kill_switc",
+    "fr": "Mode broadcast désactivé (kill switch iter154)",
+    "translation": "ஒளிபரப்பு முறை முடக்கப்பட்டது (kill switch iter154)",
+    "ok": true
+  },
+  {
+    "key": "migration_broadcast_admin.details",
+    "fr": "Détails",
+    "translation": "விவரங்கள்",
+    "ok": true
+  },
+  {
+    "key": "migration_broadcast_admin.stoppee",
+    "fr": "STOPPÉE",
+    "translation": "நிறுத்தப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "migration_broadcast_admin.terminee",
+    "fr": "TERMINÉE",
+    "translation": "முடிக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "migration_broadcast_admin.programmee",
+    "fr": "PROGRAMMÉE",
+    "translation": "திட்டமிடப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "migration_broadcast_admin.apercu_purge_dry_run",
+    "fr": "Aperçu purge (dry run)",
+    "translation": "நீக்குதல் முன்னோட்டம் (dry run)",
+    "ok": true
+  },
+  {
+    "key": "migration_broadcast_admin.creation",
+    "fr": "Création…",
+    "translation": "உருவாக்கப்படுகிறது…",
+    "ok": true
+  },
+  {
+    "key": "migration_broadcast_admin.creer_lancer",
+    "fr": "Créer + lancer",
+    "translation": "உருவாக்கி + தொடங்கவும்",
+    "ok": true
+  },
+  {
+    "key": "games_engagement_admin.generation",
+    "fr": "Génération…",
+    "translation": "உருவாக்கப்படுகிறது…",
+    "ok": true
+  },
+  {
+    "key": "games_engagement_admin.regenerer_ia",
+    "fr": "Régénérer IA",
+    "translation": "AI-ஐ மீண்டும் உருவாக்கவும்",
+    "ok": true
+  },
+  {
+    "key": "games_engagement_admin.precision",
+    "fr": "Précision",
+    "translation": "துல்லியம்",
+    "ok": true
+  },
+  {
+    "key": "now_payments_deposit_card.paiement_confirme",
+    "fr": "Paiement confirmé",
+    "translation": "கட்டணம் உறுதி செய்யப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "now_payments_deposit_card.credite_avec_succes",
+    "fr": "Crédité avec succès",
+    "translation": "வெற்றிகரமாக வரவு வைக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "now_payments_deposit_card.paiement_echoue",
+    "fr": "Paiement échoué",
+    "translation": "கட்டணம் தோல்வியடைந்தது",
+    "ok": true
+  },
+  {
+    "key": "now_payments_deposit_card.paiement_expire",
+    "fr": "Paiement expiré",
+    "translation": "கட்டணம் காலாவதியானது",
+    "ok": true
+  },
+  {
+    "key": "now_payments_deposit_card.paiement_partiel_detecte",
+    "fr": "Paiement partiel détecté",
+    "translation": "பகுதி கட்டணம் கண்டறியப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "now_payments_deposit_card.deja_credite_solde_a_jour",
+    "fr": "Déjà crédité ! Solde à jour.",
+    "translation": "ஏற்கனவே வரவு வைக்கப்பட்டுள்ளது! இருப்பு சமீபத்தியது.",
+    "ok": true
+  },
+  {
+    "key": "now_payments_deposit_card.verification",
+    "fr": "Vérification…",
+    "translation": "சரிபார்க்கப்படுகிறது…",
+    "ok": true
+  },
+  {
+    "key": "now_payments_deposit_card.j_ai_paye",
+    "fr": "J'ai payé",
+    "translation": "நான் செலுத்திவிட்டேன்",
+    "ok": true
+  },
+  {
+    "key": "ads_admin.approuve",
+    "fr": "Approuvé",
+    "translation": "அங்கீகரிக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "ads_admin.termine",
+    "fr": "Terminé",
+    "translation": "முடிந்தது",
+    "ok": true
+  },
+  {
+    "key": "ads_admin.refuse",
+    "fr": "Refusé",
+    "translation": "மறுக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "ads_admin.campagne_approuvee",
+    "fr": "Campagne approuvée ✓",
+    "translation": "பிரச்சாரம் அங்கீகரிக்கப்பட்டது ✓",
+    "ok": true
+  },
+  {
+    "key": "admin_error_monitor.elevee",
+    "fr": "Élevée",
+    "translation": "உயர்ந்த",
+    "ok": true
+  },
+  {
+    "key": "admin_error_monitor.corrige",
+    "fr": "Corrigé",
+    "translation": "திருத்தப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "admin_error_monitor.ignore",
+    "fr": "Ignoré",
+    "translation": "புறக்கணிக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "admin_error_monitor.generation",
+    "fr": "Génération…",
+    "translation": "உருவாக்கப்படுகிறது...",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.la_bonne_reponse_est_en_vert",
+    "fr": "La bonne réponse est en vert",
+    "translation": "சரியான பதில் பச்சை நிறத்தில் உள்ளது",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.mauvaise_reponse",
+    "fr": "Mauvaise réponse",
+    "translation": "தவறான பதில்",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.voir_le_resultat",
+    "fr": "Voir le résultat →",
+    "translation": "முடிவைப் பார்க்கவும் →",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.preparation",
+    "fr": "Préparation…",
+    "translation": "தயாரிக்கப்படுகிறது...",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.sans_faute_legendaire_vous_etes_au",
+    "fr": "Sans-faute légendaire ! Vous êtes au sommet 🏆",
+    "translation": "அற்புதமான முழு வெற்றி! நீங்கள் உச்சத்தில் இருக்கிறீர்கள் 🏆",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.bien_joue_continuez_sur_cette_lance",
+    "fr": "Bien joué ! Continuez sur cette lancée 💪",
+    "translation": "அருமை! இந்த வேகத்தைத் தொடருங்கள் 💪",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.chaque_expert_a_commence_ici_reessa",
+    "fr": "Chaque expert a commencé ici. Réessayez ! 🎯",
+    "translation": "ஒவ்வொரு நிபுணரும் இங்கிருந்துதான் தொடங்கினார். மீண்டும் முயற்சிக்கவும்! 🎯",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.le_quiz_est_exigeant_l_entrainement",
+    "fr": "Le quiz est exigeant — l'entraînement paie. On retente ? 💡",
+    "translation": "வினாடி வினா சவாலானது — பயிற்சி பலனளிக்கும். மீண்டும் முயற்சிப்போமா? 💡",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.defi_quiz_japap",
+    "fr": "Défi Quiz JAPAP",
+    "translation": "JAPAP வினாடி வினா சவால்",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.creation_du_defi",
+    "fr": "Création du défi…",
+    "translation": "சவால் உருவாக்கப்படுகிறது...",
+    "ok": true
+  },
+  {
+    "key": "quiz_j_a_p_a_p.defier_un_ami",
+    "fr": "Défier un ami",
+    "translation": "ஒரு நண்பரை சவால் விடுங்கள்",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.cote_d_ivoire",
+    "fr": "Côte d'Ivoire",
+    "translation": "கோட் டி ஐவோர்",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.senegal",
+    "fr": "Sénégal",
+    "translation": "செனகல்",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.benin",
+    "fr": "Bénin",
+    "translation": "பெனின்",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.propose",
+    "fr": "Proposé",
+    "translation": "முன்மொழியப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.archive",
+    "fr": "Archivé",
+    "translation": "காப்பகப்படுத்தப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.rejete",
+    "fr": "Rejeté",
+    "translation": "நிராகரிக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.active",
+    "fr": "Activé",
+    "translation": "செயல்படுத்தப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.desactive",
+    "fr": "Désactivé",
+    "translation": "செயலிழக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.desactiver",
+    "fr": "Désactiver",
+    "translation": "செயலிழக்கு",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.execution",
+    "fr": "Exécution…",
+    "translation": "செயல்படுகிறது...",
+    "ok": true
+  },
+  {
+    "key": "transport_pricing_admin.claude_sonnet_4_5_propose_une_grill",
+    "fr": "Claude Sonnet 4.5 propose une grille adaptée au coût de la vie local.",
+    "translation": "Claude Sonnet 4.5 உள்ளூர் வாழ்க்கைச் செலவுக்கு ஏற்ற ஒரு கட்டண அமைப்பை வழங்குகிறது.",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune.ca_tourne",
+    "fr": "Ça tourne…",
+    "translation": "சுழல்கிறது...",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune.cycle_termine",
+    "fr": "Cycle terminé",
+    "translation": "சுழற்சி நிறைவுற்றது",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune.vous_etes_a_mi_chemin_continuez_la",
+    "fr": "Vous êtes à mi-chemin. Continuez, la zone premium approche.",
+    "translation": "நீங்கள் பாதி வழியில் உள்ளீர்கள். தொடருங்கள், பிரீமியம் பகுதி நெருங்குகிறது.",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune.le_jackpot_peut_desormais_tomber_a",
+    "fr": "Le Jackpot peut désormais tomber à tout moment. Tournez pour le déclencher.",
+    "translation": "ஜாக்பாட் இப்போது எந்த நேரத்திலும் விழலாம். அதைத் தூண்டச் சுழற்றுங்கள்.",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune.vous_avez_atteint_l_objectif_points",
+    "fr": "Vous avez atteint l'objectif points. Validez les 25 jours et réclamez votre Starter Pro.",
+    "translation": "நீங்கள் இலக்கு புள்ளிகளை அடைந்துவிட்டீர்கள். 25 நாட்களை உறுதிசெய்து உங்கள் Starter Pro ஐப் பெறுங்கள்.",
+    "ok": true
+  },
+  {
+    "key": "wheel_fortune.preparation",
+    "fr": "Préparation…",
+    "translation": "தயாராகிறது...",
+    "ok": true
+  },
+  {
+    "key": "marketplace_product.reconditionne",
+    "fr": "Reconditionné",
+    "translation": "புதுப்பிக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "marketplace_product.ideal_pour_tester_un_produit",
+    "fr": "Idéal pour tester un produit",
+    "translation": "ஒரு தயாரிப்பைச் சோதிக்க சிறந்தது",
+    "ok": true
+  },
+  {
+    "key": "marketplace_product.le_meilleur_rapport_visibilite_prix",
+    "fr": "Le meilleur rapport visibilité/prix",
+    "translation": "சிறந்த தெரிவுநிலை/விலை விகிதம்",
+    "ok": true
+  },
+  {
+    "key": "marketplace_product.supprime",
+    "fr": "Supprimé",
+    "translation": "நீக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "marketplace_product.moderation_admin",
+    "fr": "Modération admin",
+    "translation": "நிர்வாக மதிப்பாய்வு",
+    "ok": true
+  },
+  {
+    "key": "marketplace_product.ex_photos_non_conformes_prix_incohe",
+    "fr": "Ex : Photos non conformes, prix incohérent…",
+    "translation": "எ.கா: பொருந்தாத புகைப்படங்கள், சீரற்ற விலை...",
+    "ok": true
+  },
+  {
+    "key": "post_menu.publication_epinglee",
+    "fr": "Publication épinglée",
+    "translation": "நிலைநிறுத்தப்பட்ட இடுகை",
+    "ok": true
+  },
+  {
+    "key": "post_menu.publication_desepinglee",
+    "fr": "Publication désépinglée",
+    "translation": "நிலைநீக்கப்பட்ட இடுகை",
+    "ok": true
+  },
+  {
+    "key": "post_menu.desepingler",
+    "fr": "Désépingler",
+    "translation": "நிலைநீக்கு",
+    "ok": true
+  },
+  {
+    "key": "post_menu.epingler",
+    "fr": "Épingler",
+    "translation": "நிலைநிறுத்து",
+    "ok": true
+  },
+  {
+    "key": "post_menu.partage_dans_le_groupe",
+    "fr": "Partagé dans le groupe",
+    "translation": "குழுவில் பகிரப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "post_menu.partage_sur_la_page",
+    "fr": "Partagé sur la page",
+    "translation": "பக்கத்தில் பகிரப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "post_menu.partager_avec_tous_mes_abonnes",
+    "fr": "Partager avec tous mes abonnés",
+    "translation": "எனது அனைத்துப் பின்தொடர்பவர்களுடனும் பகிரவும்",
+    "ok": true
+  },
+  {
+    "key": "post_menu.choisir_un_groupe_dont_vous_etes_me",
+    "fr": "Choisir un groupe dont vous êtes membre",
+    "translation": "நீங்கள் உறுப்பினராக உள்ள ஒரு குழுவைத் தேர்ந்தெடுக்கவும்",
+    "ok": true
+  },
+  {
+    "key": "post_menu.publier_sur_une_page_dont_vous_etes",
+    "fr": "Publier sur une page dont vous êtes propriétaire",
+    "translation": "நீங்கள் உரிமையாளராக உள்ள ஒரு பக்கத்தில் வெளியிடவும்",
+    "ok": true
+  },
+  {
+    "key": "post_menu.message_prive",
+    "fr": "Message privé",
+    "translation": "தனிப்பட்ட செய்தி",
+    "ok": true
+  },
+  {
+    "key": "pro.annuler_immediatement",
+    "fr": "Annuler immédiatement ?",
+    "translation": "உடனடியாக ரத்து செய்யவா?",
+    "ok": true
+  },
+  {
+    "key": "pro.annuler_a_la_fin_de_la_periode",
+    "fr": "Annuler à la fin de la période ?",
+    "translation": "காலத்தின் முடிவில் ரத்து செய்யவா?",
+    "ok": true
+  },
+  {
+    "key": "pro.edition_founders",
+    "fr": "Édition founders",
+    "translation": "ஸ்தாபகர் பதிப்பு",
+    "ok": true
+  },
+  {
+    "key": "pro.offre_limitee",
+    "fr": "Offre limitée",
+    "translation": "வரையறுக்கப்பட்ட சலுகை",
+    "ok": true
+  },
+  {
+    "key": "driver_kyc_form.votre_dossier_a_bien_ete_recu_un_ad",
+    "fr": "Votre dossier a bien été reçu. Un administrateur le vérifiera sous 24h ouvrées. Vous recevrez une notification dès la décision.",
+    "translation": "உங்கள் விண்ணப்பம் பெறப்பட்டது. ஒரு நிர்வாகி அதை 24 வணிக மணிநேரத்திற்குள் சரிபார்த்து உறுதி செய்வார். முடிவு வெளியானவுடன் உங்களுக்கு அறிவிப்பு அனுப்பப்படும்.",
+    "ok": true
+  },
+  {
+    "key": "driver_kyc_form.compte_chauffeur_valide",
+    "fr": "Compte chauffeur validé",
+    "translation": "ஓட்டுநர் கணக்கு சரிபார்க்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "driver_kyc_form.vous_pouvez_desormais_aller_en_lign",
+    "fr": "Vous pouvez désormais aller en ligne et accepter des courses. Bonne route ! 🚕",
+    "translation": "நீங்கள் இப்போது ஆன்லைனில் சென்று பயணங்களை ஏற்கலாம். இனிய பயணம் அமையட்டும்! 🚕",
+    "ok": true
+  },
+  {
+    "key": "driver_kyc_form.dossier_refuse",
+    "fr": "Dossier refusé",
+    "translation": "விண்ணப்பம் நிராகரிக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "driver_kyc_form.vos_documents_necessitent_des_corre",
+    "fr": "Vos documents nécessitent des corrections. Lisez la raison ci-dessous puis resoumettez.",
+    "translation": "உங்கள் ஆவணங்களுக்கு திருத்தங்கள் தேவை. கீழே உள்ள காரணத்தைப் படித்துவிட்டு மீண்டும் சமர்ப்பிக்கவும்.",
+    "ok": true
+  },
+  {
+    "key": "driver_kyc_form.votre_activite_chauffeur_est_tempor",
+    "fr": "Votre activité chauffeur est temporairement suspendue. Contactez le support pour rouvrir l'accès.",
+    "translation": "உங்கள் ஓட்டுநர் செயல்பாடு தற்காலிகமாக இடைநிறுத்தப்பட்டுள்ளது. அணுகலை மீண்டும் திறக்க ஆதரவைத் தொடர்பு கொள்ளவும்.",
+    "ok": true
+  },
+  {
+    "key": "driver_kyc_form.soumettre_a_nouveau",
+    "fr": "Soumettre à nouveau",
+    "translation": "மீண்டும் சமர்ப்பிக்கவும்",
+    "ok": true
+  },
+  {
+    "key": "driver_kyc_form.mettre_a_jour_le_profil",
+    "fr": "Mettre à jour le profil",
+    "translation": "சுயவிவரத்தைப் புதுப்பிக்கவும்",
+    "ok": true
+  },
+  {
+    "key": "batch_safety_pane.basculer_en_mode_safe_aucun_email_r",
+    "fr": "Basculer en mode SAFE (aucun email réel envoyé) ?",
+    "translation": "பாதுகாப்பான முறைக்கு மாறவா (உண்மையான மின்னஞ்சல்கள் எதுவும் அனுப்பப்படாது)?",
+    "ok": true
+  },
+  {
+    "key": "batch_safety_pane.envoi_reel_active",
+    "fr": "Envoi réel ACTIVÉ",
+    "translation": "உண்மையான அனுப்புதல் இயக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "batch_safety_pane.mode_safe_active",
+    "fr": "Mode SAFE activé",
+    "translation": "பாதுகாப்பான முறை இயக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "batch_safety_pane.aucun_email_reel_n",
+    "fr": "Aucun email réel n\\",
+    "translation": "உண்மையான மின்னஞ்சல் இல்லை",
+    "ok": true
+  },
+  {
+    "key": "batch_safety_pane.enregistrer_les_parametres",
+    "fr": "Enregistrer les paramètres",
+    "translation": "அமைப்புகளைச் சேமிக்கவும்",
+    "ok": true
+  },
+  {
+    "key": "batch_safety_pane.aucun_email_reel_n_est_envoye",
+    "fr": "Aucun email réel n'est envoyé. Les envois sont simulés et loggés.",
+    "translation": "உண்மையான மின்னஞ்சல்கள் எதுவும் அனுப்பப்படாது. அனுப்புதல்கள் உருவகப்படுத்தப்பட்டு பதிவு செய்யப்படும்.",
+    "ok": true
+  },
+  {
+    "key": "batch_safety_pane.les_campagnes_envoient_de_vrais",
+    "fr": "Les campagnes envoient de vrais emails aux destinataires.",
+    "translation": "பிரச்சாரங்கள் பெறுநர்களுக்கு உண்மையான மின்னஞ்சல்களை அனுப்புகின்றன.",
+    "ok": true
+  },
+  {
+    "key": "support_admin.resolus",
+    "fr": "Résolus",
+    "translation": "தீர்க்கப்பட்டவை",
+    "ok": true
+  },
+  {
+    "key": "support_admin.fermes",
+    "fr": "Fermés",
+    "translation": "மூடப்பட்டவை",
+    "ok": true
+  },
+  {
+    "key": "support_admin.resolu",
+    "fr": "Résolu",
+    "translation": "தீர்க்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "support_admin.ferme",
+    "fr": "Fermé",
+    "translation": "மூடப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "support.kyc_identite",
+    "fr": "KYC / Identité",
+    "translation": "KYC / அடையாளம்",
+    "ok": true
+  },
+  {
+    "key": "support.resolu",
+    "fr": "Résolu",
+    "translation": "தீர்க்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "support.ferme",
+    "fr": "Fermé",
+    "translation": "மூடப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "support.je_n_arrive_pas_a_repondre_pour_le",
+    "fr": "Je n'arrive pas à répondre pour le moment. Cliquez sur \\",
+    "translation": "என்னால் தற்போது பதிலளிக்க முடியவில்லை. கிளிக் செய்யவும்",
+    "ok": true
+  },
+  {
+    "key": "super_admin_login.verification_2fa",
+    "fr": "Vérification 2FA",
+    "translation": "2FA சரிபார்ப்பு",
+    "ok": true
+  },
+  {
+    "key": "super_admin_login.saisissez_vos_identifiants_un_code",
+    "fr": "Saisissez vos identifiants. Un code 2FA sera envoyé à votre email.",
+    "translation": "உங்கள் உள்நுழைவு விவரங்களை உள்ளிடவும். ஒரு 2FA குறியீடு உங்கள் மின்னஞ்சலுக்கு அனுப்பப்படும்.",
+    "ok": true
+  },
+  {
+    "key": "super_admin_login.verification",
+    "fr": "Vérification…",
+    "translation": "சரிபார்க்கிறது…",
+    "ok": true
+  },
+  {
+    "key": "duel.ce_defi_a_expire_24_h",
+    "fr": "Ce défi a expiré (24 h).",
+    "translation": "இந்த சவால் காலாவதியாகிவிட்டது (24 ம).",
+    "ok": true
+  },
+  {
+    "key": "duel.resultat_duel_japap",
+    "fr": "Résultat duel JAPAP",
+    "translation": "JAPAP சவால் முடிவு",
+    "ok": true
+  },
+  {
+    "key": "duel.creation_de_la_revanche",
+    "fr": "Création de la revanche…",
+    "translation": "மறுபோட்டி உருவாக்குகிறது…",
+    "ok": true
+  },
+  {
+    "key": "duel.gagne",
+    "fr": "Gagné",
+    "translation": "வெற்றி",
+    "ok": true
+  },
+  {
+    "key": "duel.egalite",
+    "fr": "Égalité",
+    "translation": "சமன்",
+    "ok": true
+  },
+  {
+    "key": "duel.preparation",
+    "fr": "Préparation…",
+    "translation": "தயாரிக்கிறது…",
+    "ok": true
+  },
+  {
+    "key": "duel.defi_japap",
+    "fr": "Défi JAPAP",
+    "translation": "JAPAP சவால்",
+    "ok": true
+  },
+  {
+    "key": "duel.defaite",
+    "fr": "Défaite",
+    "translation": "தோல்வி",
+    "ok": true
+  },
+  {
+    "key": "request_payment_modal.demander_a_recevoir",
+    "fr": "Demander à recevoir",
+    "translation": "பெறக் கோரவும்",
+    "ok": true
+  },
+  {
+    "key": "request_payment_modal.demande_prete_a_partager",
+    "fr": "Demande prête à partager",
+    "translation": "பகிரத் தயாராக உள்ள கோரிக்கை",
+    "ok": true
+  },
+  {
+    "key": "request_payment_modal.generation",
+    "fr": "Génération…",
+    "translation": "உருவாக்குகிறது…",
+    "ok": true
+  },
+  {
+    "key": "request_payment_modal.generer_le_lien",
+    "fr": "Générer le lien",
+    "translation": "இணைப்பை உருவாக்கவும்",
+    "ok": true
+  },
+  {
+    "key": "in_call_screen.reactiver_le_micro",
+    "fr": "Réactiver le micro",
+    "translation": "மைக்ரோஃபோனை மீண்டும் இயக்கவும்",
+    "ok": true
+  },
+  {
+    "key": "in_call_screen.arreter_l",
+    "fr": "Arrêter l\\",
+    "translation": "நிறுத்தவும்",
+    "ok": true
+  },
+  {
+    "key": "in_call_screen.demarrer_l",
+    "fr": "Démarrer l\\",
+    "translation": "தொடங்கவும்",
+    "ok": true
+  },
+  {
+    "key": "languages.francais",
+    "fr": "Français",
+    "translation": "பிரஞ்சு",
+    "ok": true
+  },
+  {
+    "key": "languages.portugues",
+    "fr": "Português",
+    "translation": "போர்த்துகீசியம்",
+    "ok": true
+  },
+  {
+    "key": "languages.espanol",
+    "fr": "Español",
+    "translation": "ஸ்பானிஷ்",
+    "ok": true
+  },
+  {
+    "key": "languages.lingala",
+    "fr": "Lingála",
+    "translation": "லிங்கலா",
+    "ok": true
+  },
+  {
+    "key": "languages.yoruba",
+    "fr": "Yorùbá",
+    "translation": "யோருபா",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.defi_en_cours",
+    "fr": "Défi en cours",
+    "translation": "சவால் நடைபெறுகிறது",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.en_attente_du_second_joueur",
+    "fr": "En attente du second joueur",
+    "translation": "இரண்டாவது வீரருக்காக காத்திருக்கிறது",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.egalite_bien_joue",
+    "fr": "Égalité — bien joué",
+    "translation": "சமன் - சிறப்பாக விளையாடினீர்கள்",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.defaite",
+    "fr": "Défaite",
+    "translation": "தோல்வி",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.defi_refuse",
+    "fr": "Défi refusé",
+    "translation": "சவால் நிராகரிக்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.defi_expire",
+    "fr": "Défi expiré",
+    "translation": "சவால் காலாவதியானது",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.un_challenger_vous_defie",
+    "fr": "Un challenger vous défie",
+    "translation": "ஒரு போட்டியாளர் உங்களுக்கு சவால் விடுகிறார்",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.bonus_30_pts_engagement_credite",
+    "fr": "Bonus +30 pts engagement crédité.",
+    "translation": "போனஸ் +30 ஈடுபாடு புள்ளிகள் வரவு வைக்கப்பட்டது.",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.mises_remboursees_de_part_et_d",
+    "fr": "Mises remboursées de part et d\\",
+    "translation": "பணயம் திரும்பப் பெறப்பட்டது.",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.mise_remboursee_bonus_engagement_cr",
+    "fr": "Mise remboursée + bonus engagement crédité.",
+    "translation": "பணயம் திரும்பப் பெறப்பட்டது + போனஸ் ஈடுபாடு வரவு வைக்கப்பட்டது.",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.vous_avez_refuse_ce_defi",
+    "fr": "Vous avez refusé ce défi.",
+    "translation": "நீங்கள் இந்த சவாலை நிராகரித்துவிட்டீர்கள்.",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.validation_des_reponses",
+    "fr": "Validation des réponses…",
+    "translation": "பதில்கள் சரிபார்க்கப்படுகின்றன...",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenge.score_enregistre",
+    "fr": "Score enregistré ✓",
+    "translation": "மதிப்பெண் பதிவு செய்யப்பட்டது ✓",
+    "ok": true
+  },
+  {
+    "key": "display_currency_selector.dollar_americain",
+    "fr": "Dollar américain",
+    "translation": "அமெரிக்க டாலர்",
+    "ok": true
+  },
+  {
+    "key": "display_currency_selector.cameroun_gabon_congo_tchad_rca_guin",
+    "fr": "Cameroun, Gabon, Congo, Tchad, RCA, Guinée Équatoriale",
+    "translation": "கேமரூன், காபோன், காங்கோ, சாட், மத்திய ஆப்பிரிக்க குடியரசு, ஈக்வடோரியல் கினி",
+    "ok": true
+  },
+  {
+    "key": "display_currency_selector.senegal_cote_d_ivoire_mali_burkina",
+    "fr": "Sénégal, Côte d'Ivoire, Mali, Burkina, Niger, Togo, Bénin",
+    "translation": "செனகல், கோட் டி ஐவோயர், மாலி, புர்கினா, நைஜர், டோகோ, பெனின்",
+    "ok": true
+  },
+  {
+    "key": "display_currency_selector.cedi_ghaneen",
+    "fr": "Cedi ghanéen",
+    "translation": "கானா செடி",
+    "ok": true
+  },
+  {
+    "key": "display_currency_selector.naira_nigerian",
+    "fr": "Naira nigérian",
+    "translation": "நைஜீரியன் நைரா",
+    "ok": true
+  },
+  {
+    "key": "display_currency_selector.shilling_kenyan",
+    "fr": "Shilling kényan",
+    "translation": "கென்ய ஷில்லிங்",
+    "ok": true
+  },
+  {
+    "key": "display_currency_selector.livre_egyptienne",
+    "fr": "Livre égyptienne",
+    "translation": "எகிப்திய பவுண்ட்",
+    "ok": true
+  },
+  {
+    "key": "push_notifications_toggle.vous_recevrez_tips_messages_et_vire",
+    "fr": "Vous recevrez tips, messages et virements même si JAPAP est fermé.",
+    "translation": "JAPAP மூடப்பட்டிருந்தாலும் டிப்ஸ், செய்திகள் மற்றும் பணப்பரிமாற்றங்களைப் பெறுவீர்கள்.",
+    "ok": true
+  },
+  {
+    "key": "push_notifications_toggle.debloquez_les_dans_les_parametres_d",
+    "fr": "Débloquez-les dans les paramètres de votre navigateur.",
+    "translation": "உங்கள் உலாவியின் அமைப்புகளில் அவற்றை அனுமதிங்கள்.",
+    "ok": true
+  },
+  {
+    "key": "push_notifications_toggle.le_sdk_n_a_pas_pu_etre_charge_verif",
+    "fr": "Le SDK n'a pas pu être chargé. Vérifiez votre connexion et votre bloqueur de pubs.",
+    "translation": "SDK ஏற்ற முடியவில்லை. உங்கள் இணைப்பையும் விளம்பரத் தடுப்பானையும் சரிபார்க்கவும்.",
+    "ok": true
+  },
+  {
+    "key": "push_notifications_toggle.verifiez_vos_notifications",
+    "fr": "Vérifiez vos notifications.",
+    "translation": "உங்கள் அறிவிப்புகளைச் சரிபார்க்கவும்.",
+    "ok": true
+  },
+  {
+    "key": "push_notifications_toggle.le_test_push_est_reserve_aux_admins",
+    "fr": "Le test push est réservé aux admins.",
+    "translation": "புஷ் டெஸ்ட் நிர்வாகிகளுக்கு மட்டுமே.",
+    "ok": true
+  },
+  {
+    "key": "push_notifications_toggle.actives_vous_serez_notifiee_pour_ti",
+    "fr": "Actives — vous serez notifié·e pour tips, virements et messages.",
+    "translation": "செயலில் உள்ளது — டிப்ஸ், பணப்பரிமாற்றங்கள் மற்றும் செய்திகளுக்கு உங்களுக்கு அறிவிக்கப்படும்.",
+    "ok": true
+  },
+  {
+    "key": "push_notifications_toggle.bloquees_par_le_navigateur_debloque",
+    "fr": "Bloquées par le navigateur. Débloquez-les dans les réglages.",
+    "translation": "உலாவியால் தடுக்கப்பட்டது. அமைப்புகளில் தடைநீக்கவும்.",
+    "ok": true
+  },
+  {
+    "key": "push_notifications_toggle.recevez_tips_virements_et_messages",
+    "fr": "Recevez tips, virements et messages même quand JAPAP est fermé.",
+    "translation": "JAPAP மூடப்பட்டிருந்தாலும் டிப்ஸ், இடமாற்றங்கள் மற்றும் செய்திகளைப் பெறவும்.",
+    "ok": true
+  },
+  {
+    "key": "my_tasks.ouvrir_la_conversation",
+    "fr": "Ouvrir la conversation",
+    "translation": "உரையாடலைத் திறக்கவும்",
+    "ok": true
+  },
+  {
+    "key": "my_tasks.a_faire",
+    "fr": "À faire",
+    "translation": "செய்ய வேண்டியவை",
+    "ok": true
+  },
+  {
+    "key": "my_tasks.terminees",
+    "fr": "Terminées",
+    "translation": "முடிக்கப்பட்டவை",
+    "ok": true
+  },
+  {
+    "key": "my_tasks.marquer_comme_a_faire",
+    "fr": "Marquer comme à faire",
+    "translation": "செய்ய வேண்டியது எனக் குறிக்கவும்",
+    "ok": true
+  },
+  {
+    "key": "my_tasks.marquer_comme_terminee",
+    "fr": "Marquer comme terminée",
+    "translation": "முடிக்கப்பட்டது எனக் குறிக்கவும்",
+    "ok": true
+  },
+  {
+    "key": "my_tasks.aucune_tache_terminee_pour_l_instan",
+    "fr": "Aucune tâche terminée pour l'instant.",
+    "translation": "இதுவரை முடிக்கப்பட்ட பணிகள் எதுவும் இல்லை.",
+    "ok": true
+  },
+  {
+    "key": "my_tasks.tout_est_a_jour_pas_de_tache_en_cou",
+    "fr": "Tout est à jour 🎉 Pas de tâche en cours.",
+    "translation": "அனைத்தும் புதுப்பிக்கப்பட்டது 🎉 செயல்பாட்டில் பணிகள் எதுவும் இல்லை.",
+    "ok": true
+  },
+  {
+    "key": "my_tasks.aucune_tache_activez_l_enregistreme",
+    "fr": "Aucune tâche. Activez l'enregistrement pendant un appel pour générer des tâches automatiquement.",
+    "translation": "பணிகள் எதுவும் இல்லை. தானாகப் பணிகளை உருவாக்க ஒரு அழைப்பின் போது பதிவை இயக்கவும்.",
+    "ok": true
+  },
+  {
+    "key": "ride_lifecycle_panel.chauffeur_trouve_en_chemin",
+    "fr": "Chauffeur trouvé · en chemin",
+    "translation": "ஓட்டுநர் கண்டுபிடிக்கப்பட்டது · வரும் வழியில்",
+    "ok": true
+  },
+  {
+    "key": "ride_lifecycle_panel.chauffeur_arrive_preparez_vous",
+    "fr": "Chauffeur arrive — préparez-vous",
+    "translation": "ஓட்டுநர் வருகிறார் — தயாராகுங்கள்",
+    "ok": true
+  },
+  {
+    "key": "ride_lifecycle_panel.course_terminee",
+    "fr": "Course terminée",
+    "translation": "பயணம் முடிந்தது",
+    "ok": true
+  },
+  {
+    "key": "ride_lifecycle_panel.course_annulee",
+    "fr": "Course annulée",
+    "translation": "பயணம் ரத்துசெய்யப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "ride_lifecycle_panel.annulee_par_le_chauffeur",
+    "fr": "Annulée par le chauffeur",
+    "translation": "ஓட்டுநரால் ரத்துசெய்யப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "call_summary_modal.synthese_ia_en_cours",
+    "fr": "Synthèse IA en cours…",
+    "translation": "AI சுருக்கம் செயல்பாட்டில் உள்ளது…",
+    "ok": true
+  },
+  {
+    "key": "call_summary_modal.pret",
+    "fr": "Prêt",
+    "translation": "தயார்",
+    "ok": true
+  },
+  {
+    "key": "call_summary_modal.echec",
+    "fr": "Échec",
+    "translation": "தோல்வி",
+    "ok": true
+  },
+  {
+    "key": "call_summary_modal.pas_de_resume_disponible",
+    "fr": "Pas de résumé disponible",
+    "translation": "சுருக்கம் எதுவும் கிடைக்கவில்லை",
+    "ok": true
+  },
+  {
+    "key": "call_summary_modal.resume_partage_dans_la_conversation",
+    "fr": "Résumé partagé dans la conversation.",
+    "translation": "உரையாடலில் சுருக்கம் பகிரப்பட்டது.",
+    "ok": true
+  },
+  {
+    "key": "call_summary_modal.partage",
+    "fr": "Partagé ✓",
+    "translation": "பகிரப்பட்டது ✓",
+    "ok": true
+  },
+  {
+    "key": "deposit_return.paiement_annule",
+    "fr": "Paiement annulé",
+    "translation": "பணம் ரத்துசெய்யப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "deposit_return.tu_as_annule_le_paiement_aucun_mont",
+    "fr": "Tu as annulé le paiement. Aucun montant n'a été débité.",
+    "translation": "நீங்கள் கட்டணத்தை ரத்துசெய்துவிட்டீர்கள். எந்தத் தொகையும் கழிக்கப்படவில்லை.",
+    "ok": true
+  },
+  {
+    "key": "deposit_return.paiement_echoue",
+    "fr": "Paiement échoué",
+    "translation": "கட்டணம் தோல்வியடைந்தது",
+    "ok": true
+  },
+  {
+    "key": "deposit_return.la_transaction_a_expire_avant_confi",
+    "fr": "La transaction a expiré avant confirmation.",
+    "translation": "உறுதிப்படுத்துவதற்கு முன் பரிவர்த்தனை காலாவதியானது.",
+    "ok": true
+  },
+  {
+    "key": "tap_challenge.preparation",
+    "fr": "Préparation…",
+    "translation": "தயாராகிறது...",
+    "ok": true
+  },
+  {
+    "key": "tap_challenge.defi_tap_challenge",
+    "fr": "Défi Tap Challenge",
+    "translation": "டேப் சவால்",
+    "ok": true
+  },
+  {
+    "key": "tap_challenge.creation_du_defi",
+    "fr": "Création du défi…",
+    "translation": "சவால் உருவாக்கப்படுகிறது...",
+    "ok": true
+  },
+  {
+    "key": "tap_challenge.defier_un_ami",
+    "fr": "Défier un ami",
+    "translation": "நண்பருக்கு சவால் விடுங்கள்",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenges.termines",
+    "fr": "Terminés",
+    "translation": "முடிக்கப்பட்டவை",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenges.aucun_defi_en_attente",
+    "fr": "Aucun défi en attente.",
+    "translation": "நிலுவையில் உள்ள சவால்கள் எதுவும் இல்லை.",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenges.aucun_defi_en_cours",
+    "fr": "Aucun défi en cours.",
+    "translation": "நடந்துகொண்டிருக்கும் சவால்கள் எதுவும் இல்லை.",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenges.aucun_defi_termine",
+    "fr": "Aucun défi terminé.",
+    "translation": "முடிக்கப்பட்ட சவால்கள் எதுவும் இல்லை.",
+    "ok": true
+  },
+  {
+    "key": "quiz_challenges.a_vous_de_jouer",
+    "fr": "À vous de jouer",
+    "translation": "உங்கள் முறை",
+    "ok": true
+  },
+  {
+    "key": "public_ride_track.chauffeur_arrive_bientot",
+    "fr": "Chauffeur arrive bientôt",
+    "translation": "ஓட்டுநர் விரைவில் வந்துவிடுவார்",
+    "ok": true
+  },
+  {
+    "key": "public_ride_track.course_terminee",
+    "fr": "Course terminée 🎉",
+    "translation": "பயணம் முடிந்தது 🎉",
+    "ok": true
+  },
+  {
+    "key": "public_ride_track.course_annulee",
+    "fr": "Course annulée",
+    "translation": "பயணம் ரத்து செய்யப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "public_ride_track.lien_expire",
+    "fr": "Lien expiré",
+    "translation": "இணைப்பு காலாவதியானது",
+    "ok": true
+  },
+  {
+    "key": "call_context.acces_camera_micro_refuse_autorisez",
+    "fr": "Accès caméra/micro refusé. Autorisez-les dans les réglages du navigateur.",
+    "translation": "கேமரா/மைக் அணுகல் மறுக்கப்பட்டது. உலாவியின் அமைப்புகளில் அவற்றை அனுமதிக்கவும்.",
+    "ok": true
+  },
+  {
+    "key": "call_context.acces_micro_refuse_autorisez_le_dan",
+    "fr": "Accès micro refusé. Autorisez-le dans les réglages du navigateur.",
+    "translation": "மைக் அணுகல் மறுக்கப்பட்டது. உலாவியின் அமைப்புகளில் அதை அனுமதிக்கவும்.",
+    "ok": true
+  },
+  {
+    "key": "call_context.acces_camera_micro_refuse",
+    "fr": "Accès caméra/micro refusé.",
+    "translation": "கேமரா/மைக் அணுகல் மறுக்கப்பட்டது.",
+    "ok": true
+  },
+  {
+    "key": "call_context.acces_micro_refuse",
+    "fr": "Accès micro refusé.",
+    "translation": "மைக் அணுகல் மறுக்கப்பட்டது.",
+    "ok": true
+  },
+  {
+    "key": "messaging_api.prenom",
+    "fr": "Prénom",
+    "translation": "முதல் பெயர்",
+    "ok": true
+  },
+  {
+    "key": "messaging_api.taches_en_attente",
+    "fr": "Tâches en attente",
+    "translation": "நிலுவையிலுள்ள பணிகள்",
+    "ok": true
+  },
+  {
+    "key": "messaging_api.envoyee",
+    "fr": "Envoyée",
+    "translation": "அனுப்பப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "messaging_api.echec",
+    "fr": "Échec",
+    "translation": "தோல்வி",
+    "ok": true
+  },
+  {
+    "key": "messaging_api.cote_d",
+    "fr": "Côte d\\",
+    "translation": "கடற்கரை",
+    "ok": true
+  },
+  {
+    "key": "media_filters.cinema",
+    "fr": "Cinéma",
+    "translation": "சினிமா",
+    "ok": true
+  },
+  {
+    "key": "media_filters.beaute",
+    "fr": "Beauté",
+    "translation": "அழகு",
+    "ok": true
+  },
+  {
+    "key": "media_filters.sepia",
+    "fr": "Sépia",
+    "translation": "செபியா",
+    "ok": true
+  },
+  {
+    "key": "quiz_champion.senegal",
+    "fr": "Sénégal",
+    "translation": "செனகல்",
+    "ok": true
+  },
+  {
+    "key": "quiz_champion.cote_d",
+    "fr": "Côte d\\",
+    "translation": "கோட் டி'ஐவோர்",
+    "ok": true
+  },
+  {
+    "key": "quiz_champion.benin",
+    "fr": "Bénin",
+    "translation": "பெனின்",
+    "ok": true
+  },
+  {
+    "key": "my_duels_sent.expire",
+    "fr": "Expiré",
+    "translation": "காலாவதியானது",
+    "ok": true
+  },
+  {
+    "key": "my_duels_sent.termine",
+    "fr": "Terminé",
+    "translation": "முடிந்தது",
+    "ok": true
+  },
+  {
+    "key": "my_duels_sent.defi_quotidien",
+    "fr": "Défi quotidien",
+    "translation": "தினசரி சவால்",
+    "ok": true
+  },
+  {
+    "key": "analytics_pane.emails_envoyes",
+    "fr": "Emails envoyés",
+    "translation": "மின்னஞ்சல்கள் அனுப்பப்பட்டன",
+    "ok": true
+  },
+  {
+    "key": "analytics_pane.delivres",
+    "fr": "Délivrés",
+    "translation": "வழங்கப்பட்டது",
+    "ok": true
+  },
+  {
+    "key": "analytics_pane.desabonnements",
+    "fr": "Désabonnements",
+    "translation": "குழுவிலகல்கள்",
+    "ok": true
+  },
+  {
+    "key": "translate_button.francais",
+    "fr": "Français",
+    "translation": "பிரெஞ்சு",
+    "ok": true
+  },
+  {
+    "key": "translate_button.portugues",
+    "fr": "Português",
+    "translation": "போர்த்துகீசியம்",
+    "ok": true
+  },
+  {
+    "key": "translate_button.espanol",
+    "fr": "Español",
+    "translation": "ஸ்பானிஷ்",
+    "ok": true
+  }
+]

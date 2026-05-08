@@ -1,0 +1,33 @@
+{
+  "summary": "iter217 — Viral deep-link Reels: full backend + frontend e2e validation. 8/8 backend pytest tests PASS (OG meta tags, fallback for unknown reel, redirect mechanisms, public-no-auth contract, https-absolute video URL, GET /api/feed/reels/{id} CRUD + 401/404). Frontend Playwright PASS on real preview URL: navigation to /reels/reel_b86b57f1c4a8 deep-links to that reel (visible reel-testid present, top-most in viewport), share btn now passes /api/og/reel/{id} URL to navigator.share (verified by stub capture), backend POST /api/feed/reels/{id}/share fires, and navigation to an unknown reel falls back to the normal list (3 reels rendered, no crash, no error toast).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_reels_deeplink_og_iter217.py",
+    "/app/test_reports/pytest/iter217.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "/api/og/reel/{id} correctly emits og:type=video.other, og:video, og:video:secure_url, og:video:type=video/mp4, twitter:card=player and twitter:player:stream — exactly the tag set iMessage iOS / Twitter / Telegram require for the inline video preview. Verified absolute https URL on og:video (https://japap-refactor.emergent.host/api/upload/files/...mp4). Strong viral-loop foundation.",
+    "Fallback for unknown reel returns 200 (NOT 404) with title 'JAPAP — Reel introuvable' — correct: WhatsApp/Twitter cache permanent 404s for days/weeks, so a 200 fallback prevents poisoned cache entries.",
+    "ReelsPage.shareReel (line 271) builds the share URL from window.location.origin + '/api/og/reel/{id}' — confirmed via Playwright stub that navigator.share receives this URL. Good: the SPA URL /reels/{id} is reserved for real users via meta-refresh + window.location.replace fallback in the OG HTML.",
+    "deepLinkConsumed.current ref is set to true only after the scroll-into-view runs (ReelsPage.js:200), so swiping continues to load other reels. load() prepends the deep-link reel via single-shot fetch GET /api/feed/reels/{id} — clean and idempotent.",
+    "GET /api/feed/reels/{reel_id} requires auth (401 without cookie/Bearer) — correct, as it returns the same shape used by the authed feed list (with is_liked etc). The PUBLIC scraper-facing endpoint is /api/og/reel/{id} only.",
+    "feed_extended.py:178 shares_count = d.get('shares_count') or 0 — null-safe coalesce on the single-reel endpoint mirrors list endpoint (regression-safe with the iter215 ALTER TABLE migration cache).",
+    "Minor (already noted in iter216): shares_count optimistic +1 in shareReel can be stomped on next list refresh because backend is idempotent per (reel_id, user_id). Not a regression of iter217."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_reels_deeplink_og_iter217.py"
+  ],
+  "success_rate": { "backend": "100% (8/8)", "frontend": "100% (deep-link scroll, OG share URL, fallback unknown reel)" },
+  "test_credentials": "bob@japap.com / Test1234! ; captcha bypass JAPAP_E2E_BYPASS_2026 / 0",
+  "seed_data_creation": "1 idempotent share POST on reel_b86b57f1c4a8; no new persistent test data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend URL = REACT_APP_BACKEND_URL from /app/frontend/.env. To run iter217 pytest: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest backend/tests/test_reels_deeplink_og_iter217.py -p asyncio -p anyio -v (the autoload flag is needed because web3.tools.pytest_ethereum is broken in the venv and pytest fails to collect otherwise; 8/8 pass in ~7s). For Playwright deep-link, override navigator.share via add_init_script BEFORE goto, push captured URLs into window.__sharedUrls, then go to /reels/reel_b86b57f1c4a8. The reel will be at top of viewport on first paint and shareReel will pass /api/og/reel/{id} as the URL field. Note: sample reel reel_b86b57f1c4a8 caption='Yes', user '@mirtoken2022ef75' (NOT 'Daf Unity' as the spec says — minor doc mismatch only).",
+  "rca of the issue": "Not a bug — full feature validation. The viral loop is correctly wired: SPA share button → /api/og/reel/{id} URL → social scraper reads og:video for inline iMessage/Twitter player → real users tap → meta-refresh + JS replace → SPA /reels/{id} → deepLinkConsumed.current scrolls to that reel."
+}

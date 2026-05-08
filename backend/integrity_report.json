@@ -1,0 +1,236 @@
+{
+  "timestamp": "2026-04-20T18:27:00.490292+00:00",
+  "count_tests": {
+    "total": 23,
+    "passed": 22,
+    "details": [
+      {
+        "source": "Wo_Users",
+        "target": "users",
+        "source_count": 6219,
+        "target_count": 6233,
+        "ratio": 1.002,
+        "threshold": 0.99,
+        "pass": true
+      },
+      {
+        "source": "Wo_Payment_Transactions",
+        "target": "transactions",
+        "source_count": 591,
+        "target_count": 648,
+        "ratio": 1.096,
+        "threshold": 0.9,
+        "pass": true
+      },
+      {
+        "source": "Wo_Payments",
+        "target": "subscriptions",
+        "source_count": 47,
+        "target_count": 48,
+        "ratio": 1.021,
+        "threshold": 0.95,
+        "pass": true
+      },
+      {
+        "source": "Wo_Followers",
+        "target": "contacts",
+        "source_count": 41120,
+        "target_count": 37345,
+        "ratio": 0.908,
+        "threshold": 0.85,
+        "pass": true
+      },
+      {
+        "source": "Wo_Posts",
+        "target": "posts",
+        "source_count": 18715,
+        "target_count": 18156,
+        "ratio": 0.97,
+        "threshold": 0.9,
+        "pass": true
+      },
+      {
+        "source": "Wo_Comments",
+        "target": "post_comments",
+        "source_count": 2386,
+        "target_count": 2162,
+        "ratio": 0.906,
+        "threshold": 0.85,
+        "pass": true
+      },
+      {
+        "source": "Wo_Products",
+        "target": "products",
+        "source_count": 39,
+        "target_count": 38,
+        "ratio": 0.974,
+        "threshold": 0.9,
+        "pass": true
+      },
+      {
+        "source": "Wo_UserOrders",
+        "target": "orders",
+        "source_count": 5,
+        "target_count": 9,
+        "ratio": 1.8,
+        "threshold": 0.8,
+        "pass": true
+      },
+      {
+        "source": "Wo_Hashtags",
+        "target": "hashtags",
+        "source_count": 1154,
+        "target_count": 1142,
+        "ratio": 0.99,
+        "threshold": 0.98,
+        "pass": true
+      },
+      {
+        "source": "Wo_Groups",
+        "target": "social_groups",
+        "source_count": 19,
+        "target_count": 19,
+        "ratio": 1.0,
+        "threshold": 0.95,
+        "pass": true
+      },
+      {
+        "source": "Wo_Group_Members",
+        "target": "social_group_members",
+        "source_count": 1109,
+        "target_count": 1047,
+        "ratio": 0.944,
+        "threshold": 0.8,
+        "pass": true
+      },
+      {
+        "source": "Wo_Pages",
+        "target": "pages",
+        "source_count": 33,
+        "target_count": 33,
+        "ratio": 1.0,
+        "threshold": 0.95,
+        "pass": true
+      },
+      {
+        "source": "Wo_Pages_Likes",
+        "target": "page_likes",
+        "source_count": 657,
+        "target_count": 16,
+        "ratio": 0.024,
+        "threshold": 0.8,
+        "pass": false
+      },
+      {
+        "source": "Wo_Blog",
+        "target": "blog_articles",
+        "source_count": 608,
+        "target_count": 608,
+        "ratio": 1.0,
+        "threshold": 0.95,
+        "pass": true
+      },
+      {
+        "source": "Wo_Events",
+        "target": "events",
+        "source_count": 9,
+        "target_count": 9,
+        "ratio": 1.0,
+        "threshold": 0.95,
+        "pass": true
+      },
+      {
+        "source": "Wo_Blocks",
+        "target": "user_blocks",
+        "source_count": 30,
+        "target_count": 30,
+        "ratio": 1.0,
+        "threshold": 0.95,
+        "pass": true
+      },
+      {
+        "source": "Wo_Funding",
+        "target": "campaigns",
+        "source_count": 5,
+        "target_count": 5,
+        "ratio": 1.0,
+        "threshold": 0.95,
+        "pass": true
+      },
+      {
+        "source": "Wo_Funding_Raise",
+        "target": "campaign_contributions",
+        "source_count": 5,
+        "target_count": 5,
+        "ratio": 1.0,
+        "threshold": 0.95,
+        "pass": true
+      },
+      {
+        "source": "Wo_AgoraVideoCall",
+        "target": "calls",
+        "source_count": 16,
+        "target_count": 16,
+        "ratio": 1.0,
+        "threshold": 0.9,
+        "pass": true
+      },
+      {
+        "source": "crypto_payments",
+        "target": "crypto_payments",
+        "source_count": 60,
+        "target_count": 60,
+        "ratio": 1.0,
+        "threshold": 0.95,
+        "pass": true
+      },
+      {
+        "source": "bank_receipts",
+        "target": "bank_receipts",
+        "source_count": 9,
+        "target_count": 9,
+        "ratio": 1.0,
+        "threshold": 0.95,
+        "pass": true
+      },
+      {
+        "source": "exchange_country",
+        "target": "exchange_countries",
+        "source_count": 161,
+        "target_count": 161,
+        "ratio": 1.0,
+        "threshold": 0.95,
+        "pass": true
+      },
+      {
+        "source": "withdraw_country",
+        "target": "withdraw_countries",
+        "source_count": 6,
+        "target_count": 6,
+        "ratio": 1.0,
+        "threshold": 0.95,
+        "pass": true
+      }
+    ]
+  },
+  "integrity_tests": {
+    "total": 9,
+    "passed": 9
+  },
+  "consistency_tests": [
+    [
+      "likes_count",
+      0
+    ],
+    [
+      "comments_count",
+      0
+    ],
+    [
+      "campaigns_raised",
+      0
+    ]
+  ],
+  "total_balance": "2316555054203.00",
+  "legacy_users": 6219
+}

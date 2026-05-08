@@ -1,0 +1,50 @@
+{
+  "summary": "iter213 — Verified Parrainage/Referrals tab fix (no longer crashes). Audited ALL 27 admin tabs — found 1 NEW CRITICAL crash in Messaging tab (FIXED by testing agent). Found 1 additional shadowing bug in public ReferralPage.js (NOT fixed — main agent action needed).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "ReferralPage (public /referral)",
+        "issue": "SAME SHADOWING BUG as original ticket. Line 314 `tiers.map((t, i) => ...)` shadows `const { t } = useTranslation()` from line 34, and line 336 calls `t('referral.reclamation')` inside the map — will crash in minified prod build with 'e is not a function' whenever a user has a claimable tier.",
+        "selector": "/app/frontend/src/pages/ReferralPage.js:314 (.map) + :336 (t('referral.reclamation'))",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Admin Engagement/Errors tab",
+        "issue": "React hydration warning: 'In HTML, <span> cannot be a child of <option>'. Non-blocking console noise but indicates malformed select/option markup somewhere.",
+        "selector": "see console log",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/frontend/src/components/admin/messaging/messagingApi.js"
+  ],
+  "action_items": [
+    "Fix /app/frontend/src/pages/ReferralPage.js:314 — rename the `.map((t, i) => ...)` iteration variable `t` to `tier` (or similar) and update all references inside the callback to avoid shadowing the useTranslation `t`. Specifically line 336 `t('referral.reclamation')` will crash in minified prod. Also review lines 315-340 which use `t.count`, `t.reward_type`, `t.reward_value`, `t.label`.",
+    "(Optional) Find and fix the hydration warning '<span> cannot be a child of <option>'. Likely an AdminPage.js or Engagement/Errors tab select-option using rich content.",
+    "Consider adding an ESLint rule (e.g., no-shadow) or grep-based CI check for `.map((t[,)]` + `useTranslation` in the same file to prevent this class of bug."
+  ],
+  "critical_code_review_comments": [
+    "Root cause pattern repeats: shadowing `t` (from useTranslation) with a map iteration variable. Found in 3 places across iter213: ReferralTiersEditor (fixed by main), SupportAdminTab (fixed by main), ReferralPage.js (NOT fixed). Recommend adding eslint-plugin-react no-shadow rule.",
+    "messagingApi.js had a dead-code `const { t } = useTranslation();` inside StatusBadge component without importing useTranslation and without using `t`. This is a leftover from an i18n migration. Should audit repo for similar dead imports/hooks."
+  ],
+  "updated_files": [
+    "/app/frontend/src/components/admin/messaging/messagingApi.js (removed unused `const { t } = useTranslation();` line 58 which was causing Messaging admin tab to crash with 'useTranslation is not defined')"
+  ],
+  "success_rate": {
+    "backend": "N/A (frontend-only testing)",
+    "frontend": "100% (27/27 admin tabs working after testing-agent fix)"
+  },
+  "test_credentials": "admin@japap.com / JapapAdmin2024! (via API login with captcha bypass JAPAP_E2E_BYPASS_2026/0)",
+  "seed_data_creation": "None — no test data persisted (tiers add/delete cycle cleaned up).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Admin login works via API login (/api/auth/login with captcha bypass) → cookies auto-attach to Playwright context → goto /admin works. All 27 admin tabs verified: dashboard, users, transactions, wallet-overview, revenue, support, kyc, wheel, engagement, recruit, quiz-champion, spin, pro, referrals, connect, ads, transport, payments, mkt-disputes, payment-health, messaging, migration-broadcast, staking, stats, settings, errors, audit. Referrals tab (the original bug) is confirmed FIXED — ReferralTiersEditor renders correctly, tiers load from /api/admin/settings, add/edit/delete tier all work. Messaging tab was crashing with 'useTranslation is not defined' (dead-code in messagingApi.js StatusBadge component) — FIXED by removing the unused hook call. REMAINING BUG (not fixed by testing agent because it requires main agent): /app/frontend/src/pages/ReferralPage.js:314/336 has same shadowing pattern as the original bug — should be patched BEFORE user exercises /referral with a claimable tier.",
+  "rca of the issue": "Original Parrainage crash RCA: In minified JS build, `const { t } = useTranslation()` + `.map((t, idx) => ...)` inside JSX that calls `t('i18n.key')` → local map parameter shadows outer `t` function → tier object is called as function → throws 'e is not a function' (e = minified name for the iteration var). Fix applied (rename `t` → `tier`/`ticket` in map callbacks) verified working in ReferralTiersEditor and SupportAdminTab. During admin tab audit, discovered secondary instance: messagingApi.js:58 had `const { t } = useTranslation()` inside StatusBadge without importing useTranslation (dead code from old i18n migration) — crashed Messaging admin tab with ReferenceError 'useTranslation is not defined'. Testing agent removed the dead line. Third instance identified but NOT fixed (scope): /app/frontend/src/pages/ReferralPage.js:314 — public referral page has same `map((t, i))` shadowing pattern and calls `t('referral.reclamation')` inside the map body — will crash for users with claimable tiers."
+}

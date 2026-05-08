@@ -1,0 +1,40 @@
+{
+  "summary": "Iteration 37 — Feed Phase 1 + 2 (post management + AI assistant) tested end-to-end. Backend: 25/25 pytest cases PASSED in 17.6s — covering POST/PUT/DELETE /api/feed/posts (owner/non-owner/404), POST /pin toggle, POST /share for target=feed (creates new share post + increments shares_count) and target=group/page/dm (returns Phase-3 hook note without creating a post), invalid target → 400, plus /api/ai/improve-text 4 actions through real Claude Sonnet 4.5 (correct turned 'je part au marche' into 'Je pars au marché', generate/suggest/rephrase all returned non-empty text), auth gate (401 without cookie), empty text → 400. Smart + recent feed regression OK; like + comments regression OK. Frontend (/feed mobile 390x844, bob@japap.com): all required composer testids present (create-post, post-input, publish-button, file-upload-input, video-upload-input, emoji-btn, ai-improve-btn). AI flow works end-to-end: ai-improve-popover opens, all 4 ai-action-* buttons present, clicking 'correct' on 'je part au marche' shows ai-improve-preview within ~3s with ai-apply + ai-retry, and ai-apply replaces composer text with 'Je pars au marché.'. Owner post menu (post-menu-btn-{id} → post-menu-{id}) shows post-edit-{id}/post-pin-{id}/post-share-{id}/post-delete-{id}; pin toggle adds pinned-badge-{id} (Épinglé) on the card; post-edit opens edit-post-modal with edit-post-textarea + edit-post-save, save shows 'Publication modifiée' toast and the card text updates live. Non-owner menu (Admin's post viewed by bob) correctly shows ONLY 'Partager' (no edit/pin/delete). Share button on a card opens share-post-modal with all 4 share-target-* (feed/group/page/dm); selecting feed reveals share-caption + share-confirm. FAB (fab-main-button) opens speed-dial with fab-create-post / fab-create-reel / fab-create-story. Sort tabs feed-sort-smart / feed-sort-recent both reload the feed. Feed Phase 1+2 fully validated.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/feed (any user)", "issues": ["Console shows recurring 500 responses on socket.io polling (wss /api/socket.io/ also fails with 'WebSocket closed before connection established'). Pre-existing & out of Phase 1+2 scope (already noted in iter36) — not caused by the new feed code, but should be investigated separately."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration37_feed_phase12.py",
+    "/app/test_reports/pytest/iter37.xml"
+  ],
+  "action_items": [
+    "(Polish) Investigate the recurring 500s + websocket failure on socket.io polling visible on every authenticated page load (pre-existing, not from this iteration).",
+    "(Doc) The frontend menu items use per-post testids (post-edit-{id}, post-pin-{id}, post-share-{id}, post-delete-{id}) — the original review_request listed them un-suffixed (post-edit/post-pin/...). The implementation is correct (avoids duplicate IDs across cards) but the review_request wording should be updated for next testing agents."
+  ],
+  "critical_code_review_comments": [
+    "routes/feed.py share_post: when target=feed, the new 'share' post stores reference via media[].type='shared_post'. Solid hack but the Post pydantic model & DB column type='share' is good — recommend ensuring the renderer (feed card) actually detects type='share' to display a quoted card; otherwise the share post will appear as a normal post with no visible quote. Worth verifying once Phase 3 lands.",
+    "routes/feed.py share_post does NOT verify req.target_id is provided when target in ('group','page','dm'). Currently target_id can be None and the endpoint returns a happy {shared:true} — fine for the Phase-3 stub, but add a 400 once delivery is wired.",
+    "routes/ai.py: anthropic model id is hard-coded ('claude-sonnet-4-5-20250929'). Consider env override (AI_TEXT_MODEL) for easy A/B and emergency rollback.",
+    "routes/ai.py: long replies aren't truncated server-side — relies on prompt instructions only. For 'correct' action a malicious very long French paragraph could come back >280 chars. Consider hard-clamping improved[:1000] or max_tokens at SDK level.",
+    "PostMenu.jsx mousedown-outside listener uses ref containment but EditPostModal & SharePostModal both stop propagation on inner click; backdrop click closes via onClose on the outer div — works fine, just confirms behaviour.",
+    "CreateFab.jsx uses 'mousedown' to close on outside click — works on desktop, but on touch devices a 'touchstart' listener is also recommended to avoid the menu lingering after a tap outside (mousedown still fires on most mobile browsers, so low-impact)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration37_feed_phase12.py (new)"
+  ],
+  "success_rate": {"backend": "100% (25/25)", "frontend": "100% (all 7 flows: composer testids, AI 4 actions + apply, owner menu edit+pin+save, non-owner menu = share only, share modal + 4 targets, FAB speed-dial, sort tabs)"},
+  "test_credentials": "bob@japap.com / Test1234! ; alice@japap.com / Test1234!",
+  "seed_data_creation": "Created several TEST_iter37_* posts via bob's account (text-only, no media). They live in the public feed and were used for edit/pin/share/delete coverage. Safe to leave; prefixed with TEST_iter37_ for cleanup.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 37 is GREEN end-to-end. /api/ai/improve-text via real Claude Sonnet 4.5 + EMERGENT_LLM_KEY responds in 1.5-3s for short prompts (test suite finishes in ~17s including 4 AI calls). Frontend menu items use per-post testids: post-{action}-{post_id}. The smart-sort feed re-ranks fresh posts down so when you need to test owner-actions, switch to feed-sort-recent first OR scan all post-menu-btns until you find one that exposes post-edit-* (= bob's). Phase-3 share to group/page/dm intentionally returns a stub note — do not retest as a bug.",
+  "rca of the issue": "N/A — no defects found in iteration 37 scope."
+}

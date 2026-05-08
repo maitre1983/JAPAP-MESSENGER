@@ -1,0 +1,36 @@
+{
+  "summary": "iter160 P0 USD-canonical wallet + auto-deposits regression — backend only. Built /app/backend/tests/test_wallet_usd_canonical.py covering 26 tests. Result: 25 PASSED / 1 SKIPPED (intentional). All P0 acceptance criteria validated: balance_usd canonical fields, display-currency accept/reject, conversion-preview hubtel→GHS & USDT 1:1 with reasonable rate range (5<rate<30), invalid-amount 400, deposit creation persistence (amount_usd, provider, currency=USD, display_currency=USD, display_amount, provider_currency=GHS, exchange_rate>0), admin manual approve/reject endpoints return 410 (MANUAL_DEPOSIT_APPROVAL_DISABLED), DB sanity (DISTINCT currency in wallets = ['USD']), 24h TTL auto-expire logic present in payment_verify_retry_worker.py (DEPOSIT_TTL_HOURS, _sweep_expired_deposits, INTERVAL hours, status='expired'), and /transactions returns amount_usd + display_amount per row.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/wallet/deposit", "issue": "Methods usdt_trc20 and usdt_bep20 are currently DISABLED in admin_settings (deposit_usdt_trc20_enabled=false, deposit_usdt_bep20_enabled=false). Only hubtel_card is enabled. Not a refactor regression — admin policy. Worth confirming this is intentional before launch since the spec implies USDT must remain a working option."},
+      {"endpoint": "/api/wallet/deposit/{tx_id}/status", "issue": "Response key is `tx_status` (not `status`) + `payment_status` for the live provider probe. Frontend code MUST consume `tx_status` to read the DB-side state — ensure no caller still reads `status`."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_wallet_usd_canonical.py",
+    "/app/test_reports/pytest/iter160_wallet_usd.xml"
+  ],
+  "action_items": [
+    "OPTIONAL — Decide whether usdt_trc20 / usdt_bep20 should be re-enabled in admin_settings before launch. Currently only hubtel_card is allowed. If yes: UPDATE admin_settings SET value='true' WHERE key IN ('deposit_usdt_trc20_enabled','deposit_usdt_bep20_enabled');",
+    "OPTIONAL — Audit frontend WalletPage to confirm it reads `tx_status` (not `status`) from /deposit/{id}/status."
+  ],
+  "critical_code_review_comments": [
+    "wallet.py at 2297 lines — exceeds the 700-line ceiling. Recommend splitting into wallet_balance.py / wallet_deposit.py / wallet_send.py / wallet_payment_requests.py / wallet_status.py.",
+    "POST /wallet/display-currency: server-side allowlist is permissive (any 3-letter ISO code is accepted), so 'XYZ' or 'ZZZ' would be stored. Consider validating against a whitelist of supported currencies (USD/EUR/XAF/GHS/NGN/...) to avoid silent display fallbacks.",
+    "/wallet/deposit/conversion-preview: cap at amount<=10000 is correct, but a single value is hardcoded. Consider sourcing from a setting (deposit_max_amount_usd) for parity with the deposit endpoint's deposit_min_amount_usd.",
+    "/wallet/deposit hubtel branch: when initiate_checkout raises HubtelAPIError (network), the pending TX has provider='hubtel' but provider_currency/exchange_rate stay NULL. Document this in the reconcile docs so the retry worker treats it correctly.",
+    "wallet_admin.py /deposits/{tx_id}/approve and /reject: correctly return 410 with explicit message — good. Recommend adding equivalent kill in /admin/wallet routes if any older internal-tool curl path exists."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_wallet_usd_canonical.py (created)"
+  ],
+  "success_rate": {"backend": "100% (25/25 executed, 1 environment-skipped)", "frontend": "N/A — backend only"},
+  "test_credentials": "bob@japap.com / Test1234!  ;  admin@japap.com / JapapAdmin2024!  ;  Bypass: captcha_id='JAPAP_E2E_BYPASS_2026', captcha_answer='0'",
+  "seed_data_creation": "Tests create transactions tagged with 'TEST_iter160' in notes; cleaned automatically in module teardown (DELETE pending TEST_iter160% rows).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run with: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest tests/test_wallet_usd_canonical.py -p asyncio -p no:cacheprovider --tb=short. The web3 package's pytest_ethereum plugin breaks pytest auto-discovery (ImportError: ContractName from eth_typing) → always set PYTEST_DISABLE_PLUGIN_AUTOLOAD=1. usdt_trc20/usdt_bep20 are admin-disabled (503 'temporairement désactivée'); deposit creation tests use hubtel_card. /deposit/{id}/status returns `tx_status`, not `status`.",
+  "rca_of_the_issue": "N/A — no bugs found. The P0 USD-canonical refactor (iter158-159) is intact: wallets store USD only, /balance returns balance_usd + display_amount + display_currency, conversion preview returns correct GHS rate (~10-15 GHS/USD) for hubtel and 1:1 for USDT, deposit creation persists amount_usd + provider + display_currency='USD', admin manual validation endpoints return 410, and 24h TTL expire logic is correctly wired in payment_verify_retry_worker._sweep_expired_deposits. No admin endpoint allows manual credit anymore."
+}

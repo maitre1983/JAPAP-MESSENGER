@@ -1,0 +1,61 @@
+{
+  "name": "JAPAP Messenger",
+  "short_name": "JAPAP",
+  "id": "/?source=pwa",
+  "description": "JAPAP Super-App — messagerie, wallet, services, jeux, transport, JAPAP Staking.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#0F056B",
+  "theme_color": "#0F056B",
+  "lang": "fr",
+  "dir": "ltr",
+  "categories": ["social", "finance", "communication", "lifestyle"],
+  "prefer_related_applications": false,
+  "launch_handler": { "client_mode": "navigate-existing" },
+  "icons": [
+    {
+      "src": "/japap-logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/japap-logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Messenger",
+      "short_name": "Chat",
+      "url": "/chat",
+      "icons": [{ "src": "/pwa-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Wallet",
+      "url": "/wallet",
+      "icons": [{ "src": "/pwa-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Jeux",
+      "url": "/games",
+      "icons": [{ "src": "/pwa-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Services",
+      "url": "/services",
+      "icons": [{ "src": "/pwa-icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

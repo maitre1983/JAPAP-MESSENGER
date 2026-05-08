@@ -1,0 +1,73 @@
+{
+  "summary": "Go-Live gate testing for iter94. Validated Turnstile guards on /api/auth/login|register|forgot-password (400 no token, 401 invalid), regression on 6 other auth endpoints (verify-otp, verify-2fa, refresh, logout, reset-password, me — all clear of Turnstile). Validated smart image pipeline for kind=post|profile|cover using JWT-minted auth (Turnstile blocks curl login). Landscape 2000x1400 → actual WebP file is 1600x1120 (correct) ; portrait 1200x2400 → 800x1600 (correct) ; thumb 400x400 (<20KB) ; main ≤ 250KB ; profile 512x512 + 128x128 OK ; cover 1280x480 + 640x240 OK. ETag + 304 Not Modified confirmed externally.",
+  "verdict": "GO LIVE READY with 1 non-blocking bug — API JSON mis-reports width/height for kind=post (returns bounding box 1600x1600 instead of actual 1600x1120 / 800x1600). Actual WebP file bytes are correct so rendering is not broken; but any frontend that uses the numeric width/height from the JSON for layout (e.g. <img width={w} height={h}>) will mis-size.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/upload/image?kind=post",
+        "issue": "Response JSON main.width / main.height return bounding-box constants (1600,1600) instead of actual post-resize dimensions. Actual WebP file on disk is correct (1600x1120 for landscape 2000x1400, 800x1600 for portrait 1200x2400). Root cause: upload.py L434-438 returns processed['dims']['main'] which is _IMAGE_KINDS[kind][2:4] (mw,mh) instead of main_img.size after thumbnail() fit-resize. Fix: replace with main_img.size inside _process_avatar_or_cover, return dims.main as list(main_img.size).",
+        "priority": "MEDIUM"
+      },
+      {
+        "endpoint": "GET /api/upload/files/{filename}",
+        "issue": "External preview URL response has Cache-Control: no-store,no-cache,must-revalidate — overridden by preview ingress/CDN. Backend (localhost:8001) correctly sets 'public, max-age=31536000, immutable'. ETag is preserved externally and 304 conditional requests work. NOT a backend bug — infra-level gateway override, likely differs in production behind japapmessenger.com.",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter94_turnstile_image.py",
+    "/app/backend/tests/run_auth_upload_test.py",
+    "/app/test_reports/pytest/iter94_go_live.xml"
+  ],
+  "test_results": {
+    "turnstile_login_400_no_token": "PASS",
+    "turnstile_login_401_invalid_token": "PASS",
+    "turnstile_register_400_no_token": "PASS",
+    "turnstile_register_401_invalid_token": "PASS",
+    "turnstile_forgot_400_no_token": "PASS",
+    "turnstile_forgot_401_invalid_token": "PASS",
+    "regression_verify_otp_no_turnstile": "PASS",
+    "regression_verify_2fa_no_turnstile": "PASS",
+    "regression_refresh_no_turnstile": "PASS",
+    "regression_logout_no_turnstile": "PASS",
+    "regression_reset_password_no_turnstile": "PASS",
+    "regression_me_no_turnstile": "PASS",
+    "upload_image_kind_hacker_422": "PASS",
+    "upload_post_landscape_actual_dims_1600x1120": "PASS (file correct)",
+    "upload_post_landscape_response_metadata": "FAIL (returns 1600x1600)",
+    "upload_post_portrait_actual_dims_800x1600": "PASS (file correct)",
+    "upload_profile_512x512_regression": "PASS",
+    "upload_cover_1280x480_regression": "PASS",
+    "upload_thumb_400x400_size_<20KB": "PASS (18KB)",
+    "upload_main_<=250KB": "PASS (~215KB)",
+    "etag_header_present": "PASS",
+    "304_not_modified_with_if_none_match": "PASS"
+  },
+  "action_items": [
+    "FIX (post-launch OK): upload.py L358/361 — replace processed['dims']['main'] return value with main_img.size (actual) instead of _IMAGE_KINDS[kind] (bounding box). Only affects kind=post (fit mode); profile/cover use cover_resize so values accidentally coincide.",
+    "OBSERVE: Cache-Control is being overridden by preview ingress to no-store. Verify production (japapmessenger.com) preserves the 'public, max-age=31536000, immutable' set by backend — otherwise CDN cache won't kick in and image bandwidth budget will blow up."
+  ],
+  "critical_code_review_comments": [
+    "middleware/turnstile.py fail-open behaviour when TURNSTILE_SECRET_KEY missing is explicitly logged as warning — acceptable for dev, but ensure prod deployment script verifies the env var exists at boot (no silent bypass).",
+    "routes/upload.py — the 'fit' crop mode in _process_avatar_or_cover properly preserves aspect (uses thumbnail). However, the dims returned to client (line 380) use the TARGET box values, not the actual image size after fit. Harmless for profile/cover (cover_resize == exact target) but buggy for kind=post.",
+    "routes/auth.py — turnstile_token as Optional str in Pydantic + enforcement in endpoint (fail-open if secret missing) is a clean design. Correctly NOT applied to verify-otp / verify-2fa / refresh / reset-password / logout / me — regression confirmed via tests."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter94_turnstile_image.py (new)",
+    "/app/backend/tests/run_auth_upload_test.py (new — direct JWT test bypassing Turnstile for image-pipeline validation)"
+  ],
+  "success_rate": {"backend": "95% (21/22 functional assertions — only the post-image width/height metadata is wrong)", "frontend": "not tested in this pass — main agent already screenshot-validated /login"},
+  "test_credentials": "Alice alice@japap.com user_317b6e0805a3 used via minted JWT (Turnstile blocks curl login — infra limitation)",
+  "seed_data_creation": "5 test upload files persisted to /app/backend/uploads/ (08f78f61*, e8932a70*, c7f8cf57*, e0982317*, and fixtures)",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All Turnstile + image-pipeline backend assertions pass except response-metadata width/height for kind=post. Frontend E2E (TurnstileWidget render + feed upload) NOT run — relies on Cloudflare widget auto-solving on trusted hostnames which takes 3-6s per page. Main agent already screenshot-validated /login Turnstile widget. If frontend E2E is needed next pass, use @marsidev/react-turnstile auto-ready callback hook and wait 6s.",
+  "rca of the issue": "Bug #1 (post metadata): _process_avatar_or_cover returns dims.main = [mw, mh] from _IMAGE_KINDS constant, but for 'fit' crop mode main_img.size after thumbnail() is smaller than (mw, mh). Fix: line 380 `'main': [mw, mh]` → `'main': list(main_img.size)`. 1-line fix. Bug #2 (Cache-Control): preview K8s ingress/CDN injects no-store. Backend is not at fault (confirmed via localhost:8001 returns correct headers)."
+}

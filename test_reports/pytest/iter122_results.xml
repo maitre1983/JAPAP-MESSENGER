@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="iter122_quiz_learning_mode" tests="21" failures="0">
+  <testcase classname="iter122" name="admin login">
+  </testcase>
+  <testcase classname="iter122" name="config has quiz_show_correct_after_wrong (bool)">
+  </testcase>
+  <testcase classname="iter122" name="DEFAULTS: quiz_show_correct_after_wrong = False">
+  </testcase>
+  <testcase classname="iter122" name="regression: quiz_auto_advance_delays_ms still present">
+  </testcase>
+  <testcase classname="iter122" name="delays match documented default [900,800,700,550,400] (info)">
+  </testcase>
+  <testcase classname="iter122" name="PUT {quiz_show_correct_after_wrong: true} returns 200 with true">
+  </testcase>
+  <testcase classname="iter122" name="re-GET confirms toggle=true persisted">
+  </testcase>
+  <testcase classname="iter122" name="PUT 'maybe' is either coerced→true OR strictly rejected (422)">
+  </testcase>
+  <testcase classname="iter122" name="/quiz/start 200 + 5 questions">
+  </testcase>
+  <testcase classname="iter122" name="WRONG + ON: response.correct=false">
+  </testcase>
+  <testcase classname="iter122" name="WRONG + ON: response.correct_option == displayed_correct_idx">
+  </testcase>
+  <testcase classname="iter122" name="WRONG + ON: questions[0].options[co] equals real answer">
+  </testcase>
+  <testcase classname="iter122" name="CORRECT + ON: response.correct=true">
+  </testcase>
+  <testcase classname="iter122" name="CORRECT + ON: correct_option is null (no leak)">
+  </testcase>
+  <testcase classname="iter122" name="brute-force same q0 different opt → 409">
+  </testcase>
+  <testcase classname="iter122" name="idempotent same wrong opt → 200 with correct_option preserved">
+  </testcase>
+  <testcase classname="iter122" name="OFF + WRONG → correct_option=null (default behavior)">
+  </testcase>
+  <testcase classname="iter122" name="OFF + CORRECT → correct_option=null">
+  </testcase>
+  <testcase classname="iter122" name="/quiz/submit 200 with correct_count==3">
+  </testcase>
+  <testcase classname="iter122" name="after submit /answer → 409 'Run déjà soumis'">
+  </testcase>
+  <testcase classname="iter122" name="GET config still has all required keys">
+  </testcase>
+</testsuite>

@@ -1,0 +1,47 @@
+{
+  "summary": "Iter 53 — Sprint B LiveKit audio 1-1 calls. Backend: 10/10 pytest pass on test_iteration53_livekit_sprintB.py (TypeError fix on with_ttl(timedelta) verified). Sprint A regression (test_iteration46) still 6/6 pass. POST /api/calls/token returns the strict schema {token, ws_url, room, identity, expires_at}, JWT well-formed, ws_url=wss://, host+callee both 200, stranger 403, unknown 404, ended-session 410. Caller-side frontend flow works perfectly on mobile 375 (login bob → /chat → tap call-audio-btn → InCallScreen 'Connexion en cours…' renders with mute/speaker/hangup, no 503, no horizontal scroll at 375/768/1920). HOWEVER, the end-to-end 2-party ringing flow is BROKEN: Carol never receives the IncomingCallOverlay because the Socket.io 'authenticate' event is never sent. Root cause: the `access_token` cookie is httpOnly:true (verified — present in cookie jar but invisible to document.cookie which only exposes the PostHog cookie). CallContext.js L311 reads the JWT via document.cookie.split(';').find(c => c.trim().startsWith('access_token='))?.split('=')[1] → returns undefined → `sock.emit('authenticate', {token})` is never called → connected_users[carol_id] is never populated server-side → Bob's call_invite cannot be routed to Carol. Confirmed via WS frame capture: handshake (0/40) goes through but no 42[\"authenticate\",…] frame is ever sent. This blocks the entire ringing path; recipient cannot answer. Pytest backend remains 100% green because the REST contract is independent of the socket auth.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Incoming call (Carol receives Bob's call_invite)",
+        "issue": "Socket.io authenticate event NEVER fires. CallContext.js L311 tries to read access_token from document.cookie, but the cookie is httpOnly so JS cannot see it. Result: server-side connected_users map never gets the user_id → call_invite from Bob has no route → IncomingCallOverlay never appears for Carol. Verified via 2-context Playwright test + WS framesent capture (only 40, 2probe sent — no '42[\"authenticate\",…]'). Same root cause affects ALL real-time messenger features that rely on socket auth (typing indicators, presence, message_seen broadcast to OTHER user, call_incoming, call_accepted, call_reject).",
+        "affected_selectors": ["[data-testid=\"incoming-call-overlay\"]", "[data-testid=\"incoming-call-accept\"]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration53_livekit_sprintB.py",
+    "/app/test_reports/pytest/iter53_livekit.xml",
+    "/app/backend/tests/test_iteration46_messenger_sprint_a.py"
+  ],
+  "action_items": [
+    "P0 BLOCKER: Fix Socket.io authentication path. Two options: (a) Server: read the JWT directly from the access_token cookie inside the @sio.event connect handler (use environ['HTTP_COOKIE']) and authenticate without waiting for the client 'authenticate' emit. (b) Client: pass the token via Socket.io's `auth` payload (`io(API, { auth: { token }, … })`) and have the server read it from sid environ in the connect handler. Option (a) is preferred since the cookie already travels with the WS handshake. After fix, the call_invite → call_incoming flow will work and Carol will see IncomingCallOverlay.",
+    "P2 (cosmetic): The 401 console errors observed in iter46 are the same root cause — they come from the failed authenticate path. Fixing the socket auth will silence them too."
+  ],
+  "critical_code_review_comments": [
+    "services/livekit_service.py L98: with_ttl(timedelta(seconds=ttl_seconds)) — fix is correct and minimal, matches livekit-api SDK contract.",
+    "routes/calls.py /token (L241-280): correct authorization model — host always allowed, callee allowed when sess.metadata.callee_id matches, group members allowed via conversation_participants. Returns 410 for ended sessions, 404 for unknown, 403 for stranger. Schema strictly { token, ws_url, room, identity, expires_at }.",
+    "routes/calls.py mark_left (L305-336): host-leaves-ends-session logic is correct, also calls delete_room defensively (best-effort, swallows errors).",
+    "context/CallContext.js L311: cookie-parsing for socket auth is broken because access_token is httpOnly. This is the P0 blocker.",
+    "context/CallContext.js L155: room.connect(tok.ws_url, tok.token) reads the new schema correctly. Mic publish on L158, mic-denied falls back to endCall('failed') with toast.",
+    "InCallScreen.jsx renders during BOTH 'calling' and 'in-call' states (caller sees 'Connexion en cours…' then the timer). Mute/Speaker/Hangup are present with correct testids.",
+    "IncomingCallOverlay has data-testid=incoming-call-overlay + accept/decline testids — matches review_request contract."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (10/10 iter53 + 6/6 iter46 regression)",
+    "frontend": "50% — caller-side (Bob) flow works including LiveKit room.connect, InCallScreen, no horizontal scroll at 375/768/1920, no 503. Callee-side (Carol) flow is BROKEN due to socket-auth bug — IncomingCallOverlay never appears."
+  },
+  "test_credentials": "bob@japap.com/Test1234! ; carol@japap.com/Test1234! ; admin@japap.com/JapapAdmin2024!",
+  "seed_data_creation": "None — tests use existing bob↔carol conversation. test_iteration53 creates p2p sessions that auto-end on host leave.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest fully green. Caller-side LiveKit flow validated. The single blocker for E2E is the Socket.io auth bug (httpOnly cookie not readable from JS). Once main agent fixes either client (auth: { token } via fetched-from-/api/auth/me) OR server (read cookie in @sio.event connect handler), re-run the 2-context Playwright test that opens 2 browsers, logs in bob+carol, calls /chat on both, and asserts that clicking call-audio-btn on Bob's side makes data-testid=incoming-call-overlay appear on Carol's side within 8s. Direct REST POST to /api/calls/session works (verified via in-page fetch, returns 200). Note also that LiveKit creds in admin_settings DB are valid: GET /api/calls/test-livekit returns ok:true with wss:// url.",
+  "rca of the issue": "ROOT CAUSE — Socket.io ringing flow broken. Reproduction: open 2 isolated browser contexts, login bob and carol, both go to /chat, bob clicks call-audio-btn → bob enters in-call-screen but carol's incoming-call-overlay never renders (waited 12s). Inspecting carol_page WebSocket frames: only `40` (Engine.IO open) and `2probe` are sent — no `42[\"authenticate\",…]` frame ever. Inspecting cookies: `access_token` exists in cookie jar (len=196, httpOnly=True). document.cookie returns only the PostHog non-httpOnly cookie (no access_token). The frontend code at /app/frontend/src/context/CallContext.js L310-313 does: `sock.on('connect', () => { const token = document.cookie.split(';').find(c => c.trim().startsWith('access_token='))?.split('=')[1]; if (token) sock.emit('authenticate', { token }); });` — token is undefined → emit is skipped → server's @sio.event authenticate handler never runs → connected_users[carol_id] is never populated → server's call_invite handler at server.py L359-379 cannot find Carol's sid → Carol never receives the call_incoming event. Mitigation (recommended, server-side): in the @sio.event connect handler, parse the cookie from environ['HTTP_COOKIE'] and decode access_token JWT directly, populating connected_users immediately on connect — that way no client emit is required and the cookie's httpOnly attribute is preserved (security best practice). Alternative (client-side): expose a thin /api/auth/socket-token endpoint that returns the JWT in the response body, then client passes it via `io(API, { auth: { token } })` — slightly less secure since the JWT briefly lives in JS memory, but acceptable. Either fix unblocks Sprint B + restores all real-time features that have been silently broken since pre-iter46."
+}

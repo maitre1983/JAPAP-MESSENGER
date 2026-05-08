@@ -1,0 +1,20 @@
+{
+  "iteration": 135,
+  "summary": "P0 cohérence backend↔frontend — Tap autoritative audit + Admin persistence draft sync.",
+  "tap": {
+    "root_cause": "Aucune incohérence backend détectée — le score, le timer et la session sont déjà 100% backend-authoritative : `start_at` est server-clocked (now UTC), `submit` lock SELECT FOR UPDATE, anti-cheat ceiling = `tap_max_taps_per_second × tap_duration_seconds` (admin-tunable), points = base × validated + bonus. Le frontend ne peut que mentir sur le NOMBRE de taps mais le backend les clamp (max 120 par défaut). Le seul bug latent était le runIdRef race condition (déjà corrigé en iter134).",
+    "fix": "Aucun fix supplémentaire requis sur Tap backend — déjà conforme.",
+    "test": "PUT admin tap_max_taps_per_second=8 → DB persistée → GET reload=8 → joueur submit 150 taps → backend clamp à 80 + cheated=true. Bonus runtime également propagé (test bonus=888 quand admin set threshold custom)."
+  },
+  "admin": {
+    "root_cause": "Bug réel trouvé dans `GamesAdminTab.jsx` (Quiz + Tap) : après sauvegarde, `setData({...data, config: r.data.config})` mais **draft non resync** avec la valeur réellement persistée. Si le serveur clampait/normalisait (ex: int hors bornes ramené à max), l'admin voyait sa valeur tapée — pas la valeur réellement stockée. → L'illusion 'la valeur n'est pas persistée' alors qu'elle l'était bien.",
+    "fix": "Ajout de `setDraft(r.data.config)` après `setData()` dans QuizConfig.save et TapConfig.save. Le draft reflète maintenant exactement ce que le backend a accepté/stocké.",
+    "test": [
+      "Quiz: PUT quiz_points_per_correct=33 → DB→33 → reload=33 ✓",
+      "Tap thresholds: PUT custom list → DB→stored sorted → reload=identique ✓",
+      "Tap duration: PUT 15s → DB→15 → reload=15 ✓",
+      "Cohérence backend↔frontend après save : draft = data.config = DB ✓"
+    ]
+  },
+  "verdict": "STABLE — Backend authoritative confirmé pour Tap. Bug admin draft-sync corrigé. Frontend yarn build clean en 74s."
+}

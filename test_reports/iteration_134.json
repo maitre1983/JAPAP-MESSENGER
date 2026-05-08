@@ -1,0 +1,25 @@
+{
+  "iteration": 134,
+  "summary": "P0 critical stability fixes — Quiz / Wheel / Tap all 3 broken. Root causes identified and fixed.",
+  "quiz": {
+    "root_cause": "ResultView (defined at module scope) referenced `isDaily` from QuizJAPAPPage's local scope. JS lexical scoping prevented access → ReferenceError on render → React crash → white screen after Q5/submit.",
+    "fix": "Pass isDaily as explicit prop to ResultView (with default=false). Added defensive fallback view when phase is in unhandled state instead of `return null`.",
+    "test": "POST /api/quiz/start + POST /api/quiz/submit returns full result {accuracy, perfect, correct_count, points_awarded, run_id, total, points_cycle} 200 OK. Frontend yarn build clean."
+  },
+  "wheel": {
+    "root_cause": "get_active_wheel_boost() compared `now` (tz-aware UTC) with `start` parsed from admin_settings string (potentially naive when admin saves YYYY-MM-DDTHH:MM:SS without offset). TypeError 'can't compare offset-naive and offset-aware datetimes' → 500 on every /wheel/status call.",
+    "fix": "Coerce naive parsed datetimes to UTC-aware in _parse() helper inside get_active_wheel_boost.",
+    "test": "GET /api/wheel/status now returns 200 with keys {cycle, progress, wheel_slots, rules, pending_claim, boost}."
+  },
+  "tap": {
+    "root_cause": "Race condition: setRun(data) is async; if the timer fired immediately (e.g. negative drift between server/client clocks), submitRun read run.run_id from React state which was still null → TypeError → 'Soumission impossible' toast + state lost. Compounded by using server-clock as reference when drift > 3s, which sometimes started the countdown already-elapsed.",
+    "fix": "Added runIdRef captured synchronously after start. submitRun reads runIdRef (fallback to state) and aborts gracefully with a clear message if neither is set. Anchor reference always to localStart (server validates duration on submit anyway).",
+    "test": "POST /api/tap/start returns {run_id, duration_seconds:10, start_at}. After 11s sleep, POST /api/tap/submit returns {taps_valid:75, points_awarded:80, ...} 200 OK."
+  },
+  "global_safety": {
+    "error_boundary": "Added /app/frontend/src/components/ErrorBoundary.jsx wrapping the whole App. Catches uncaught render errors → friendly French error UI with 'Réessayer' + 'Retour à l'accueil' buttons + sendBeacon to /api/client-errors (silent if endpoint missing).",
+    "defensive_fallbacks": "QuizJAPAPPage and TapChallengePage no longer return `null` — both render a 'Réessayer/Retour aux jeux' fallback for unhandled phase combinations.",
+    "logs_added": "console.debug on tap.start + tap.submit (run_id, drift). Backend already logs quiz.submit, wheel.load via uvicorn standard logs."
+  },
+  "verdict": "STABLE — 3 modules verts en backend curl + frontend yarn build clean. ErrorBoundary global garantit zéro écran blanc même sur futurs crashs."
+}

@@ -1,0 +1,27 @@
+{
+  "summary": "iter209 validated end-to-end: (1) Custom ESLint rule `local-rules/no-module-level-t` correctly flags bare `t(...)` at module level and permits `i18n.t(...)` — regression on full src/ returns 0 errors. (2) Backend Hubtel public endpoints `/api/payments/hubtel/currencies` (11 currencies + country_to_currency map including GH,CM,CI,NG,FR) and `/api/payments/hubtel/exchange-rate` (XAF: rate=559.42, USD: rate=1.0, unknown `ZZZ` falls back to rate=1.0 HTTP 200) all return the expected shape. (3) Frontend WalletDepositCurrencySelector mounts on wallet deposit → Carte Bancaire (hubtel_card) → amount 20 USD: dropdown shows 11 options (USD/GHS/XOF/XAF/NGN/KES/EUR/GBP/MAD/EGP/INR), selecting XAF displays `11 188,40 XAF` (fr-FR locale, exact match to spec). Debounced amount change to 50/10 USD updates conversion to `27 971,00 XAF` / `5 594,20 XAF` correctly. 0 `Can't find variable: t` / ReferenceErrors in the flow.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_191.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor: ESLint run on src/ reports 28 'Unused eslint-disable directive' warnings (not errors). Non-blocking but can be auto-fixed with `npx eslint src/ --fix` at some point.",
+    "Minor: `/api/payments/hubtel/exchange-rate?currency=ZZZ` returns HTTP 200 with rate=1.0 — graceful fallback works but it might be cleaner to return the fallback + a `fallback:true` flag so the UI can warn the user the rate is not real.",
+    "Minor: WalletDepositCurrencySelector debounce window is 400ms and fires one axios call per keystroke burst — OK for now. Consider adding request cancellation (AbortController) if user types fast across many currency changes.",
+    "Observation: deposit POST body still does NOT include `currency` (as per agent context note — that's iter210). Frontend state is populated but not submitted; this is intentional."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "bob@japap.com / Test1234! (UI math captcha solved programmatically; +/- both supported)",
+  "seed_data_creation": "Temporary /app/frontend/src/__test_rule.jsx created to validate ESLint rule, then removed.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Currency selector component is live and bound only to hubtel_card/mobile_money methods. Exchange-rate endpoint uses exchangerate-api.com + 1h cache + currency_rates DB fallback — no Hubtel admin creds needed. When iter210 adds `currency` to POST /api/wallet/deposit, re-test the full deposit flow with a non-USD currency and confirm the server-side conversion reconciles with the frontend preview. UI math captcha uses both + and - operations on login — solver helper needed.",
+  "rca_of_the_issue": "N/A — no bugs; feature validated as implemented."
+}

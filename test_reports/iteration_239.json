@@ -1,0 +1,37 @@
+{
+  "summary": "iter237k retest after iter238 fixes — BOTH surgical fixes VERIFIED. (1) PaidDailyChallengeAdmin no longer freezes: data-testid='paid-daily-challenge-admin' is now present in ALL three render states (loading / load_error fallback with retry / loaded content). All 17 expected testids found (0/17 missing). dcq-stake-min save persisted (0.1→0.5 confirmed via API+toast 'Configuration enregistrée', restored to 0.1 to keep env clean). (2) -0.0 cosmetic bug fixed: today_revenue_usd / period_revenue_usd / total_revenue_usd all return exactly 0.0 (positive zero verified via math.copysign). 9/9 backend pytest still PASS. Admin /api/admin/daily-challenge/paid/config returns 200 with all dcq_* keys.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "User /games → daily-challenge-paid-btn (Miser CTA)", "issue": "Banner with 'Miser' CTA was not visible in this run on /games for Alice (already noted in iter238 — DailyChallengeBanner.jsx silently swallows status fetch errors and renders null when data=null). NOT a regression from this iteration's fixes; admin & API E2E (9/9 pytest) cover the full paid play flow.", "affected_selectors": ["daily-challenge-paid-btn"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter237k_dcq_paid.py"
+  ],
+  "action_items": [
+    "Optional follow-up (not blocking): Improve DailyChallengeBanner.jsx error handling to expose a debug log (or visible fallback) when /api/quiz/daily-challenge/status fails — currently silent null render makes the 'Miser' CTA appear missing in browser tests."
+  ],
+  "critical_code_review_comments": [
+    "PaidDailyChallengeAdmin.jsx: data-testid='paid-daily-challenge-admin' correctly placed on ALL THREE wrapper branches (loading at line 96, load_error fallback at line 100, success at line 112) — robust against API failures. Retry button on load_error works as expected.",
+    "dcq_paid.py _norm() helper (line 581-583): correctly normalizes -0.0 → 0.0 using `if f == 0` check (which compares both +0.0 and -0.0 as equal to 0). Verified: math.copysign returns +1 for all 3 revenue fields when no completed sessions.",
+    "Persistence verified end-to-end: PUT /api/admin/daily-challenge/paid/config writes via set_setting; GET reads via get_setting with float coercion. No -0.0 leak in any field of /stats."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (9/9 pytest PASS, /stats no -0.0, /config 200 with all dcq_ keys)",
+    "frontend": "Admin 100% (testid wrapper present, all 17 sub-testids present, save+persistence OK). User /games banner not validated due to known iter238 silent-null in DailyChallengeBanner — not a regression."
+  },
+  "test_credentials": "admin@japap.com/JapapAdmin2024! and alice@japap.com/Alice2026! — captcha bypass JAPAP_E2E_BYPASS_2026 (answer=0) for backend; live X+Y= regex for frontend.",
+  "seed_data_creation": "Reset Alice via /tmp/dcq_test_helper.py user_317b6e0805a3 0 reset (twice). DCQ_STAKE_MIN_USD changed 0.1→0.5→0.1 (restored).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Both iter237k fixes verified PASS. Admin path: /admin → 'Quiz & Tap' top tab → 'Configuration' sub-tab → 'Défi Payant' (games-tab-paid). Wait ≥3s after clicking the sub-tab for cfg+stats axios calls. Alice user_id = user_317b6e0805a3. The unrelated /games banner null-render is pre-existing from iter238 (DailyChallengeBanner silently swallows status fetch failures); 9/9 pytest already covers the full user E2E flow at API level.",
+  "rca of the issue": "iter238 PaidDailyChallengeAdmin freeze RCA: component had data-testid only inside the success branch — when API failed during cfg load, component rendered a bare 'Chargement...' div with NO testid, so Playwright timed out waiting for [data-testid='paid-daily-challenge-admin']. Fix: testid added to all 3 render branches (loading/error/success) + load_error state with Réessayer button. Iter238 -0.0 RCA: Postgres SUM(amount_won_usd) returns 0 with neutral sign, but Python's `round(-float(0), 2)` produces -0.0 due to IEEE 754 negation. Fix: _norm() helper checks `if f == 0` (catches both ±0.0) and returns explicit 0.0."
+}

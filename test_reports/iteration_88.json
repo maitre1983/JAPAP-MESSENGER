@@ -1,0 +1,42 @@
+{
+  "summary": "Iter87 Wallet audit + P2 quick wins retest: 13/13 backend tests PASS, frontend EngagementPointsCard renders correctly with all expected stats but navigates to non-existent /games route. Admin wallet overview endpoint validated end-to-end with full shape (balances/volumes_by_type/timeseries/top_funded/anomalies/engagement_points). Atomicity of 10 parallel sends confirmed exact (Bob -10, Alice +10, no double-credit even when 2/10 client-side timeouts occur). All wallet send validations return correct HTTP codes + messages. Duel create-from-tap + Quiz shuffling regressions passing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/login", "issue": "Login latency spikes to >15s under parallel-send load, recovered after 10-15s; no 5xx observed. Mitigated in test with retry-on-timeout + 45s timeout. Consider login-path caching or bcrypt tuning."},
+      {"endpoint": "/api/wallet/send (parallel)", "issue": "Under 10 concurrent sends, 2/10 client requests hit read-timeout but server-side completes cleanly (balance deltas exact). No correctness impact. Suggests sub-second p99 but tail latency up to 15s under contention — consider raising concurrency per wallet or tuning FOR UPDATE lock hold time."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EngagementPointsCard", "issue": "onClick navigates to /games which is NOT a registered route (only /games/wheel, /games/quiz, /games/tap, /services exist). React Router falls back to / which redirects to /feed. Recommended: navigate('/services') or one of the sub-routes.", "selector": "[data-testid='wallet-engagement-card']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter87_wallet.py",
+    "/app/test_reports/pytest/iter87_wallet.xml"
+  ],
+  "action_items": [
+    "Fix /app/frontend/src/components/wallet/EngagementPointsCard.jsx line 39: change navigate('/games') to navigate('/services') (or '/games/wheel' if the Pro games hub is under Services). Currently the card lands users on /feed which defeats the purpose of the bridge.",
+    "(Optional P3) Consider adding applicative rate-limit on /api/wallet/send (e.g. 5/minute per user) as mentioned in WALLET_AUDIT.md — the tail-latency under 10 parallel calls suggests DB lock contention could be amplified by a malicious client."
+  ],
+  "critical_code_review_comments": [
+    "routes/admin.py L209-361: /wallet/overview is ~150 lines, readable; uses parameterised interval casting ($1 || ' days')::interval — safe. Proper use of COALESCE for null-safety. Good.",
+    "routes/admin.py L217: days clamped max(1, min(days, 365)) — correct input validation.",
+    "EngagementPointsCard.jsx silently swallows errors on /api/wheel/status via .catch(() => {}). Consider surfacing a subtle 'retry' state or at least logging the error for diagnostics. As-is, the card just disappears on 401/5xx which is acceptable UX but hides failures.",
+    "EngagementPointsCard.jsx: the navigation target '/games' does not match any registered React Router path in App.js (only /games/wheel, /games/quiz, /games/tap). This is a dead link — the router falls back to /feed. HIGH-impact UX regression since the card IS the bridge from wallet to games.",
+    "Backend /wallet/overview returns `engagement_points.by_source` with wheel/quiz/tap but no 'admin' source even though wheel_spins supports it — minor; admin-credited points are rare. Worth documenting."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter87_wallet.py"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "80% (card renders + click fires; navigation target wrong)"},
+  "test_credentials": "admin@japap.com / JapapAdmin2024! ; bob@japap.com / Test1234! ; alice@japap.com / Test1234!",
+  "seed_data_creation": "Drained Bob's XAF balance via multiple 10-parallel-sends cycles to Alice. Current state ~approx: Bob=0, Alice≈40. Main agent may want to top-up Bob via /api/admin/wallet/adjust for further testing.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run: REACT_APP_BACKEND_URL=https://japap-refactor.preview.emergentagent.com python -m pytest backend/tests/test_iter87_wallet.py -v -p no:ethereum (~100s). IMPORTANT: /api/auth/login can timeout >15s under parallel-send load — test already has retry+45s timeout but main agent should still keep an eye on login p99. Bob's XAF drained to 0 after tests; top him up before re-running TestParallelSends (test auto-skips if balance<10). Frontend: navigate to /wallet after login to /feed redirects; EngagementPointsCard renders with testid 'wallet-engagement-card' and is positioned above Historique des transactions.",
+  "rca of the issue": "EngagementPointsCard.jsx L39 calls navigate('/games'). Inspection of /app/frontend/src/App.js confirms there is NO Route with path='/games' — only /games/wheel, /games/quiz, /games/tap, plus /services. Because the root ProtectedRoute has a catch-all redirect to /feed, any unknown authenticated path falls through to /feed, which is why clicking the card lands Bob on /feed instead of a games hub. Fix: change navigate('/games') → navigate('/services') (or create a /games hub route). Reproduction: login as Bob → go to /wallet → click the engagement card → URL becomes /feed instead of /games."
+}

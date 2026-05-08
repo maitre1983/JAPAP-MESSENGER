@@ -1,0 +1,51 @@
+{
+  "summary": "iter230 testing — Backend P0 (non-blocking scheduler) + P1 (wallet history API) + OG preview + public challenge preview ALL PASS (4/4 pytest). Critical frontend rendering bug discovered: /wallet page shows 'Aucune transaction pour le moment' / '0 transaction au total' for Bob despite backend returning 276 transactions (top types include quiz_challenge_lock). The new French labels in WalletPage.js cannot be visually verified because the transaction list never renders.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "WalletPage",
+        "issue": "Transactions list always renders empty for Bob (276 transactions in DB, API returns them with status 200, but UI shows '0 transaction au total' and 'Aucune transaction pour le moment'). loadTransactions() at line 88-94 has a silent `catch {}` that may be swallowing an early 401-before-auth-ready and never re-fetches. Because list is empty, the new quiz_challenge_* friendly French labels added in iter230 (lines 249-253) cannot render and could not be visually verified.",
+        "selector": "[data-testid='transactions-list']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Wallet page transactions hydration",
+        "issue": "Network tab confirms GET /api/wallet/transactions returns 200 with {transactions:[20 items], total:276} BUT the rendered DOM has 0 transaction rows. State setTransactions/setTotalTx may be stomped by a later failing call or the fetch silently fails on first render due to auth race (4 leading 401s on /api/auth/me and /api/auth/refresh observed before any /wallet/transactions call). Add retry-on-auth-ready or remove silent `catch{}`.",
+        "affected_selectors": ["[data-testid='transactions-list']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter230_p0_p1.py",
+    "/app/test_reports/pytest/iter230.xml"
+  ],
+  "action_items": [
+    "FRONTEND P0: Investigate WalletPage.js loadTransactions() — list renders empty even though API returns 276 items. Likely a silent catch swallowing an early 401, OR a state-overwrite race between two fetches. Suggest: log the error in catch, add a small delay/retry, and ensure loadTransactions is gated on auth-ready.",
+    "Once the transaction list renders, manually verify the new French labels appear: 'Mise verrouillée — défi quiz', 'Gain défi quiz', 'Remboursement défi quiz', 'Bonus engagement — défi'. Backend test confirms Bob has 50+ quiz_challenge_lock entries.",
+    "P0 SCHEDULER FIX VERIFIED: The iter230 fire-and-forget refactor of _pool_refresh_tick / _pool_health_tick works — 5 lightweight endpoints (health, leaderboard, champion, sitemap) all responded < 3s in parallel.",
+    "Note: backend test suite took 221s due to 30-60s response on POST /challenge/open and /api/og/challenge — this is NOT freezing the API loop (P0 test confirms responsiveness) but might be a slow path worth investigating if it impacts UX."
+  ],
+  "critical_code_review_comments": [
+    "WalletPage.js loadTransactions() uses `catch {}` at line 93 — swallows ALL errors silently. This is a long-standing anti-pattern that hides root causes. Replace with `catch(e){ console.error(e); }` or surface a toast.",
+    "WalletPage.js useEffect at line 109 only re-runs loadTransactions when `page` changes. If first call fails due to auth race (401 visible in console), the list stays empty forever until user clicks pagination. Add a useEffect dependency on a `userId`/`authReady` state.",
+    "quiz_champion_scheduler.py iter230 refactor is clean: _spawn_bg keeps strong refs in _bg_tasks, single-flight guards _pool_refresh_in_flight + _emergency_in_flight, shutdown cancels in-flight tasks. Looks solid.",
+    "routes/quiz_champion.py: file is ~1400+ lines — consider splitting admin endpoints (KPIs, list, challenges admin, set/demote) into routes/quiz_champion_admin.py."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter230_p0_p1.py (NEW)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "50%"},
+  "test_credentials": "Bob bob@japap.com / Test1234! + captcha JAPAP_E2E_BYPASS_2026 (answer=0)",
+  "seed_data_creation": "Two 5 USD paid challenges opened by Bob during testing for OG/preview verification (challenge_id starts with qcc_).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend P0 + P1 + OG + public preview confirmed via /app/backend/tests/test_iter230_p0_p1.py — 4 passed. Frontend wallet renders 0 transactions for Bob despite 276 in API; need to debug WalletPage.loadTransactions silent catch + auth-race. E2E P2P resolution flow (Alice opens, Alice plays, Bob accepts, Bob plays, completion) was NOT executed end-to-end due to time constraints — only the open/claim path is exercised by previous iter228 tests. Run `python -m pytest backend/tests/test_iter230_p0_p1.py -v -p no:ethereum -o addopts=''` to reproduce.",
+  "rca of the issue": "Frontend wallet empty list — RCA hypothesis: WalletPage.js mounts → loadTransactions fires immediately → axios sends without cookies (auth not yet refreshed; 4× 401 on /auth/me observed) → silent `catch {}` swallows the failure → state stays [] → useEffect dependency [page] never triggers a re-fetch. Subsequent successful 200 wallet/transactions seen in network came from a manual fetch in the test harness, NOT from a React state-bound call. Fix: gate loadTransactions on an authReady boolean or retry once on 401 after /api/auth/refresh."
+}

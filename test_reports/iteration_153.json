@@ -1,0 +1,41 @@
+{
+  "summary": "Crowdfunding viral loop P1 (iter169) - Recruiter attribution: tested both backend (10 assertions via /app/backend/tests/test_crowdfunding_recruit.py) and frontend (RecruiterPanel rendering for anonymous + logged-in Bob, ?ref= visit fire on project page). 100% backend pass rate. Frontend logged-in flow renders all required elements with correct French labels. One spec/impl discrepancy: /crowdfunding route redirects to /services which is ProtectedRoute -> /login, so RecruiterPanel does NOT render for anonymous users (contradicts spec line 'Anonymous users on /crowdfunding (no login) - RecruiterPanel still loads leaderboard'). The underlying /api/crowdfunding/recruiter/leaderboard endpoint itself works for anonymous (verified via curl).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Anonymous /crowdfunding RecruiterPanel rendering",
+        "issue": "Spec says anon should see leaderboard (no progress card) on /crowdfunding, but the route in App.js (line 189) Navigates to /services?view=crowdfunding which is wrapped in <ProtectedRoute>. Anonymous users get redirected to /login and never see RecruiterPanel. The backend leaderboard endpoint correctly accepts anonymous viewers (returns 200 with me=null), but no public page surfaces it.",
+        "affected_selectors": ["[data-testid='cf-rec-panel']", "[data-testid='cf-rec-leaderboard-empty']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_crowdfunding_recruit.py"
+  ],
+  "action_items": [
+    "DECISION REQUIRED: Either (a) update spec to acknowledge /crowdfunding is auth-gated (leaderboard only visible logged-in), or (b) expose a public read-only crowdfunding landing route that mounts RecruiterPanel without /services protection. Current behavior is technically inconsistent with the iter169 P1 spec.",
+    "Optional: route /crowdfunding/p/:slug already works for anonymous visit fires (ref tracking + 303 redirect verified end-to-end)."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/routes/crowdfunding.py L1558 - record_share_visit silently returns 303 redirect when project slug doesn't exist (line 1580). Good defensive behavior but consider logging at INFO level for observability so attempts on bad slugs are traceable.",
+    "/app/backend/services/crowdfunding_recruit_service.py L57-64 - the COUNT(*) anti-fraud check is racy under concurrency (no row lock). Two parallel visits could both pass the cap=3 check. Acceptable for current scale; document as TODO if traffic grows.",
+    "/app/frontend/src/App.js L189 - Navigate redirect /crowdfunding -> /services?view=crowdfunding hides the route from anon viewers; reconsider per spec note above."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100% (logged-in path); anon path has spec/impl gap"
+  },
+  "test_credentials": "Bob bob@japap.com / Test1234! (used). Captcha bypass body: captcha_id=JAPAP_E2E_BYPASS_2026, captcha_answer=0",
+  "seed_data_creation": "None. Test cleans up its own visits/credits/badges. Public-URL curl visit row deleted after assertion.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest plugin web3 has a global ImportError (eth_typing.ContractName) preventing 'pytest tests/' from running collection-wide. Workaround: run the test directly: cd /app/backend && python3 tests/test_crowdfunding_recruit.py - all 10 assertions pass. The slug 'japap-refactor' mentioned in the spec does NOT exist in DB; use _alice_project() helper or first slug from `SELECT slug FROM crowdfunding_projects WHERE status='active'` - currently 'eaa-la-tontine-digitale-africaine-scurise-100-automatique-18019d'. The login UI has a math captcha; for E2E playwright tests log in via page.request.post('/api/auth/login') with captcha_id=JAPAP_E2E_BYPASS_2026 + captcha_answer=0, then inject access_token into localStorage before navigating.",
+  "rca of the issue": "Spec gap (not a bug): /crowdfunding route definition redirects to /services which uses ProtectedRoute. Anonymous users never reach CrowdfundingModule where RecruiterPanel is mounted. To match spec: either expose a read-only crowdfunding landing under a non-protected route, or mount RecruiterPanel separately at /crowdfunding directly (currently it's only inside CrowdfundingModule rendered by ServicesPage). All 7 detailed verifications: visit endpoint 303 + DB row OK; cap=3 OK; leaderboard anon OK (empty list); /recruiter/me auth-required + correct shape (recruits_count=0, tier=null, next_tier.bronze.missing=3); self_project_blocked / self_referral_blocked / already_credited reasons OK; bronze badge awarded at 3 recruits + idempotent; logged-in Bob /crowdfunding -> all 6 data-testids present + French labels exact match; visit ?ref= fires fetch on project page."
+}

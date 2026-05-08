@@ -1,0 +1,95 @@
+{
+  "/": {
+    "status": 200,
+    "all_errors_count": 16,
+    "critical_errors": []
+  },
+  "/feed": {
+    "status": 200,
+    "all_errors_count": 0,
+    "critical_errors": []
+  },
+  "/wallet": {
+    "status": 200,
+    "all_errors_count": 4,
+    "critical_errors": []
+  },
+  "/services": {
+    "status": 200,
+    "all_errors_count": 3,
+    "critical_errors": []
+  },
+  "/admin": {
+    "status": 200,
+    "all_errors_count": 15,
+    "critical_errors": []
+  },
+  "/games/quiz": {
+    "status": 200,
+    "all_errors_count": 0,
+    "critical_errors": []
+  },
+  "/marketplace": {
+    "status": 200,
+    "all_errors_count": 16,
+    "critical_errors": []
+  },
+  "/messenger": {
+    "status": 200,
+    "all_errors_count": 2,
+    "critical_errors": []
+  },
+  "/profile": {
+    "status": 200,
+    "all_errors_count": 8,
+    "critical_errors": [
+      [
+        "CONSOLE_ERROR",
+        "%o\n\n%s\n\n%s\n ReferenceError: Cannot access 't' before initialization\n    at DisplayCurrencySelector (https://japap-refactor.preview.emergentagent.com/static/js/src_pages_ProfilePage_js.chunk.js:732:48)\n    at Object.react_stack_bottom_frame (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:74806:18)\n    at renderWithHooks (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:65679:20)\n    at updateFunctionComponent (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:67068:17)\n    at beginWork (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:67637:16)\n    at runWithFiberInDEV (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:62155:68)\n    at performUnitOfWork (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:70064:93)\n    at workLoopSync (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:69959:38)\n    at renderRootSync (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:69944:7)\n    at performWorkOnRoot (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:69617:33) The above error occurred in the <DisplayCurrencySelector> component. React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary."
+      ],
+      [
+        "CONSOLE_ERROR",
+        "[ErrorBoundary] ReferenceError: Cannot access 't' before initialization\n    at DisplayCurrencySelector (https://japap-refactor.preview.emergentagent.com/static/js/src_pages_ProfilePage_js.chunk.js:732:48)\n    at Object.react_stack_bottom_frame (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:74806:18)\n    at renderWithHooks (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:65679:20)\n    at updateFunctionComponent (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:67068:17)\n    at beginWork (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:67637:16)\n    at runWithFiberInDEV (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:62155:68)\n    at performUnitOfWork (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:70064:93)\n    at workLoopSync (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:69959:38)\n    at renderRootSync (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:69944:7)\n    at performWorkOnRoot (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:69617:33) {componentStack: \n    at DisplayCurrencySelector (https://japap-ref\u2026c/js/bundle.js:105824:5)\n    at App (<anonymous>)}"
+      ]
+    ]
+  },
+  "/settings": {
+    "status": 200,
+    "all_errors_count": 6,
+    "critical_errors": [
+      [
+        "CONSOLE_ERROR",
+        "%o\n\n%s\n\n%s\n ReferenceError: Cannot access 't' before initialization\n    at SettingsPage (https://japap-refactor.preview.emergentagent.com/static/js/src_pages_SettingsPage_js.chunk.js:2224:32)\n    at Object.react_stack_bottom_frame (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:74806:18)\n    at renderWithHooks (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:65679:20)\n    at updateFunctionComponent (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:67068:17)\n    at beginWork (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:67619:631)\n    at runWithFiberInDEV (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:62155:68)\n    at performUnitOfWork (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:70064:93)\n    at workLoopSync (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:69959:38)\n    at renderRootSync (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:69944:7)\n    at performWorkOnRoot (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:69617:33) The above error occurred in the <SettingsPage> component. React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary."
+      ],
+      [
+        "CONSOLE_ERROR",
+        "[ErrorBoundary] ReferenceError: Cannot access 't' before initialization\n    at SettingsPage (https://japap-refactor.preview.emergentagent.com/static/js/src_pages_SettingsPage_js.chunk.js:2224:32)\n    at Object.react_stack_bottom_frame (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:74806:18)\n    at renderWithHooks (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:65679:20)\n    at updateFunctionComponent (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:67068:17)\n    at beginWork (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:67619:631)\n    at runWithFiberInDEV (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:62155:68)\n    at performUnitOfWork (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:70064:93)\n    at workLoopSync (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:69959:38)\n    at renderRootSync (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:69944:7)\n    at performWorkOnRoot (https://japap-refactor.preview.emergentagent.com/static/js/bundle.js:69617:33) {componentStack: \n    at SettingsPage (https://japap-refactor.previ\u2026c/js/bundle.js:105824:5)\n    at App (<anonymous>)}"
+      ]
+    ]
+  },
+  "/admin/users": {
+    "status": 200,
+    "all_errors_count": 17,
+    "critical_errors": []
+  },
+  "/admin/payments": {
+    "status": 200,
+    "all_errors_count": 3,
+    "critical_errors": []
+  },
+  "/games": {
+    "status": 200,
+    "all_errors_count": 8,
+    "critical_errors": []
+  },
+  "/transport": {
+    "status": 200,
+    "all_errors_count": 18,
+    "critical_errors": []
+  },
+  "/crowdfunding": {
+    "status": 200,
+    "all_errors_count": 0,
+    "critical_errors": []
+  }
+}

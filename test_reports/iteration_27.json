@@ -1,0 +1,35 @@
+{
+  "summary": "Iter27 — JAPAP CONNECT Level 2 (Pro gating + 2% revshare) tested end-to-end. Backend: 12/12 pytest cases PASS (test_iteration27_connect_level2.py). Frontend: ConnectPage refonte verified across 3 plan scenarios via Playwright (free/starter via gating setting swap, free with min_access=none, and business). All data-testid selectors from the request are present and behave correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration27_connect_level2.py",
+    "/app/test_reports/pytest/iter27_connect_l2.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/connect.py /me: duplicate get_pool()/acquire() blocks (pool and pool2 with conn and conn2) — could reuse a single connection; minor.",
+    "routes/connect.py credit_hotspot_owner_from_pro: monthly cap logic correctly clips the amount if cumulative >cap; returns {skipped: monthly_cap} when amount clips to 0. OK.",
+    "routes/connect.py /leaderboard: country filter joins on wifi_hotspots.country_code but a user owning hotspots in multiple countries is counted per-country — intended. Note HAVING total_connections>0 means new providers without any connection are hidden from country-scoped view (acceptable).",
+    "ConnectPage.js uses axios directly instead of a shared API client — already consistent with app style.",
+    "PRO_REQUIRED detail string is stable: 'PRO_REQUIRED:{scope}:{tier}' — frontend parses [,,tier] correctly in connect() and CreateHotspotModal.submit.",
+    "BusinessRevshareCard: hardcodes dollar values in labels ('2%') but pulls rs.pct dynamically — consistent. OK."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration27_connect_level2.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin@japap.com / JapapAdmin2024!, bob@japap.com / Test1234! (seeded), alice@japap.com / Test1234! (seeded)",
+  "seed_data_creation": "Seeded bob@japap.com (user_bob_test0001) and alice@japap.com (user_alice_test001) directly via psql with bcrypt hash for password Test1234!, since previous iteration users had been wiped. Also pytest fixture cleans wifi_hotspots, wifi_connections and referral_rewards_log role='connect_revshare' before/after. Admin-grant/revoke cycles Pro plans on bob/alice to test gating — restored to defaults after suite (connect_min_pro_to_access=starter, connect_min_pro_to_share=business).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Test users bob@japap.com and alice@japap.com now exist persistently (seeded via direct SQL). test_iteration27_connect_level2.py is self-healing (autouse fixture restores baseline settings and revokes residual Pro subs). To reproduce all 3 frontend scenarios: set connect_min_pro_to_access='none' via admin/settings to turn gating-use OFF for free users (gating-share then visible for <business users); grant business via /api/admin/pro/grant {user_id,plan_id:'business',days:30} to enable revshare-card + tab-earnings. Keep PLAN_PRICE map (starter=5, creator=10, business=30) in ConnectPage.js if pricing changes on backend.",
+  "rca of the issue": "N/A — all backend endpoints and frontend UI states behaved per spec. Only glitch during first pytest run was asyncpg DSN missing when calling credit_hotspot_owner_from_pro() directly (import path had no DATABASE_URL); fixed by loading /app/backend/.env inside the test before the direct call."
+}

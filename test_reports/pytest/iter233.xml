@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="5" time="186.267" timestamp="2026-05-06T11:18:05.253424+00:00" hostname="agent-env-8b343572-668a-4145-bfbd-eff93a871360"><testcase classname="backend.tests.test_iter233_doublers" name="test_leaderboard_doublers_public_no_auth" time="60.195"><failure message="AssertionError: The preview environment is not responding. It may be starting up.&#10;  &#10;assert 502 == 200&#10; +  where 502 = &lt;Response [502]&gt;.status_code">backend/tests/test_iter233_doublers.py:20: in test_leaderboard_doublers_public_no_auth
+    assert r.status_code == 200, r.text
+E   AssertionError: The preview environment is not responding. It may be starting up.
+E     
+E   assert 502 == 200
+E    +  where 502 = &lt;Response [502]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_iter233_doublers" name="test_leaderboard_doublers_limit_param" time="60.227"><failure message="assert 502 == 200&#10; +  where 502 = &lt;Response [502]&gt;.status_code">backend/tests/test_iter233_doublers.py:35: in test_leaderboard_doublers_limit_param
+    assert r.status_code == 200
+E   assert 502 == 200
+E    +  where 502 = &lt;Response [502]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_iter233_doublers" name="test_admin_validation_stats_requires_admin" time="47.293" /><testcase classname="backend.tests.test_iter233_doublers" name="test_admin_validation_stats_shape" time="4.573" /><testcase classname="backend.tests.test_iter233_doublers" name="test_challenge_detail_exposes_doubled_flags" time="13.879" /></testsuite></testsuites>

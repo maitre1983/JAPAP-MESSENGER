@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="9" failures="3" skipped="0" tests="18" time="3.428" timestamp="2026-04-21T23:44:01.654378+00:00" hostname="agent-env-8b343572-668a-4145-bfbd-eff93a871360"><testcase classname="backend.tests.test_iteration53_livekit_sprintB" name="test_livekit_is_configured" time="0.480"><failure message="AssertionError: LiveKit not configured or unreachable: {'ok': False, 'reason': 'LiveKit non configuré. Renseignez api_key/api_secret/ws_url dans Admin → Paiements → Paramètres (ou LIVEKIT_* dans .env).'}&#10;assert False is True&#10; +  where False = &lt;built-in method get of dict object at 0xfa16659a2c40&gt;('ok')&#10; +    where &lt;built-in method get of dict object at 0xfa16659a2c40&gt; = {'ok': False, 'reason': 'LiveKit non configuré. Renseignez api_key/api_secret/ws_url dans Admin → Paiements → Paramètres (ou LIVEKIT_* dans .env).'}.get">backend/tests/test_iteration53_livekit_sprintB.py:59: in test_livekit_is_configured
+    assert body.get("ok") is True, f"LiveKit not configured or unreachable: {body}"
+E   AssertionError: LiveKit not configured or unreachable: {'ok': False, 'reason': 'LiveKit non configuré. Renseignez api_key/api_secret/ws_url dans Admin → Paiements → Paramètres (ou LIVEKIT_* dans .env).'}
+E   assert False is True
+E    +  where False = &lt;built-in method get of dict object at 0xfa16659a2c40&gt;('ok')
+E    +    where &lt;built-in method get of dict object at 0xfa16659a2c40&gt; = {'ok': False, 'reason': 'LiveKit non configuré. Renseignez api_key/api_secret/ws_url dans Admin → Paiements → Paramètres (ou LIVEKIT_* dans .env).'}.get</failure></testcase><testcase classname="backend.tests.test_iteration53_livekit_sprintB" name="test_livekit_non_admin_forbidden" time="0.425" /><testcase classname="backend.tests.test_iteration53_livekit_sprintB" name="test_create_p2p_session" time="0.425"><failure message="AssertionError: {&quot;detail&quot;:&quot;Appels non disponibles — le serveur LiveKit n'est pas encore configuré.&quot;}&#10;assert 503 == 200&#10; +  where 503 = &lt;Response [503]&gt;.status_code">backend/tests/test_iteration53_livekit_sprintB.py:79: in test_create_p2p_session
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"Appels non disponibles — le serveur LiveKit n'est pas encore configuré."}
+E   assert 503 == 200
+E    +  where 503 = &lt;Response [503]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_iteration53_livekit_sprintB" name="test_create_session_self_not_allowed_p2p" time="0.070" /><testcase classname="backend.tests.test_iteration53_livekit_sprintB" name="test_create_session_invalid_mode" time="0.065" /><testcase classname="backend.tests.test_iteration53_livekit_sprintB" name="test_token_for_host_returns_jwt" time="0.064"><error message="failed on setup with &quot;assert 503 == 200&#10; +  where 503 = &lt;Response [503]&gt;.status_code&quot;">backend/tests/test_iteration53_livekit_sprintB.py:121: in p2p_session
+    assert r.status_code == 200
+E   assert 503 == 200
+E    +  where 503 = &lt;Response [503]&gt;.status_code</error></testcase><testcase classname="backend.tests.test_iteration53_livekit_sprintB" name="test_token_for_callee_allowed" time="0.000"><error message="failed on setup with &quot;assert 503 == 200&#10; +  where 503 = &lt;Response [503]&gt;.status_code&quot;">backend/tests/test_iteration53_livekit_sprintB.py:121: in p2p_session
+    assert r.status_code == 200
+E   assert 503 == 200
+E    +  where 503 = &lt;Response [503]&gt;.status_code</error></testcase><testcase classname="backend.tests.test_iteration53_livekit_sprintB" name="test_token_for_stranger_forbidden" time="0.000"><error message="failed on setup with &quot;assert 503 == 200&#10; +  where 503 = &lt;Response [503]&gt;.status_code&quot;">backend/tests/test_iteration53_livekit_sprintB.py:121: in p2p_session
+    assert r.status_code == 200
+E   assert 503 == 200
+E    +  where 503 = &lt;Response [503]&gt;.status_code</error></testcase><testcase classname="backend.tests.test_iteration53_livekit_sprintB" name="test_token_unknown_session" time="0.067" /><testcase classname="backend.tests.test_iteration53_livekit_sprintB" name="test_join_leave_ends_session_when_host_leaves" time="0.064"><failure message="assert 503 == 200&#10; +  where 503 = &lt;Response [503]&gt;.status_code">backend/tests/test_iteration53_livekit_sprintB.py:185: in test_join_leave_ends_session_when_host_leaves
+    assert r.status_code == 200
+E   assert 503 == 200
+E    +  where 503 = &lt;Response [503]&gt;.status_code</failure></testcase><testcase classname="backend.tests.test_iteration56_sprintD_preflight" name="test_test_r2_without_config_returns_ok_false" time="0.762" /><testcase classname="backend.tests.test_iteration56_sprintD_preflight" name="test_test_r2_requires_admin" time="0.432" /><testcase classname="backend.tests.test_iteration56_sprintD_preflight" name="test_record_start_non_host_forbidden" time="0.443"><error message="failed on setup with &quot;AssertionError: {&quot;detail&quot;:&quot;Appels non disponibles — le serveur LiveKit n'est pas encore configuré.&quot;}&#10;assert 503 == 200&#10; +  where 503 = &lt;Response [503]&gt;.status_code&quot;">backend/tests/test_iteration56_sprintD_preflight.py:56: in session
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"Appels non disponibles — le serveur LiveKit n'est pas encore configuré."}
+E   assert 503 == 200
+E    +  where 503 = &lt;Response [503]&gt;.status_code</error></testcase><testcase classname="backend.tests.test_iteration56_sprintD_preflight" name="test_record_start_503_when_r2_missing" time="0.000"><error message="failed on setup with &quot;AssertionError: {&quot;detail&quot;:&quot;Appels non disponibles — le serveur LiveKit n'est pas encore configuré.&quot;}&#10;assert 503 == 200&#10; +  where 503 = &lt;Response [503]&gt;.status_code&quot;">backend/tests/test_iteration56_sprintD_preflight.py:56: in session
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"Appels non disponibles — le serveur LiveKit n'est pas encore configuré."}
+E   assert 503 == 200
+E    +  where 503 = &lt;Response [503]&gt;.status_code</error></testcase><testcase classname="backend.tests.test_iteration56_sprintD_preflight" name="test_record_stop_no_active_returns_404" time="0.000"><error message="failed on setup with &quot;AssertionError: {&quot;detail&quot;:&quot;Appels non disponibles — le serveur LiveKit n'est pas encore configuré.&quot;}&#10;assert 503 == 200&#10; +  where 503 = &lt;Response [503]&gt;.status_code&quot;">backend/tests/test_iteration56_sprintD_preflight.py:56: in session
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"Appels non disponibles — le serveur LiveKit n'est pas encore configuré."}
+E   assert 503 == 200
+E    +  where 503 = &lt;Response [503]&gt;.status_code</error></testcase><testcase classname="backend.tests.test_iteration56_sprintD_preflight" name="test_record_stop_non_host_forbidden" time="0.000"><error message="failed on setup with &quot;AssertionError: {&quot;detail&quot;:&quot;Appels non disponibles — le serveur LiveKit n'est pas encore configuré.&quot;}&#10;assert 503 == 200&#10; +  where 503 = &lt;Response [503]&gt;.status_code&quot;">backend/tests/test_iteration56_sprintD_preflight.py:56: in session
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"Appels non disponibles — le serveur LiveKit n'est pas encore configuré."}
+E   assert 503 == 200
+E    +  where 503 = &lt;Response [503]&gt;.status_code</error></testcase><testcase classname="backend.tests.test_iteration56_sprintD_preflight" name="test_summary_returns_none_for_unrecorded_call" time="0.000"><error message="failed on setup with &quot;AssertionError: {&quot;detail&quot;:&quot;Appels non disponibles — le serveur LiveKit n'est pas encore configuré.&quot;}&#10;assert 503 == 200&#10; +  where 503 = &lt;Response [503]&gt;.status_code&quot;">backend/tests/test_iteration56_sprintD_preflight.py:56: in session
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"Appels non disponibles — le serveur LiveKit n'est pas encore configuré."}
+E   assert 503 == 200
+E    +  where 503 = &lt;Response [503]&gt;.status_code</error></testcase><testcase classname="backend.tests.test_iteration56_sprintD_preflight" name="test_summary_requires_participant" time="0.000"><error message="failed on setup with &quot;AssertionError: {&quot;detail&quot;:&quot;Appels non disponibles — le serveur LiveKit n'est pas encore configuré.&quot;}&#10;assert 503 == 200&#10; +  where 503 = &lt;Response [503]&gt;.status_code&quot;">backend/tests/test_iteration56_sprintD_preflight.py:56: in session
+    assert r.status_code == 200, r.text
+E   AssertionError: {"detail":"Appels non disponibles — le serveur LiveKit n'est pas encore configuré."}
+E   assert 503 == 200
+E    +  where 503 = &lt;Response [503]&gt;.status_code</error></testcase></testsuite></testsuites>

@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
+@import './design-system.css';
+
+* { box-sizing: border-box; }
+
+html, body, #root, .App {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--jp-font-body);
+  background-color: var(--jp-bg);
+  color: var(--jp-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: var(--jp-primary);
+  color: white;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--jp-border); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--jp-text-muted); }
+
+*:focus-visible {
+  outline: 2px solid var(--jp-primary);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Deep-link highlight for messages arrived from /tasks */
+.jp-task-highlight {
+  animation: jp-task-pulse 2.4s ease-out;
+}
+@keyframes jp-task-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(224,28,46,0.6); }
+  50%  { box-shadow: 0 0 0 10px rgba(224,28,46,0.12); }
+  100% { box-shadow: 0 0 0 0 rgba(224,28,46,0); }
+}
+
+/* iter90 — Support page typing indicator */
+.jp-typing-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--jp-text-muted, #6b7280);
+  animation: jp-typing-bounce 1.2s ease-in-out infinite;
+}
+@keyframes jp-typing-bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+  40%           { transform: scale(1.0); opacity: 1; }
+}
+
+/* iter200 — Hint "Double-tap pour zoomer" qui s'affiche brièvement au survol/render */
+@keyframes jp-zoom-hint {
+  0%   { opacity: 0; transform: translateY(4px); }
+  15%  { opacity: 0.85; transform: translateY(0); }
+  75%  { opacity: 0.85; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(4px); }
+}

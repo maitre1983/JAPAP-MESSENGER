@@ -1,0 +1,41 @@
+{
+  "summary": "Iter103 — Weekly AI Pricing Cron + manual admin trigger fully tested. 12/12 new tests GREEN. Regression: iter102 Phase B+C (29/29) + iter99 transport lifecycle + iter101 driver reviews (41/41) all still GREEN. POST /api/transport/admin/pricing/run-ai-batch behaves per spec: 403 for non-admin, force=true bypasses dedup, returns full shape {skipped, week, targets, proposals_created, failures, force} when active grids exist, returns {skipped:true, reason:'no_active_grid'} when nothing is active. force=false respects pricing_ai_weekly_enabled (skipped reason='disabled') and pricing_ai_last_run_iso_week (skipped reason='already_ran_this_week'); a successful non-forced run stamps the iso week. Newly inserted proposal row has status='proposed', source='ai', proposed_by='cron_weekly', non-empty ai_rationale; previous active row stays untouched. admin_alerts row written with kind='pricing.weekly_batch' and alert_key containing the iso week. Real Claude Sonnet 4.5 call via emergentintegrations succeeds end-to-end (~10-15s per LLM hit).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "/api/transport/admin/pricing/run-ai-batch (cold-start)",
+        "issue": "First request after a long Kubernetes ingress idle returns 502 once before recovering. Not iter103-specific — same behaviour seen in iter102. Recovers on first retry."
+      }
+    ]
+  },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration103_pricing_weekly_cron.py",
+    "/app/test_reports/pytest/iter103_weekly_cron.xml",
+    "/app/test_reports/pytest/iter103_regression_iter102.xml",
+    "/app/test_reports/pytest/iter103_regression_iter99_101.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "transport_pricing_cron.run_weekly_ai_proposal_batch: when force=True and no active grids exist, the helper returns skipped/no_active_grid WITHOUT setting pricing_ai_last_run_iso_week — that's correct (force is supposed to be a no-op on the tracker), but conversely when force=False AND no_active_grid, it DOES write last_run_iso_week (line 84). That means the very first scheduled cron run on a brand-new install (still empty pricing_grid) will burn the week's slot and silently never retry until next Monday. Recommendation: only stamp last_run_iso_week when proposals_created>0 OR add a dedicated 'no-targets' settings flag so admins can seed grids mid-week and let the cron pick them up the next day.",
+    "transport_pricing_cron L102-L112: each proposal INSERT acquires a fresh pool connection inside the for-loop (`async with pool.acquire()`). With N (country, vehicle_type) targets that's N round-trips through the pool. Hoisting one connection outside the loop (`async with pool.acquire() as conn: for t in targets: ... await conn.execute(...)`) would halve the connection churn.",
+    "messaging_worker._loop L188: trigger condition is `now.weekday() == 0 and now.hour >= 2`. That means if the worker happens to be down between 02:00 and 23:59 UTC every Monday, the cron is missed for the entire ISO week (next attempt is next Monday 02:00). The dedup tracker is iso-week-keyed so a Tuesday catch-up would be straightforward — recommend `if now.weekday() == 0 OR (now.weekday() in (1,2) AND last_pricing_weekly_iso != wk_key)` to allow same-week catch-up when the worker missed the Monday window.",
+    "transport.py L1714: `force: bool = Query(True)` — defaulting to True from the public endpoint is friendly for the admin panel button but means a casual cURL call blows past the dedup tracker. Consider keeping force defaulted False on the API and let the FE explicitly pass ?force=true, or rename the query to `bypass_dedup` for clarity.",
+    "transport_pricing_cron raise_alert call (L129-L141): only fires when proposals_created > 0. If every Claude call fails (network, quota, all timeouts), admins get NO alert at all even though the batch ran and produced N failures. Recommend always raising an alert with a 'partial/full failure' kind when failures>0 so Ops sees the silent breakage.",
+    "transport_pricing_cron L92: WEEKLY_CONTEXT_TEMPLATE is hard-coded French. Other prompts in the codebase already accept a locale; recommend deriving from country admin_settings or at minimum making it i18n-able to keep parity with the rest of the admin alerts."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration103_pricing_weekly_cron.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 iter103 + 70/70 regression: 29 iter102 + 41 iter99/101)",
+    "frontend": "not_tested"
+  },
+  "test_credentials": "admin@japap.com / JapapAdmin2024! (via JWT minted with JWT_SECRET HS256). Bob bob@japap.com used as non-admin for 403 checks.",
+  "seed_data_creation": "Module-scope autouse fixture wipes pricing_grid for country IN ('CM','FR','XX','TS','ZZ') and admin_alerts rows with alert_key='pricing.weekly_batch:<current_week>' on setup AND teardown. Resets pricing_ai_weekly_enabled='false' and pricing_ai_last_run_iso_week='' before/after the suite. _seed_one_active uses the public /admin/pricing/manual + /validate endpoints to create exactly ONE active CM/standard row before invoking force=true.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter103 helper PUT /api/admin/settings/{key} works as expected for both pricing_ai_weekly_enabled (boolean coerced to 'true'/'false' string) and pricing_ai_last_run_iso_week. Direct DB writes to admin_settings will NOT bust the in-memory 60s cache used by services.settings_service.get_setting — always update via the HTTP PUT endpoint when the same process is going to read it back. /api/transport/estimate is a GET with query params, NOT POST. Cron-friendly setting keys: pricing_ai_weekly_enabled, pricing_ai_last_run_iso_week (format 'YYYY-Www', e.g. '2026-W17'). Currently active iso week during testing was 2026-W17.",
+  "rca of the issue": "N/A — no failing functionality. The two flake/cold-start issues encountered during the first run (502 on first request after ingress idle, and asyncpg cross-event-loop error when calling services.settings_service.set_setting from a fresh asyncio.run loop while the prod pool was still alive) were resolved by (a) retrying the request and (b) replacing the in-test set_setting calls with HTTP PUT /api/admin/settings/{key} which both invalidates the cache AND avoids loop conflicts."
+}

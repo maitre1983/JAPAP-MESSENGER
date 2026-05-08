@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin
+Disallow: /admin/
+Disallow: /superadmin
+Disallow: /wallet
+Disallow: /settings
+Disallow: /messages
+Disallow: /messenger
+Disallow: /kyc
+
+Sitemap: https://japapmessenger.com/api/seo/sitemap.xml

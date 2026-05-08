@@ -1,0 +1,33 @@
+{
+  "summary": "iter174 P0 Marketplace Phase A fully validated end-to-end. Backend 7/7 PASS via /app/backend/tests/test_marketplace_iter174.py: (1) upload-images returns thumb/full/hd 3 sizes; (2) POST /products with images creates pid; (3) GET /products/{id} enriched payload includes seller_kyc_verified=False, seller_completed_sales=0, seller_verified_pro=False, phone_number, images[] parsed; (4) vendor PUT accepts active/offline + image edit and rejects status='deleted' with 400; (5) admin moderate writes audit_logs entry; (6) verified_only=true filter excludes Bob before KYC approval and includes him after; (7) vendor DELETE soft-deletes → subsequent GET returns 404. Frontend 15/15 checks PASS on https://japap-refactor.preview.emergentagent.com/marketplace/p/{pid} with seeded product (3 images): mkt-detail-page, mkt-gallery (3 imgs at 1024 served from /api/upload/files/), mkt-image-prev/next click works, mkt-thumb-{0..2} ×3, click main image opens mkt-image-zoom-overlay, mkt-detail-seller present, contact block (mkt-contact-japap + mkt-contact-whatsapp + mkt-contact-call) appears for non-owner Charlie since Bob has phone_number set, owner panel hidden for non-owner. As Bob (owner): mkt-owner-edit/toggle-status/delete all present and contact-actions hidden. As Admin: mkt-admin-online/offline/delete all present. On /services?view=marketplace: marketplace-verified-only checkbox visible in filter bar, product cards wrapped in <a href='/marketplace/p/...'> (2 links found), 'Vendre' modal opens with product-images-section + product-image-add input.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "MarketplaceProductPage gallery", "issues": ["Test images render correctly at 1024x1024 thumbs (full url uses /api/upload/files/{name}.jpg, thumbs use _thumb.jpg suffix). Main image src in DOM was the FULL 1024px (correct). Gallery layout clean."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_marketplace_iter174.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "marketplace.py PUT /products/{id}: status whitelist active|offline (rejects deleted) — verified by test [4]. Good security.",
+    "marketplace.py POST /products: requires images list 1..5, otherwise 400 — non-negotiable spec respected.",
+    "marketplace.py GET /products/{id}: parses images from JSON column to array, computes seller_verified_pro = (kyc.status='approved' AND completed_sales>=5). Returns 404 with 'Produit supprimé' on soft-deleted rows.",
+    "marketplace.py POST /admin/products/{id}/moderate: writes audit_logs row with details containing pid + reason; sends notification to seller. Non-admin gated by require_admin dep (returns 403).",
+    "marketplace.py GET /admin/products?status=offline paginated and admin-only.",
+    "MarketplaceProductPage.js: ImageGallery prepends REACT_APP_BACKEND_URL for thumb/full/hd href correctly; zoom overlay uses HD when available; ContactSellerActions properly hides itself when viewer is owner; KycVerifiedBadge + 'Vendeur Pro' badge gated by seller_verified_pro flag (hidden in our test since Bob has 0 sales).",
+    "ServicesPage.js: each marketplace card is wrapped in <Link to=`/marketplace/p/${product_id}`>, verifiedOnly filter checkbox passes ?verified_only=true to the API. CreateProduct form has a fully working drag-drop image upload widget with max 5 previews + remove buttons.",
+    "App.js: route /marketplace/p/:product_id correctly imports MarketplaceProductPage."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Bob bob@japap.com/Test1234! (seller, has +237 phone for WhatsApp), Charlie charlie_iter141@japap.com/Charlie2026! (non-owner viewer), Admin admin@japap.com/JapapAdmin2024!. Captcha bypass JAPAP_E2E_BYPASS_2026 / 0.",
+  "seed_data_creation": "Created 1 test product 'TEST iter174 UI - Vélo VTT Yaoundé' (prod_c8f834c29ccf) with 3 non-blank 1400x1400 JPEGs as Bob, used for live UI testing. Cleaned up afterwards (DELETE FROM products WHERE title LIKE 'TEST iter174 UI%' / 'iter174%').",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter174 Marketplace Phase A ships green: backend 7/7 + frontend 15/15. Detail page route /marketplace/p/:product_id works for owner / non-owner / admin with correct conditional panels (owner edit/toggle/delete vs admin online/offline/delete vs contact actions for buyers). Gallery prev/next + thumbnails + zoom overlay all functional with 3-size image serving (480/1024/2048). Vendre modal upload widget is wired with data-testid product-images-section + product-image-add. Marketplace filter bar has data-testid marketplace-verified-only. NO action items for E1.",
+  "rca of the issue": "n/a — feature ships as designed."
+}

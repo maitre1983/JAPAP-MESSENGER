@@ -1,0 +1,38 @@
+{
+  "summary": "Iter101 — Phase A Driver Rating & Review System: backend exhaustively tested. 17/17 new tests pass for POST /api/transport/{ride_id}/review, GET /api/transport/{ride_id}/review, GET /api/transport/driver/{driver_id}/reviews, and the new `reviews` block on GET /api/transport/admin/drivers/{driver_id}. Iter99+iter100 regression suite (43 tests) also fully green.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration101_driver_reviews.py",
+    "/app/test_reports/pytest/iter101_driver_reviews.xml",
+    "/app/test_reports/pytest/iter101_regression.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Behavior gap (LOW): When the same rider tries to POST /review on a still-pending ride, the backend returns HTTP 409 with detail 'La course doit être terminée avant de pouvoir être notée.' — this is correct, but the spec mentioned 409 only for idempotency. Both the 'not completed yet' case and 'already reviewed' case now return 409, which is fine but shares the same status code. Consider returning 400 for the not-completed case to make client-side error mapping easier; 409 should be reserved for idempotent collision. Current frontend modal can disambiguate via the GET /review.can_submit flag, so impact is low.",
+    "Concurrency note: submit_ride_review takes `async with conn.transaction()` but does NOT lock the ride row (no SELECT ... FOR UPDATE). The UNIQUE(ride_id) constraint on ride_reviews still guarantees idempotency, but a concurrent double-tap will surface as an asyncpg UniqueViolationError → FastAPI 500 instead of a clean 409. Consider catching UniqueViolationError around the INSERT and re-raising HTTPException(409). Test_04 happens to pass because the second call hits the existence pre-check first, but a true race could still leak a 500.",
+    "ensure_reviews_ddl is invoked on EVERY review-related request (POST/GET/list/admin-detail). It is idempotent, but adds 3 round-trips per call (CREATE TABLE IF NOT EXISTS / CREATE INDEX IF NOT EXISTS / ALTER TABLE ADD COLUMN IF NOT EXISTS). Recommend hoisting to startup (lifespan) like the rest of the schema bootstrap.",
+    "Minor: GET /driver/{driver_id}/reviews requires authentication but the docstring says 'public list'. If the intent is truly public (e.g. for a driver-profile page consumed by anonymous users), drop the get_current_user call. Right now any logged-in user works which is fine for the in-app rider/driver view but not for marketing pages.",
+    "rating column is numeric(3,2) so AVG is rounded to 2 decimals at the DB level — confirmed correct (4 stars solo → 4.00, then 4+2/2 → 3.00). No floating-point issues observed."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration101_driver_reviews.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "not_tested"
+  },
+  "test_credentials": "Same as memory/test_credentials.md. JWT minted via JWT_SECRET from backend/.env (HS256, 'sub'+'email'+'type=access') — same helper as iter100.",
+  "seed_data_creation": "Reset script wipes ride_reviews / ride_requests / drivers for alice@japap.com + bob@japap.com, then re-registers Alice as a KYC-approved driver (admin auto-approves). Bob's wallet topped up to 50000 XAF. All test data is removed at module setup of next run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase A backend is GREEN. Frontend was NOT tested per the request (testing_type='backend' + Cloudflare Turnstile blocks Playwright login on preview). RideReviewModal.jsx, TransportModule.js auto-pop logic, and TransportDriversAdminTab.jsx 'Avis & Notation' block were NOT exercised. If frontend testing is later requested, mint a JWT via backend/.env JWT_SECRET and inject it as the `access_token` cookie + Authorization header bypassing Turnstile (the same pattern test_iter100 uses). Note the suite uses pytest-asyncio in STRICT mode and depends on -p no:ethereum to avoid web3's broken pytest_ethereum plugin. Test runs in ~125s (lifecycle creates several rides serially).",
+  "rca_of_the_issue": "N/A — no failures. Validated:\n  • Idempotency: 2nd POST returns 409 (existence pre-check + UNIQUE(ride_id) safety net).\n  • Rolling avg: 1st 4★ flips drivers.rating from 5.00 → 4.00, total_reviews 0 → 1; 2nd 2★ recomputes to 3.00, total 2 (verified directly in Postgres).\n  • Authorization matrix: rider can submit & read; driver can read but can_submit=False; admin/stranger get 403.\n  • Ride state gating: status=pending → 409, completed without prior review → can_submit=true, completed already-reviewed → can_submit=false.\n  • Pydantic validation: rating 0/6/-1 → 422.\n  • Histogram: 5 buckets always present, sums match total.\n  • Pagination: limit/offset honored on items, summary stays global.\n  • Admin detail: reviews.summary + recent (last 5) populated; non-admin → 403."
+}

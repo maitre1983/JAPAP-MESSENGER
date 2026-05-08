@@ -1,0 +1,36 @@
+{
+  "iteration": 133,
+  "summary": "iter132 (Duel viralization) + iter133 (Transport rider/driver MVP audit & fixes)",
+  "duel_finalization_p0": {
+    "push_notification_on_completion": "OK — send_social_notification fired in submit_quiz_duel after txn commits, async non-blocking, OneSignal silent if OFF. 3 message variants (winner/loser/tie).",
+    "rematch_endpoint": "OK — POST /api/duel/{token}/rematch with auto-discover last submitted run, inverted roles. Tested: Alice→Bob rematch returned new token + intended_opponent=Bob.",
+    "improved_whatsapp_text": "OK — buildShareText() with 4 variants (won/lost/tie/observer) all ending with explicit challenge call.",
+    "psychological_messages": "OK — pressureMsg displays victory/defeat/tie hint as a pill above the scoreboard.",
+    "percentile_rank": "OK — GET /api/duel/me/rank returns percentile/rank/total_players. Tested: Alice rank=3/5 → top 60% (min_plays=true).",
+    "frontend_rematch_btn": "OK — gradient purple-red button visible only for participants; toasts on backend errors (Joue/Terminez)."
+  },
+  "transport_audit_p0": {
+    "client_phone_visible_to_driver": "OK — _ride_to_dict exposes rider.phone + rider.avatar; ride_detail query SELECTs u.phone_number/du.phone_number. Tested: Bob's phone +237651234567 returned in his own ride detail.",
+    "driver_phone_visible_to_rider": "OK — same pattern via du JOIN.",
+    "tracking_endpoint": "OK — new GET /api/transport/{ride_id}/tracking returns eta_seconds + distance_meters + stage; computes via haversine + 25 km/h urban speed assumption. Tested 200 on pending (null fields).",
+    "cancelled_by_driver_distinct": "OK — cancel_ride sets 'cancelled_by_driver' if driver, 'cancelled' if rider.",
+    "cancel_grace_timer": "OK — transport_rider_cancel_after_seconds=60 default; rider 409 if cancel <60s after accept.",
+    "frontend_contact_cards": "OK — ClientContactCard (driver view) + DriverContactCard (rider view) with tel: and wa.me buttons; only shown when status in {accepted, en_route, arriving, started}.",
+    "status_labels": "OK — added 'arriving' and 'cancelled_by_driver' STATUS_LABELS."
+  },
+  "tests_run_manually": [
+    "POST /api/duel/l8zAPHUyw1uS4gQiGxJnVg/rematch → 200, new token DSGiUtRX1VBDVYjsXW3XYA, challenger=Alice, intended_opponent=Bob",
+    "GET /api/duel/me/rank (Alice) → 200, percentile=60, rank=3, total_players=5",
+    "POST /api/transport/request (Bob) → 200, ride_id created",
+    "GET /api/transport/{ride}/tracking (pending) → 200 with null driver fields",
+    "POST /api/transport/request 2x (same user) → 409 'Vous avez déjà une course'",
+    "POST /api/transport/{ride}/cancel (rider, pending) → 200 status='cancelled'",
+    "GET /api/transport/{ride} (Bob's ride) → rider.phone='+237651234567' visible"
+  ],
+  "still_pending_p1": [
+    "'arriving' auto-state when driver position < 100m from pickup (needs lifecycle hook on /position ping)",
+    "Push notif 'driver accepted' when KYC-validated driver accepts (already has in-app notification, just needs OneSignal wrapper)",
+    "Rematch limited to quiz only (tap rematch could be added but lower priority)"
+  ],
+  "frontend_build": "yarn build clean in 61s — no warnings/errors"
+}

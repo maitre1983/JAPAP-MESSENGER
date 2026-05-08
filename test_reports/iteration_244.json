@@ -1,0 +1,63 @@
+{
+  "summary": "iter237q — Refonte UX Feed Japap composer enrichi : tests frontend complets effectués (Alice). FormatToolbar, raccourcis clavier, compteur caractères, EmojiPickerPopover, et régression composer existant tous PASSENT. MediaPreviewGrid non rendu directement via file-upload-input car les images passent par FilterEditor (flux pré-existant iter147) avant d'arriver dans selectedFiles — composant non rendu pendant ce test mais code statiquement correct (testids présents).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "MediaPreviewGrid via file-upload-input", "issue": "Les images uploadées via <input type=file accept=image/*> déclenchent setFilterEditor({open:true}) à la ligne 268 de FeedPage.js. La grille MediaPreviewGrid ne s'affiche QUE pour les vidéos (ligne 261) ou après validation/dismiss du FilterEditor (lignes 226/279/281). Pour valider end-to-end la grille images, il faut interagir avec FilterEditor. Comportement intentionnel mais à documenter — ce n'est pas un bug.", "affected_selectors": ["[data-testid=media-preview-grid]"]}
+    ],
+    "design_issues": []
+  },
+  "test_results_pass": [
+    "Login Alice OK (captcha math résolu)",
+    "post-input présent et fonctionnel (aucune régression)",
+    "FormatToolbar visible quand composer expand (focus/text)",
+    "7 boutons format-btn-{bold,italic,underline,hashtag,mention,emoji,link} TOUS présents",
+    "Tous les boutons ont une zone tactile EXACTEMENT 44x44 px sur DESKTOP 1280x900 ET MOBILE 390x844",
+    "BOLD avec sélection 'hello' → '**hello** world' PASS",
+    "ITALIC sans sélection → '_italique_' PASS",
+    "UNDERLINE sans sélection → '<u>souligné</u>' PASS",
+    "HASHTAG sans sélection → '#tag' PASS",
+    "MENTION sans sélection → '@utilisateur' PASS",
+    "LINK sans sélection → '[texte du lien](https://)' PASS",
+    "Ctrl+B sur sélection 'test' → '**test**' PASS",
+    "Ctrl+I sur sélection 'test' → '_test_' PASS",
+    "Ctrl+U sur sélection 'test' → '<u>test</u>' PASS",
+    "Compteur caractères @ 100 chars : text='400', color=rgb(161,161,170) gris PASS",
+    "Compteur caractères @ 410 chars : text='90', color=rgb(217,119,6) orange PASS",
+    "Compteur caractères @ 485 chars : text='15', color=rgb(224,28,46) rouge PASS",
+    "EmojiPickerPopover ouvre au clic format-btn-emoji (lazy load OK)",
+    "ESC ferme le popover PASS",
+    "Clic backdrop ferme le popover PASS",
+    "Sélection emoji insère 😀 au curseur (résultat: 'hi😀') et ferme le popover PASS",
+    "Z-index 100/90 du popover correctement au-dessus du composer"
+  ],
+  "test_results_not_executed": [
+    "Affichage optimiste du post (handlePost ligne 153) — non testé end-to-end (publication réelle non déclenchée pour ne pas polluer le feed)",
+    "PostContent rendu Markdown/hashtag/mention dans posts publiés — non testé end-to-end (pas de post test publié)",
+    "Régression YouTube/Vimeo/LinkPreviewCard — non re-testé (hors scope iter237q, déjà couvert iter76)",
+    "MediaPreviewGrid via vidéo upload — non testé (focus sur images), mais code statiquement correct",
+    "Picker emoji positionnement bottom safe-area sur mobile <640px — visuellement non vérifié (popover fermait après ESC du test précédent)"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Aucune action critique requise — tous les P0/P1/P2 testables passent.",
+    "(Optionnel) Documenter dans le PRD que les images uploadées passent par FilterEditor avant MediaPreviewGrid ; les vidéos sont directement dans la grille.",
+    "(Optionnel) Vérifier visuellement sur device mobile réel le positionnement bottom safe-area du EmojiPickerPopover (impossible à valider en headless 100%)."
+  ],
+  "critical_code_review_comments": [
+    "FormatToolbar.jsx: implémentation propre, applyFormat exporté et réutilisé pour les raccourcis Ctrl+B/I/U via FeedPage onKeyDown — DRY respecté.",
+    "EmojiPickerPopover.jsx: bonne pratique avec lazy() + Suspense pour le bundle de emoji-picker-react (~80KB). Z-index 90/100 cohérent au-dessus de GroupsOnboardingModal (z-80).",
+    "MediaPreviewGrid.jsx: revoke des blob URLs au cleanup OK, prévient les fuites mémoire. Aspect ratio 16/9 vs 1/1 selon count, overlay +N en absolute, testids cohérents.",
+    "renderRichText.jsx: zéro dangerouslySetInnerHTML, parser linéaire single-pass, composé en pur React → immune XSS comme annoncé. Regex Unicode-aware (\\p{L}) pour hashtags multilingues.",
+    "FeedPage.js: onKeyDown propre, e.preventDefault() bien placé pour Ctrl+Enter et Ctrl+B/I/U. State emojiPickerOpen découplé du focus composer."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "skipped", "frontend": "100% (21/21 tests exécutés ont passé)"},
+  "test_credentials": "Alice alice@japap.com / Alice2026! — captcha math résolu dynamiquement (ex 13+3=16)",
+  "seed_data_creation": "Aucune. Les 5 PNG 1x1 dans /tmp ont servi aux tests upload (non publiés).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Le composer feed iter237q est validé. Pour tester la publication réelle ou le rendu PostContent (renderRichText), créer un post via Bob ou Alice avec '**gras** _italique_ <u>souligné</u> #lancement @japap' et vérifier les testids post-hashtag-lancement / post-mention-japap dans le feed. Pour MediaPreviewGrid via images, il faut piloter FilterEditor (modal qui s'ouvre au file upload) jusqu'au bouton 'Valider'. Pour vidéos, file-upload-input avec un fichier video/* va directement à MediaPreviewGrid.",
+  "rca of the issue": "N/A — aucun bug trouvé."
+}

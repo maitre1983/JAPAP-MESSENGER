@@ -1,0 +1,40 @@
+{
+  "summary": "iter237l (Profile-completion redemption bonus +5% anti-tilt) — Backend FULLY VALIDATED. 5/5 new pytest tests PASS in isolation (test_redemption_unlocked_when_profile_complete, test_redemption_blocked_when_profile_incomplete, test_use_bonus_rejected_when_not_eligible, test_bonus_reduces_loss_and_is_consumed, test_bonus_not_consumed_on_win). 5/5 backend curl scenarios PASS via /tmp/curl_iter237l.py: (1) GET /redemption returns {profile_complete:true, available:true, bonus_pct:5.0, missing:[], unlocked_at:set}; (2) POST /start use_bonus=true on complete profile returns bonus_active=true; (3) POST /submit with all timeout answers ([-1,-1,-1,-1,-1]) returns score=0, result_pct=-80.0 (=-85+5), amount_delta_usd=-8.00 on stake $10, bonus_consumed=true; (4) GET /redemption after consume shows used_at populated and available=false; (5) POST /start use_bonus=true on incomplete profile returns 403 'Bonus non disponible : complète ton profil d'abord.'. Frontend E2E for iter237l NOT completed: blocked by pre-existing iter238/239 bug — DailyChallengeBanner.jsx silently renders null on /games and the data-testid='daily-challenge-paid-btn' (the only entry point to PaidDailyChallengeFlow modal) never appears in DOM; the 'Défi du jour' card only routes to the FREE /games/quiz/daily page. The iter237l toggle/pill/CTA code in PaidDailyChallengeFlow.jsx (lines 265-283, 428-435, 439-480) is correctly written and correctly gated on config.redemption.available / showRedeemCta but cannot be reached via UI until the banner mount issue is resolved.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Stake modal entry point (Miser CTA)", "issue": "DailyChallengeBanner on /games does not render the [data-testid='daily-challenge-paid-btn'] element for logged-in user with cleared session — same silent-null behavior already reported in iter238 + iter239. Without this CTA, the iter237l UI (toggle, bonus pill on result, redeem CTA) cannot be exercised via Playwright. Confirmed by enumerating all data-testid on /games: only ['daily-status','game-tap-challenge','game-quiz-daily'] present; no 'paid' or 'miser' testids. Backend GET /api/quiz/daily-challenge/paid/config returns 200 successfully via curl with the same Alice cookie, so the issue is client-side rendering logic in DailyChallengeBanner.jsx (likely the silent catch around /api/quiz/daily-challenge/status that hides the entire banner when that adjacent endpoint fails).", "affected_selectors": ["daily-challenge-paid-btn", "paid-daily-stake-modal", "paid-bonus-toggle", "paid-bonus-toggle-label", "paid-bonus-applied-pill", "paid-redeem-cta", "paid-redeem-go-profile"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter237k_dcq_paid.py",
+    "/tmp/curl_iter237l.py"
+  ],
+  "action_items": [
+    "Fix DailyChallengeBanner.jsx so the 'Miser' CTA (data-testid='daily-challenge-paid-btn') reliably renders for an authenticated user when /api/quiz/daily-challenge/paid/config returns 200 — currently the banner silently returns null when its other status fetch fails, blocking ALL iter237k+iter237l user-facing E2E. Suggested: separate the paid-config fetch from the daily-status fetch and render the paid CTA independently of the free-mode status. After this fix, retest iter237l toggle/pill/CTA in browser (5 min job).",
+    "Optional: as a workaround for testing, expose the PaidDailyChallengeFlow modal via a deep link (e.g. /games/quiz/daily/paid) so QA can validate iter237l UI without depending on the banner mount."
+  ],
+  "critical_code_review_comments": [
+    "PaidDailyChallengeFlow.jsx lines 265-283: toggle correctly gated on config?.redemption?.available — when profile incomplete, redemption.available=false and the entire <label> block is not rendered. Regression test (toggle hidden on incomplete profile) is structurally guaranteed by the conditional.",
+    "PaidDailyChallengeFlow.jsx line 400: showRedeemCta = lost && !redemption.used_at && !redemption.profile_complete — exactly matches the spec (only on loss, only when bonus never used and profile still incomplete). However, redemption is read from `config` which is loaded once at modal open; if the user completes their profile in another tab between /start and /submit, the CTA may still show. Acceptable for v1.",
+    "Backend /submit (dcq_paid.py lines 573-584): bonus is correctly capped so it can never make a loss positive (`if result_pct + bonus_applied_pct > 0: bonus_applied_pct = -result_pct`), and bonus_consumed is set only when bonus_active AND result_pct<0 — verified by test_bonus_not_consumed_on_win. Atomic: paid_redemption_used_at is updated in the same transaction as the session UPDATE.",
+    "_redemption_status (dcq_paid.py lines 201-239) lazy-sets unlocked_at on first detection of complete profile. This UPDATE happens on every GET /config and GET /redemption call which is acceptable thanks to the WHERE paid_redemption_unlocked_at IS NULL guard, but it's worth noting that GET endpoints have a write side-effect — could be moved to a dedicated trigger or first explicit profile save."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (5/5 new pytest PASS, 5/5 curl scenarios PASS, all assertions on result_pct/amount_delta/bonus_consumed/used_at/403 verified)",
+    "frontend": "0% completed (blocked by pre-existing iter238 banner null-render); iter237l UI code review = PASS (toggle, pill, CTA wiring correct in source)."
+  },
+  "test_credentials": "alice@japap.com / Alice2026! (user_317b6e0805a3). Captcha bypass JAPAP_E2E_BYPASS_2026 / answer=0 for backend. Frontend captcha solved live (regex 'X+Y =' OR 'X-Y ='; subtraction now needed too — added in test script).",
+  "seed_data_creation": "Used helpers in test_iter237k_dcq_paid.py::_set_profile (complete/incomplete) and _reset_alice (balance=100, no session today). Pool of 30 questions (batch_id=999) untouched. After tests, Alice's profile is left in 'incomplete' state with paid_redemption_used_at=NOW (last test in curl script).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter237l backend is fully green — do NOT re-run backend tests, focus exclusively on the frontend three checks once main agent fixes DailyChallengeBanner: (a) toggle visible+toggleable on stake modal with Alice profile complete, (b) toggle HIDDEN on incomplete profile, (c) result modal shows paid-bonus-applied-pill='+5pp' on a forced loss with bonus + paid-redeem-cta + paid-redeem-go-profile button on a loss without bonus + incomplete profile. Reset Alice between scenarios via `python3 -c \"import sys,asyncio;sys.path.insert(0,'/app/backend/tests');from dotenv import load_dotenv;load_dotenv('/app/backend/.env');from test_iter237k_dcq_paid import _set_profile,_reset_alice;asyncio.run(_set_profile('user_317b6e0805a3', complete=<TRUE_OR_FALSE>));asyncio.run(_reset_alice('user_317b6e0805a3', 100))\"`. Captcha may be addition OR subtraction — handle both. Login currently routes to /feed; navigate to /games and wait ≥7s for banner mount before asserting.",
+  "rca of the issue": "Frontend E2E blocker is NOT a iter237l regression — it's the same DailyChallengeBanner silent-null bug already documented in iteration_238/239 (DailyChallengeBanner.jsx swallows /api/quiz/daily-challenge/status errors, sets data=null & loading=false, returns null). The component owns the only user-facing path to the paid stake modal, so any failure of the (unrelated, free-mode) status endpoint hides ALL paid features including the new iter237l UI. Iter237l code itself is well-structured: toggle on PaidDailyChallengeFlow.jsx:265-283 is correctly conditional on config.redemption.available; bonus_active is forwarded to /start (line 94); bonus_applied_pct + bonus_consumed displayed on result modal (line 428-435); redeem CTA conditioned on lost && !used_at && !profile_complete (line 400-480) with proper missing[] iteration and /profile navigation."
+}

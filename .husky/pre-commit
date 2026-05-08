@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+# JAPAP pre-commit hook — iter189-hotfix follow-up
+# ================================================
+# Blocks commits that violate React rule-of-hooks (the exact bug we fixed
+# in MarketplaceProductPage.js on 2026-04-30). Runs ESLint via lint-staged
+# ONLY on staged .js/.jsx/.ts/.tsx files under frontend/src.
+#
+# To bypass in an emergency: `git commit --no-verify` (discouraged).
+
+# Work from repo root
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+# Only run if frontend files are staged
+STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^frontend/src/.*\.(js|jsx|ts|tsx)$' || true)
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+echo "🔎 JAPAP pre-commit — checking React rule-of-hooks on staged files..."
+cd frontend || exit 1
+# lint-staged will re-filter and run ESLint with error-level rule-of-hooks
+npx --no-install lint-staged --concurrent false

@@ -1,0 +1,40 @@
+{
+  "summary": "Iter23 JAPAP PRO Phase 1 e2e tested. Backend 27/27 pytest passing (plans+quotes, trial/paid subscribe, cancel immediate/period_end, duplicate/trial-used/disabled errors, admin CRUD plans, grant/revoke/extend, subscribers pagination+filters, stats, expire-now, admin toggles for pro_enabled/trial/durations/discounts, feed smart-sort score). Frontend /pro shows 3 plans (Starter $5, Creator $10, Business $30), 1m/3m/12m duration selector with -5%/-25% discount badges, dynamic CTAs. Admin /admin JAPAP PRO tab shows stats row (Abonnés actifs=1, Revenus 30j=$90, Revenus total=$90, Trial→Paid=0%), plans table w/ Modifier buttons, abonnés table w/ 4 filters + pagination, 'Offrir un abonnement' button + 'Synchroniser expirations'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin Paramètres", "issues": ["Visible sections at top: Retraits Wallet, Devises, APIs de paiement Phase 2, Modules système. JAPAP PRO settings group exists (body text match) but is below fold — confirm scroll reveals pro_enabled / pro_trial_* / pro_duration_*_enabled / pro_discount_*_pct toggles. Not a bug, just verify ordering/visibility."]},
+      {"screen": "/pro (Alice)", "issues": ["'Essai gratuit N jours' CTA not shown because Alice already used her trial; message 'Vous avez déjà utilisé votre essai gratuit' correctly displayed. Test against a fresh user to validate CTA rendering."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration23_japap_pro.py",
+    "/app/test_reports/pytest/iter23_pro.xml"
+  ],
+  "action_items": [
+    "Verify (manual/visual) that /admin Paramètres > 'JAPAP PRO — Abonnements' group renders all toggles (pro_enabled, pro_trial_enabled, pro_trial_days, pro_duration_{1m,3m,12m}_enabled, pro_discount_{3m,12m}_pct) — confirmed present in body text, just below fold in screenshot.",
+    "Consider scroll-to-top anchoring when switching admin tabs so user sees new group immediately."
+  ],
+  "critical_code_review_comments": [
+    "pro.py _trial_allowed_for: trial duration uses pro_trial_days setting (correct per spec) not plan.duration_days — good.",
+    "pro_admin.py admin_upsert_plan: redundant JSONB post-fix updates after dynamic UPDATE — works but double-write on features/limits; low priority cleanup.",
+    "pro.py subscribe: wallet debit converts USD→wallet currency via currency_rates (verified manually, Bob paid 90 USD × XAF rate). Uses FOR UPDATE lock on wallet row — concurrency-safe.",
+    "admin_grant sets source='admin_grant' and is_trial=FALSE → does NOT consume trial flag (spec compliant).",
+    "Feed boost: feed.py line 98 applies +0.25 to smart score when u.is_pro=TRUE (verified in code; /api/feed/posts?sort=smart returns 'score' field).",
+    "pro_admin stats conversion_pct uses trials_converted / trials_total — counts users who later paid after trial; correct.",
+    "Minor: _parse_jsonb imported into pro_admin via relative import from routes.pro — tight coupling but acceptable.",
+    "No mongo usage — all endpoints use asyncpg + PostgreSQL. Decimal rounding consistent with ROUND_HALF_UP and 0.01 precision."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration23_japap_pro.py (NEW — 27 tests)"
+  ],
+  "success_rate": {"backend": "100% (27/27)", "frontend": "100% for /pro + /admin JAPAP PRO tab; settings tab pro group confirmed present in DOM"},
+  "test_credentials": "admin@japap.com / JapapAdmin2024! ; bob@japap.com / Test1234! ; alice@japap.com / Test1234!",
+  "seed_data_creation": "Test fixture resets Alice+Bob subscriptions (DELETE FROM subscriptions + reset users.is_pro flags) at session start using local postgres. Bob is topped up via /api/admin/wallet/adjust if balance insufficient for 12m creator paid test. Tests are idempotent & re-runnable.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression test file: /app/backend/tests/test_iteration23_japap_pro.py. Session-scoped fixture wipes subs for bob/alice to allow trial-once tests to run repeatedly (uses sudo -u postgres psql). Payment is wallet-only; top-up done automatically if Bob lacks XAF. If the server restarts and seed_plans re-runs, it is idempotent (checks existing plan_id). Admin settings endpoint expects {'settings': {...}} wrapper, not raw kwargs.",
+  "rca of the issue": "N/A — no production bugs. Two initial test-authoring bugs fixed: (1) BASE_URL fallback to /app/frontend/.env when REACT_APP_BACKEND_URL env not exported to pytest; (2) /api/admin/settings PUT body requires {'settings': {...}} wrapper. Both test-side fixes. Product code passed all functional checks on first run."
+}

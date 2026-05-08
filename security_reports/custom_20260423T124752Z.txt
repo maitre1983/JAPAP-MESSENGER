@@ -1,0 +1,8 @@
+hardcoded_secrets:
+/app/frontend/src/pages/LoginPage.js:100:              <Link to="/forgot-password" data-testid="forgot-password-link" className="text-xs font-['Manrope'] text-white/60 underline">
+/app/frontend/src/pages/ResetPasswordPage.js:25:    if (password !== confirm) { setError('Passwords do not match'); return; }
+/app/frontend/src/pages/AdminPage.js:386:          <input type="password" minLength={8} className="jp-input text-sm"
+/app/frontend/src/pages/AdminPage.js:390:          <input type="password" minLength={8} className="jp-input text-sm"
+
+f-string SQL (audit manually if non-whitelisted):
+34

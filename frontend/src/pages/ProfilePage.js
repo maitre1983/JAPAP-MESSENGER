@@ -123,6 +123,15 @@ export default function ProfilePage() {
     try {
       await axios.put(`${API}/api/auth/preferences`, { preferred_lang: lang }, { withCredentials: true });
       setPrefLang(lang);
+      // iter237y — Apply language immediately so the user sees the UI
+      // switch without needing to reload. `lang` empty means auto-translate
+      // disabled; we keep the current i18n locale in that case.
+      try {
+        if (lang) {
+          await i18n.changeLanguage(lang);
+          try { localStorage.setItem('japap_ui_lang', lang); } catch (_) {}
+        }
+      } catch (_) { /* fall back to refreshUser-driven sync */ }
       await refreshUser();
       setMessage(lang
         ? `Auto-traduction activée : ${SUPPORTED_LANGS.find(l => l.code === lang)?.label || lang}`

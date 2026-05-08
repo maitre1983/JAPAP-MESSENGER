@@ -392,10 +392,14 @@ async def paid_start(req: StartIn, request: Request):
         if existing:
             raise HTTPException(409, "Déjà joué aujourd'hui. Revenez demain !")
 
-        # Pool size guard
+        # iter237y — Pool size guard filtered by user language (consistency
+        # with the SELECT below: a user whose lang+FR pool is empty must
+        # see 503, not run an unfiltered count that hides true starvation).
+        user_lang = (user.get("preferred_lang") or "fr").lower()[:2]
         active_count = await conn.fetchval(
             "SELECT COUNT(*) FROM daily_challenge_expert_pool "
-            "WHERE active=TRUE AND expires_at > NOW()",
+            "WHERE active=TRUE AND expires_at > NOW() AND language IN ($1, 'fr')",
+            user_lang,
         )
         if (active_count or 0) < 5:
             # Trigger emergency refresh in background.
@@ -413,7 +417,6 @@ async def paid_start(req: StartIn, request: Request):
         # iter237y — Sélection 5 questions au hasard, langue utilisateur
         # avec fallback français. On préfère la langue du joueur ; s'il
         # n'y en a pas assez, on complète avec FR (défaut).
-        user_lang = (user.get("preferred_lang") or "fr").lower()[:2]
         questions = await conn.fetch(
             """SELECT id, question, options, correct_idx, explanation, category
                  FROM daily_challenge_expert_pool

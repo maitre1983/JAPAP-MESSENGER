@@ -128,7 +128,7 @@ export default function Layout({ children }) {
               </span>
             )}
           </Link>
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} data-testid="mobile-menu-toggle" className="text-white/80">
+          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} data-testid="mobile-menu-toggle" aria-label="Menu" className="text-white/80">
             {mobileMenuOpen ? <X size={20} /> : <List size={20} />}
           </button>
         </div>

@@ -1,4 +1,4 @@
-# JAPAP — PRD (mise à jour 07/02/2026 — iter237o)
+# JAPAP — PRD (mise à jour 08/05/2026 — iter237y)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
@@ -6,6 +6,39 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 ## Langue utilisateur
 **Français** (obligatoire).
 
+
+## iter237y — Audit i18n FR/EN + DCQ paid multi-langues (08/05/2026)
+
+**Contexte** : l'infrastructure i18n (11 langues + `useGeoLanguageBootstrap` + `LanguageSwitcher` + sync `users.preferred_lang`) existait déjà, mais (a) plusieurs strings restaient hardcodés dans Layout/ServicesPage/Login/Feed/Chat, et (b) le pool de questions du Défi du Jour Payant était 100% en français, indépendamment de `preferred_lang`.
+
+### Backend — multi-langues pour le pool d'experts
+- `services/dcq_paid_pool_worker.py` : nouveau `SUPPORTED_LANGS` (env `DCQ_POOL_LANGS=fr,en` par défaut) + `CATEGORY_LABELS` localisés. `_generate_for_category(category, batch_id, expires, language='fr')` propose un prompt FR ou EN selon la langue cible, idem `_validate_question` (langue lue depuis `q['language']`). `_refresh_pool` boucle désormais sur `EXPERT_CATEGORIES × SUPPORTED_LANGS` et stamp chaque INSERT avec sa colonne `language`.
+- `routes/dcq_paid.py::paid_start` : sélection 5 questions filtrée `WHERE language IN ($1, 'fr') ORDER BY (language=$1) DESC, RANDOM()` → préfère la langue du user, fallback FR. Pool size guard (l.396) aussi filtré pour éviter 503 cosmétique.
+- `routes/dcq_paid.py::paid_config` : `pool_size` retourné est désormais celui du user (sa langue + FR), reflet plus juste pour le banner du Défi.
+- Schéma `daily_challenge_expert_pool.language` + `idx_dcep_active_lang` : déjà en place depuis iter237k, simplement exploités.
+
+### Frontend — chasse aux strings hardcodés
+- `components/layout/Layout.js` : drawer mobile (Administration/Groupes/Pages/Paramètres/Déconnexion) → `t('nav.administration|groups|pages|settings|logout')` ; aria-label `Menu` ajouté sur le burger.
+- `pages/ServicesPage.js` : header Marketplace, CTA Vendre, Nouveau produit, labels du formulaire (Titre/Description/Prix/Catégorie/État/Localisation/Photos), placeholder, helper texte, AI button, "Bientôt disponibles", "De nouveaux services arrivent !", "Pour vous (Pro+boost)", "Aucun produit pour le moment", "Mes commandes (Escrow)" → 19 nouvelles clés `services.*`.
+- `pages/LoginPage.js` : "Se souvenir de moi" + hint → `t('auth.remember_me|remember_me_hint')`.
+- `pages/FeedPage.js` : Story+Reels labels → `t('feed.story_add|reels')`.
+- `pages/ChatPage.js` : "Montant (USD)" → `t('chat.amount_usd')`.
+- `pages/ProfilePage.js::handleSaveLang` : appelle désormais `i18n.changeLanguage(lang)` immédiatement après le PUT pour switch instantané (pas besoin de reload).
+
+### Traductions
+- `frontend/src/locales/fr.json` & `en.json` : 1018 → **1048 clés alignées (parité 100%)**. Nouvelles clés : `nav.administration|groups|pages`, `auth.remember_me|remember_me_hint`, `chat.amount_usd`, `services.offers_label|offers_desc|coming_soon_header|new_services_arrive|new_services_desc|sell_cta|new_product|product_*|publish_product|for_you_pro_boost|no_product_yet|my_orders_escrow|ai_generate_or_enhance`.
+
+### Validation iter246 (testing agent v3 fork)
+- **Backend pytest 7/7 PASS** (`/app/backend/tests/test_iter238_i18n_dcq.py`) : i18n preferences toggle, `/paid/config` pool_size avec fallback FR, schéma language column + index, worker SUPPORTED_LANGS multi-langues + prompts localisés, `_validate_question` lang-aware, fallback EN→FR confirmé.
+- **Frontend 85%** : login auto-détecté EN (drapeau UK), `/services` rendu en EN ("Services / Explore the JAPAP ecosystem / Marketplace / JAPAP Staking / Crowdfunding / Games"), "Remember me" affiché. Aucun crash sur /feed, /chat, /wallet, /profile.
+- Action LOW : drawer-toggle aria-label ajouté ✓ ; instant-switch sur ProfilePage ajouté ✓.
+- Aucune régression : `/api/quiz/daily-challenge/paid/start` retourne toujours 5 questions, parité de clés FR/EN garantie.
+
+### À noter
+- Le pool DB ne contient **pour l'instant** que 1552 questions FR. Au prochain refresh tick (toutes 48h) le worker générera des questions EN, après quoi un user `preferred_lang='en'` recevra naturellement des questions EN. D'ici-là, le fallback FR garantit aucun blocage.
+- `DCQ_POOL_LANGS` permet d'ajouter d'autres langues (ex: `fr,en,pt,es`) sans toucher au code.
+
+---
 
 ## iter237x bis — Toggle Transport visible dans le panel admin (08/02/2026)
 

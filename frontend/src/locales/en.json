@@ -30,6 +30,9 @@
     "services": "Services",
     "profile": "Profile",
     "admin": "Admin",
+    "administration": "Administration",
+    "groups": "Groups",
+    "pages": "Pages",
     "search": "Search",
     "notifications": "Notifications",
     "settings": "Settings",
@@ -111,7 +114,9 @@
     "search_country": "Search a country…",
     "otp_resent_ok": "A new code has been sent.",
     "turnstile_required": "Anti-bot verification took too long. Please try again.",
-    "generic_error": "Something went wrong. Please try again."
+    "generic_error": "Something went wrong. Please try again.",
+    "remember_me": "Remember me",
+    "remember_me_hint": "— stay signed in on this device"
   },
   "feed": {
     "title": "Feed",
@@ -170,7 +175,8 @@
     "video": "Video",
     "envoye": "Sent",
     "recu": "Received",
-    "transfere": "Transferred"
+    "transfere": "Transferred",
+    "amount_usd": "Amount (USD)"
   },
   "wallet": {
     "title": "Wallet",
@@ -264,7 +270,31 @@
     "prix_decroissant": "Price: High to Low",
     "mieux_notes": "Top Rated",
     "quota_du_jour": "Daily quota:",
-    "pro_auto_photographie": "Pro Self-Photography"
+    "pro_auto_photographie": "Pro Self-Photography",
+    "offers_label": "Offers",
+    "offers_desc": "Job offers, freelance gigs, classifieds. A complete extension of the Jobs module.",
+    "coming_soon_header": "Coming soon",
+    "new_services_arrive": "New services are coming!",
+    "new_services_desc": "Food delivery, transport, jobs, crowdfunding, crypto and much more.",
+    "sell_cta": "Sell",
+    "new_product": "New product",
+    "product_title_label": "Title",
+    "product_title_placeholder": "Product name",
+    "product_description_label": "Description",
+    "product_description_placeholder": "Describe your product…",
+    "product_price_label": "Price (USD)",
+    "product_category_label": "Category",
+    "product_condition_label": "Condition",
+    "product_condition_new": "New",
+    "product_location_label": "Location",
+    "product_location_placeholder": "City, Country",
+    "product_photos_label": "Product photos (1 to 5)",
+    "product_photos_help": "Drag-and-drop or click. JPG/PNG/WebP — auto-compressed. The first image will be the main one.",
+    "ai_generate_or_enhance": "✨ Generate / enhance with AI",
+    "publish_product": "Publish product",
+    "for_you_pro_boost": "For you (Pro+boost)",
+    "no_product_yet": "No products yet",
+    "my_orders_escrow": "My orders (Escrow)"
   },
   "profile": {
     "title": "Profile",

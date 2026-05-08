@@ -1445,7 +1445,7 @@ export default function ChatPage() {
             <div className="px-6 py-5 space-y-4">
               <div>
                 <label className="block text-xs font-['Manrope'] font-semibold mb-2"
-                  style={{ color: 'var(--jp-text-secondary)' }}>Montant (USD)</label>
+                  style={{ color: 'var(--jp-text-secondary)' }}>{t('chat.amount_usd')}</label>
                 <input type="number" inputMode="decimal" min="0.10" step="0.10"
                   value={moneyAmount} onChange={e => setMoneyAmount(e.target.value)}
                   data-testid="money-amount-input"

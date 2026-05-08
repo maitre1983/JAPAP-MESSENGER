@@ -654,7 +654,7 @@ export default function FeedPage() {
                 style={{ background: 'var(--jp-surface-secondary)', border: '2px dashed var(--jp-primary)' }}>
                 <Plus size={24} style={{ color: 'var(--jp-primary)' }} weight="bold" />
               </div>
-              <span className="text-[10px] font-['Manrope']" style={{ color: 'var(--jp-text-muted)' }}>Votre story</span>
+              <span className="text-[10px] font-['Manrope']" style={{ color: 'var(--jp-text-muted)' }}>{t('feed.story_add')}</span>
             </button>
 
             {/* Reels quick link */}
@@ -663,7 +663,7 @@ export default function FeedPage() {
                 style={{ background: 'linear-gradient(135deg, #E01C2E 0%, #F59E0B 50%, #9333EA 100%)' }}>
                 <Play size={24} color="#fff" weight="fill" />
               </div>
-              <span className="text-[10px] font-['Manrope'] font-bold" style={{ color: 'var(--jp-primary)' }}>Reels</span>
+              <span className="text-[10px] font-['Manrope'] font-bold" style={{ color: 'var(--jp-primary)' }}>{t('feed.reels')}</span>
             </Link>
 
             {/* Active stories by user */}

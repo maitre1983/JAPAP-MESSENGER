@@ -37,6 +37,36 @@ EXPERT_CATEGORIES = [
     "geopolitique",
 ]
 
+# iter237y — Multi-language generation: each batch produces one set per
+# supported UI language. FR remains the canonical fallback for users whose
+# language has no questions yet.
+SUPPORTED_LANGS = [
+    s.strip().lower()
+    for s in (os.environ.get("DCQ_POOL_LANGS", "fr,en").split(","))
+    if s.strip()
+] or ["fr", "en"]
+
+# Localised category labels used inside the LLM prompt so the questions
+# are framed in the target language consistently.
+CATEGORY_LABELS = {
+    "fr": {
+        "sciences_avancees": "Sciences avancées",
+        "histoire_mondiale": "Histoire mondiale",
+        "economie_finance": "Économie & finance",
+        "technologie_ia": "Technologie & IA",
+        "culture_africaine_approfondie": "Culture africaine approfondie",
+        "geopolitique": "Géopolitique",
+    },
+    "en": {
+        "sciences_avancees": "Advanced sciences",
+        "histoire_mondiale": "World history",
+        "economie_finance": "Economics & finance",
+        "technologie_ia": "Technology & AI",
+        "culture_africaine_approfondie": "In-depth African culture",
+        "geopolitique": "Geopolitics",
+    },
+}
+
 QUESTIONS_PER_CATEGORY = int(os.environ.get("DCQ_QUESTIONS_PER_CATEGORY", "10"))
 
 _last_refresh_ts: float = 0.0
@@ -56,44 +86,79 @@ def _spawn(coro) -> asyncio.Task:
     return t
 
 
-async def _generate_for_category(category: str, batch_id: int, expires_at: datetime) -> list[dict]:
-    """Calls Claude Opus 4.5 to produce N expert questions and validates them."""
+async def _generate_for_category(category: str, batch_id: int, expires_at: datetime, language: str = "fr") -> list[dict]:
+    """Calls Claude Opus 4.5 to produce N expert questions and validates them.
+
+    iter237y — Localised: prompts the LLM to write questions in `language`
+    (default FR) and stamps each result with the language so /paid/start can
+    serve them filtered by user.preferred_lang.
+    """
     from emergentintegrations.llm.chat import LlmChat, UserMessage
     api_key = os.environ.get("EMERGENT_LLM_KEY")
     if not api_key:
         logger.warning("[dcq-pool] EMERGENT_LLM_KEY missing — skip")
         return []
 
-    prompt = (
-        f"Tu es un générateur de questions de quiz EXPERT pour une app africaine.\n"
-        f"Génère exactement {QUESTIONS_PER_CATEGORY} questions de niveau expert "
-        f"sur la catégorie '{category}'. Ces questions sont pour un JEU PAYANT — "
-        f"elles doivent être difficiles, non triviales, nécessitant une vraie "
-        f"expertise.\n\n"
-        f"Format JSON STRICT (rien d'autre que ce tableau, pas de texte avant/après) :\n"
-        f"[\n"
-        f'  {{"question": "Question difficile et précise ?",\n'
-        f'    "options": ["A","B","C","D"],\n'
-        f'    "correct_idx": 0,\n'
-        f'    "explanation": "Explication détaillée et pédagogique en 2-3 phrases."}}\n'
-        f"]\n\n"
-        f"Règles strictes :\n"
-        f"- Niveau expert uniquement\n"
-        f"- Faits vérifiables, jamais d'opinions\n"
-        f"- Explication >= 30 caractères, claire et pédagogique\n"
-        f"- 4 options exactement, correct_idx entre 0 et 3\n"
-        f"- En français\n"
-        f"- Réponds UNIQUEMENT avec le JSON valide (pas de markdown, pas de texte explicatif)"
-    )
+    lang = (language or "fr").lower()[:2]
+    cat_label = CATEGORY_LABELS.get(lang, CATEGORY_LABELS["fr"]).get(category, category)
+
+    if lang == "en":
+        prompt = (
+            f"You are an EXPERT-level quiz question generator for an African app.\n"
+            f"Generate exactly {QUESTIONS_PER_CATEGORY} expert-level questions "
+            f"on the category '{cat_label}'. These are for a PAID GAME — "
+            f"they must be hard, non-trivial, and require real expertise.\n\n"
+            f"STRICT JSON format (nothing but this array, no text before/after):\n"
+            f"[\n"
+            f'  {{"question": "Hard, precise question?",\n'
+            f'    "options": ["A","B","C","D"],\n'
+            f'    "correct_idx": 0,\n'
+            f'    "explanation": "Detailed pedagogical explanation in 2-3 sentences."}}\n'
+            f"]\n\n"
+            f"Strict rules:\n"
+            f"- Expert level only\n"
+            f"- Verifiable facts, never opinions\n"
+            f"- Explanation >= 30 characters, clear and pedagogical\n"
+            f"- Exactly 4 options, correct_idx between 0 and 3\n"
+            f"- ENTIRE OUTPUT IN ENGLISH (questions, options and explanations)\n"
+            f"- Reply ONLY with valid JSON (no markdown, no explanatory text)"
+        )
+        system_msg = (
+            "You are an assistant that returns ONLY valid JSON. "
+            "You NEVER use markdown nor explanatory text around it."
+        )
+    else:
+        prompt = (
+            f"Tu es un générateur de questions de quiz EXPERT pour une app africaine.\n"
+            f"Génère exactement {QUESTIONS_PER_CATEGORY} questions de niveau expert "
+            f"sur la catégorie '{cat_label}'. Ces questions sont pour un JEU PAYANT — "
+            f"elles doivent être difficiles, non triviales, nécessitant une vraie "
+            f"expertise.\n\n"
+            f"Format JSON STRICT (rien d'autre que ce tableau, pas de texte avant/après) :\n"
+            f"[\n"
+            f'  {{"question": "Question difficile et précise ?",\n'
+            f'    "options": ["A","B","C","D"],\n'
+            f'    "correct_idx": 0,\n'
+            f'    "explanation": "Explication détaillée et pédagogique en 2-3 phrases."}}\n'
+            f"]\n\n"
+            f"Règles strictes :\n"
+            f"- Niveau expert uniquement\n"
+            f"- Faits vérifiables, jamais d'opinions\n"
+            f"- Explication >= 30 caractères, claire et pédagogique\n"
+            f"- 4 options exactement, correct_idx entre 0 et 3\n"
+            f"- TOUT LE CONTENU EN FRANÇAIS (question, options et explication)\n"
+            f"- Réponds UNIQUEMENT avec le JSON valide (pas de markdown, pas de texte explicatif)"
+        )
+        system_msg = (
+            "Tu es un assistant qui génère exclusivement du JSON valide. "
+            "Tu ne fais JAMAIS de markdown ni de texte explicatif autour."
+        )
 
     chat = (
         LlmChat(
             api_key=api_key,
-            session_id=f"dcq_gen_{category}_{batch_id}",
-            system_message=(
-                "Tu es un assistant qui génère exclusivement du JSON valide. "
-                "Tu ne fais JAMAIS de markdown ni de texte explicatif autour."
-            ),
+            session_id=f"dcq_gen_{lang}_{category}_{batch_id}",
+            system_message=system_msg,
         )
         .with_model("anthropic", "claude-opus-4-5-20251101")
     )
@@ -145,6 +210,7 @@ async def _generate_for_category(category: str, batch_id: int, expires_at: datet
             "category": category,
             "batch_id": batch_id,
             "expires_at": expires_at,
+            "language": lang,
         })
 
     return accepted
@@ -154,24 +220,39 @@ async def _validate_question(q: dict) -> bool:
     """Anti-hallucination guard: re-prompt Claude to confirm the chosen
     option index actually answers the question. Lightweight verification —
     we only drop questions where Claude itself disagrees with its own
-    correct_idx. Network failure → keep (best-effort)."""
+    correct_idx. Network failure → keep (best-effort).
+
+    iter237y — Validation prompt is localised to match the question's language
+    so the LLM stays in the same language frame as generation.
+    """
     from emergentintegrations.llm.chat import LlmChat, UserMessage
     api_key = os.environ.get("EMERGENT_LLM_KEY")
     if not api_key:
         return True
     options_str = "\n".join(f"{i}: {opt}" for i, opt in enumerate(q["options"]))
-    prompt = (
-        f"Question : {q['question']}\n\n"
-        f"Options :\n{options_str}\n\n"
-        f"Quel est l'index (0, 1, 2 ou 3) de la SEULE bonne réponse ? "
-        f"Réponds par UN SEUL chiffre, rien d'autre."
-    )
+    lang = (q.get("language") or "fr").lower()[:2]
+    if lang == "en":
+        prompt = (
+            f"Question: {q['question']}\n\n"
+            f"Options:\n{options_str}\n\n"
+            f"What is the index (0, 1, 2 or 3) of the SINGLE correct answer? "
+            f"Reply with ONE digit only, nothing else."
+        )
+        system_msg = "You reply with a single digit between 0 and 3."
+    else:
+        prompt = (
+            f"Question : {q['question']}\n\n"
+            f"Options :\n{options_str}\n\n"
+            f"Quel est l'index (0, 1, 2 ou 3) de la SEULE bonne réponse ? "
+            f"Réponds par UN SEUL chiffre, rien d'autre."
+        )
+        system_msg = "Tu réponds par un seul chiffre entre 0 et 3."
     try:
         chat = (
             LlmChat(
                 api_key=api_key,
-                session_id=f"dcq_val_{q.get('batch_id', 0)}",
-                system_message="Tu réponds par un seul chiffre entre 0 et 3.",
+                session_id=f"dcq_val_{lang}_{q.get('batch_id', 0)}",
+                system_message=system_msg,
             )
             .with_model("anthropic", "claude-opus-4-5-20251101")
         )
@@ -214,33 +295,35 @@ async def _refresh_pool(reason: str = "scheduled") -> dict[str, int]:
         ) or 1
 
         for category in EXPERT_CATEGORIES:
-            try:
-                items = await _generate_for_category(category, batch_id, expires)
-            except Exception as e:  # noqa: BLE001
-                logger.warning("[dcq-pool] category %s failed: %s", category, e)
-                failed_cats.append(category)
-                continue
-            if not items:
-                failed_cats.append(category)
-                continue
-            for q in items:
-                ok = await _validate_question(q)
-                if not ok:
-                    rejected += 1
-                    continue
+            for lang in SUPPORTED_LANGS:
                 try:
-                    await conn.execute(
-                        """INSERT INTO daily_challenge_expert_pool
-                             (question, options, correct_idx, explanation,
-                              difficulty, category, language, batch_id, expires_at)
-                           VALUES ($1, $2, $3, $4, 5, $5, 'fr', $6, $7)""",
-                        q["question"], json.dumps(q["options"]), q["correct_idx"],
-                        q["explanation"], q["category"], q["batch_id"], q["expires_at"],
-                    )
-                    inserted += 1
+                    items = await _generate_for_category(category, batch_id, expires, language=lang)
                 except Exception as e:  # noqa: BLE001
-                    logger.warning("[dcq-pool] insert failed: %s", e)
-                    rejected += 1
+                    logger.warning("[dcq-pool] category %s lang=%s failed: %s", category, lang, e)
+                    failed_cats.append(f"{category}/{lang}")
+                    continue
+                if not items:
+                    failed_cats.append(f"{category}/{lang}")
+                    continue
+                for q in items:
+                    ok = await _validate_question(q)
+                    if not ok:
+                        rejected += 1
+                        continue
+                    try:
+                        await conn.execute(
+                            """INSERT INTO daily_challenge_expert_pool
+                                 (question, options, correct_idx, explanation,
+                                  difficulty, category, language, batch_id, expires_at)
+                               VALUES ($1, $2, $3, $4, 5, $5, $6, $7, $8)""",
+                            q["question"], json.dumps(q["options"]), q["correct_idx"],
+                            q["explanation"], q["category"], q["language"],
+                            q["batch_id"], q["expires_at"],
+                        )
+                        inserted += 1
+                    except Exception as e:  # noqa: BLE001
+                        logger.warning("[dcq-pool] insert failed: %s", e)
+                        rejected += 1
 
     elapsed = asyncio.get_event_loop().time() - started
     _last_refresh_ts = asyncio.get_event_loop().time()

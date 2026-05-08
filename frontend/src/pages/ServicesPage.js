@@ -368,8 +368,8 @@ export default function ServicesPage() {
                   <Tag size={28} weight="duotone" style={{ color: '#8B5CF6' }} />
                 </div>
                 <div className="flex-1">
-                  <p className="text-lg font-bold font-['Outfit']" style={{ color: 'var(--jp-text)' }}>Offres</p>
-                  <p className="text-sm font-['Manrope']" style={{ color: 'var(--jp-text-secondary)' }}>Offres d'emploi, missions freelance, petites annonces. Extension complète du module Jobs.</p>
+                  <p className="text-lg font-bold font-['Outfit']" style={{ color: 'var(--jp-text)' }}>{t('services.offers_label')}</p>
+                  <p className="text-sm font-['Manrope']" style={{ color: 'var(--jp-text-secondary)' }}>{t('services.offers_desc')}</p>
                 </div>
                 {flags.badges.offers && (
                   <span className="jp-badge" data-testid="offers-badge"
@@ -383,7 +383,7 @@ export default function ServicesPage() {
         </div>
 
         {/* Other services grid */}
-        <h3 className="font-['Outfit'] text-base font-bold mb-3" style={{ color: 'var(--jp-text-secondary)' }}>Bientot disponibles</h3>
+        <h3 className="font-['Outfit'] text-base font-bold mb-3" style={{ color: 'var(--jp-text-secondary)' }}>{t('services.coming_soon_header')}</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 jp-stagger">
           {SERVICE_MODULES.map((svc, i) => (
             <div key={i} className="jp-card p-4 text-center opacity-50" data-testid={`service-${svc.label.toLowerCase().replace(/\s/g,'-')}`}>
@@ -395,8 +395,8 @@ export default function ServicesPage() {
         </div>
 
         <div className="mt-8 p-6 rounded-2xl" style={{ background: 'linear-gradient(135deg, var(--jp-primary), var(--jp-primary-hover))' }}>
-          <h3 className="font-['Outfit'] text-lg font-bold text-white mb-2">De nouveaux services arrivent!</h3>
-          <p className="text-sm text-white/80 font-['Manrope']">Food delivery, transport, emplois, crowdfunding, crypto et bien plus encore.</p>
+          <h3 className="font-['Outfit'] text-lg font-bold text-white mb-2">{t('services.new_services_arrive')}</h3>
+          <p className="text-sm text-white/80 font-['Manrope']">{t('services.new_services_desc')}</p>
         </div>
       </div>
     );
@@ -469,11 +469,11 @@ export default function ServicesPage() {
             style={{ color: 'var(--jp-text-muted)' }} data-testid="back-to-services">
             &larr; Services
           </button>
-          <h1 className="font-['Outfit'] text-2xl font-bold" style={{ color: 'var(--jp-text)' }}>Marketplace</h1>
+          <h1 className="font-['Outfit'] text-2xl font-bold" style={{ color: 'var(--jp-text)' }}>{t('services.marketplace')}</h1>
         </div>
         <button onClick={() => setShowCreateProduct(!showCreateProduct)} data-testid="create-product-btn"
           className="jp-btn jp-btn-primary">
-          <Plus size={16} /> Vendre
+          <Plus size={16} /> {t('services.sell_cta')}
         </button>
       </div>
 
@@ -484,7 +484,7 @@ export default function ServicesPage() {
       {showCreateProduct && (
         <div className="jp-card-elevated p-6 mb-6 jp-animate-scaleIn" data-testid="create-product-form">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="font-['Outfit'] text-lg font-bold" style={{ color: 'var(--jp-text)' }}>Nouveau produit</h3>
+            <h3 className="font-['Outfit'] text-lg font-bold" style={{ color: 'var(--jp-text)' }}>{t('services.new_product')}</h3>
             <button onClick={() => setShowCreateProduct(false)} style={{ color: 'var(--jp-text-muted)' }}><X size={18} /></button>
           </div>
           <form onSubmit={handleCreateProduct} className="space-y-4">
@@ -532,7 +532,7 @@ export default function ServicesPage() {
 
             {/* iter174 — Product images upload (1-5 max) */}
             <div data-testid="product-images-section">
-              <label className="jp-label">Photos du produit (1 à 5)</label>
+              <label className="jp-label">{t('services.product_photos_label')}</label>
               <div className="border-2 border-dashed rounded-lg p-3"
                 style={{ borderColor: 'var(--jp-border)' }}
                 onDragOver={(e) => { e.preventDefault(); }}
@@ -567,22 +567,21 @@ export default function ServicesPage() {
                   )}
                 </div>
                 <p className="text-[11px]" style={{ color: 'var(--jp-text-muted)' }}>
-                  Glissez-déposez ou cliquez. JPG/PNG/WebP — compression automatique.
-                  La première image sera l'image principale.
+                  {t('services.product_photos_help')}
                 </p>
                 {/* iter181 — AI image generation/enhancement button */}
                 <button type="button" onClick={() => setAiModalOpen(true)}
                   data-testid="product-ai-image-btn"
                   className="jp-btn jp-btn-sm w-full mt-2 inline-flex items-center justify-center gap-1"
                   style={{ background: 'linear-gradient(135deg,#6366F1,#EC4899)', color: 'white' }}>
-                  ✨ Générer / améliorer avec l'IA
+                  {t('services.ai_generate_or_enhance')}
                 </button>
               </div>
             </div>
 
             <div className="flex gap-3">
-              <button type="submit" data-testid="submit-product" className="jp-btn jp-btn-primary">Publier le produit</button>
-              <button type="button" onClick={() => setShowCreateProduct(false)} className="jp-btn jp-btn-ghost">Annuler</button>
+              <button type="submit" data-testid="submit-product" className="jp-btn jp-btn-primary">{t('services.publish_product')}</button>
+              <button type="button" onClick={() => setShowCreateProduct(false)} className="jp-btn jp-btn-ghost">{t('common.cancel')}</button>
             </div>
           </form>
         </div>
@@ -668,7 +667,7 @@ export default function ServicesPage() {
         </select>
         <select value={sortBy} onChange={e => setSortBy(e.target.value)} data-testid="marketplace-sort"
           className="jp-input text-sm" style={{ width: 'auto', minWidth: '140px' }}>
-          <option value="smart">Pour vous (Pro+boost)</option>
+          <option value="smart">{t('services.for_you_pro_boost')}</option>
           <option value="recent">{t('services.plus_recents')}</option>
           <option value="price_asc">{t('services.prix_croissant')}</option>
           <option value="price_desc">{t('services.prix_decroissant')}</option>
@@ -766,7 +765,7 @@ export default function ServicesPage() {
         {products.length === 0 && (
           <div className="col-span-full jp-card p-12 text-center">
             <ShoppingBag size={40} className="mx-auto mb-3" style={{ color: 'var(--jp-text-muted)', opacity: 0.4 }} />
-            <p className="text-sm font-['Manrope']" style={{ color: 'var(--jp-text-muted)' }}>Aucun produit pour le moment</p>
+            <p className="text-sm font-['Manrope']" style={{ color: 'var(--jp-text-muted)' }}>{t('services.no_product_yet')}</p>
           </div>
         )}
       </div>
@@ -775,7 +774,7 @@ export default function ServicesPage() {
       {orders.length > 0 && (
         <div className="jp-card" data-testid="orders-section">
           <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--jp-border)' }}>
-            <h3 className="font-['Outfit'] text-lg font-bold" style={{ color: 'var(--jp-text)' }}>Mes commandes (Escrow)</h3>
+            <h3 className="font-['Outfit'] text-lg font-bold" style={{ color: 'var(--jp-text)' }}>{t('services.my_orders_escrow')}</h3>
             <p className="text-[11px]" style={{ color: 'var(--jp-text-muted)' }}>
               🔒 Paiement sécurisé JAPAP — fonds bloqués jusqu’à confirmation, libération automatique après le délai admin.
             </p>

@@ -1,0 +1,33 @@
+{
+  "summary": "iter238 — i18n FR/EN audit + DCQ paid multi-lang fallback. Backend: 7/7 pytest pass (i18n preferences toggle, /paid/config pool_size with FR fallback, schema language column + index, worker SUPPORTED_LANGS + lang-aware prompts, /paid/start non-500). Frontend: i18n EN switch confirmed visually on /services (English labels: 'Services / Explore the JAPAP ecosystem / Marketplace / JAPAP Staking / Crowdfunding / Games'). LoginPage shows 'Remember me' in EN. i18n key files aligned 1048/1048 (no missing keys, all required nav.*, services.*, auth.remember_me*, feed.*, chat.amount_usd present in both fr.json and en.json). No crashes on /feed, /chat, /wallet, /profile. PUT /api/auth/preferences {preferred_lang} returns 200 and persists.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Layout.js mobile burger button", "issue": "No stable data-testid on the burger/drawer-toggle button — drawer-link-groups/pages only render once the drawer opens, so E2E tests need a reliable handle. Recommend adding data-testid=\"drawer-toggle\" on the burger.", "selector": "header burger button (mobile)", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Lang change via PUT /api/auth/preferences", "issue": "After successful PUT, the SPA does not always re-fetch /me on next route navigation, so i18n may require a full reload to propagate. Consider triggering UserContext refresh + i18n.changeLanguage(lang) on success.", "affected_selectors": ["i18next instance / UserContext"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter238_i18n_dcq.py",
+    "/app/test_reports/pytest/iter238_i18n_dcq.xml"
+  ],
+  "action_items": [
+    "(LOW) Add data-testid=\"drawer-toggle\" on the mobile burger button in Layout.js for stable E2E selectors.",
+    "(LOW/UX) After PUT /api/auth/preferences success, trigger UserContext refresh + i18n.changeLanguage(lang) so the language switches without full reload."
+  ],
+  "critical_code_review_comments": [
+    "dcq_paid.py /paid/start lines 396-411: pool size guard uses unfiltered count (no language filter). When EN questions exist but the user's lang+FR pool is exhausted, the 503 may trigger inconsistently. Consider filtering by language IN ($1,'fr') for consistency with the SELECT at l.417-425.",
+    "dcq_paid_pool_worker.py _refresh_pool: nested loop runs sequentially per category × language (6 × 2 × ~10 questions = ~120 LLM calls + ~120 validation calls per refresh). Consider asyncio.gather per language to roughly halve wall-clock.",
+    "i18n key parity: 1048/1048 confirmed aligned, but no automated CI guard. Recommend a small JS test (Jest) or shell script diffing flatten(fr) vs flatten(en) on PR to prevent future drift."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter238_i18n_dcq.py"],
+  "success_rate": {"backend": "100%", "frontend": "85%"},
+  "test_credentials": "Alice alice@japap.com / Alice2026! (CAPTCHA bypass: JAPAP_E2E_BYPASS_2026 / 0)",
+  "seed_data_creation": "None — used existing Alice account; preferred_lang toggled en→fr→en and restored to fr at end.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest /app/backend/tests/test_iter238_i18n_dcq.py covers: i18n preferences toggle, DCQ paid /config pool_size FR fallback (EN user receives FR questions from existing 1552-question FR pool), schema language column + idx_dcep_active_lang index, worker SUPPORTED_LANGS multi-lang prompts. Run with PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 to avoid web3 ethereum plugin import error (eth_typing.ContractName). For UI testing: login via the form (in-page captcha math must be solved by the script — fetch from page context is blocked by service worker before login). PUT /api/auth/preferences requires Bearer token + X-CSRF-Token header from cookie 'csrf_token'."
+}

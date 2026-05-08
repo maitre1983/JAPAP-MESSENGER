@@ -336,8 +336,8 @@ export default function LoginPage() {
                      onChange={(e) => setRememberMe(e.target.checked)}
                      className="w-4 h-4 rounded cursor-pointer"
                      style={{ accentColor: '#FFD700' }} />
-              <span>Se souvenir de moi</span>
-              <span className="text-white/50 text-[10px] ml-1">— reste connecté(e) sur cet appareil</span>
+              <span>{t('auth.remember_me')}</span>
+              <span className="text-white/50 text-[10px] ml-1">{t('auth.remember_me_hint')}</span>
             </label>
 
             {/* Links: Forgot password + Register */}

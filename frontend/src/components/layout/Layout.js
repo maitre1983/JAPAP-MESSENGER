@@ -154,30 +154,30 @@ export default function Layout({ children }) {
                 <NavLink to="/admin" onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-['Manrope'] font-medium"
                   style={({ isActive }) => ({ background: isActive ? 'var(--jp-secondary)' : 'transparent', color: isActive ? 'white' : 'var(--jp-text-secondary)' })}>
-                  <ShieldCheck size={20} weight="duotone" /> Administration
+                  <ShieldCheck size={20} weight="duotone" /> {t('nav.administration')}
                 </NavLink>
               )}
               <NavLink to="/groups" onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-['Manrope'] font-medium"
                 style={{ color: 'var(--jp-text-secondary)' }}
                 data-testid="drawer-link-groups">
-                <UsersThree size={20} weight="duotone" /> Groupes
+                <UsersThree size={20} weight="duotone" /> {t('nav.groups')}
               </NavLink>
               <NavLink to="/pages" onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-['Manrope'] font-medium"
                 style={{ color: 'var(--jp-text-secondary)' }}
                 data-testid="drawer-link-pages">
-                <FileText size={20} weight="duotone" /> Pages
+                <FileText size={20} weight="duotone" /> {t('nav.pages')}
               </NavLink>
               <NavLink to="/profile" onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-['Manrope'] font-medium"
                 style={{ color: 'var(--jp-text-secondary)' }}>
-                <GearSix size={20} weight="duotone" /> Parametres
+                <GearSix size={20} weight="duotone" /> {t('nav.settings')}
               </NavLink>
               <button onClick={handleLogout}
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-['Manrope'] font-medium w-full"
                 style={{ color: 'var(--jp-error)' }}>
-                <SignOut size={18} /> Deconnexion
+                <SignOut size={18} /> {t('nav.logout')}
               </button>
             </nav>
           </div>

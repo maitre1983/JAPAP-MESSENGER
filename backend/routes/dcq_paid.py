@@ -275,9 +275,13 @@ async def paid_config(request: Request):
                     "status": r["status"],
                 }
         net_today = await _today_net_gain_usd(conn, user["user_id"])
+        # iter237y — Per-user pool size (user lang + FR fallback) so the
+        # banner reflects what the player would actually receive.
+        user_lang_cfg = (user.get("preferred_lang") or "fr").lower()[:2]
         active_pool = await conn.fetchval(
             "SELECT COUNT(*) FROM daily_challenge_expert_pool "
-            "WHERE active=TRUE AND expires_at > NOW()"
+            "WHERE active=TRUE AND expires_at > NOW() AND language IN ($1, 'fr')",
+            user_lang_cfg,
         )
         # iter237l — Profile-completion redemption (anti-tilt +5% on losses).
         redemption = await _redemption_status(conn, user["user_id"])
@@ -406,12 +410,18 @@ async def paid_start(req: StartIn, request: Request):
                 "Réessaie dans environ 1 minute.",
             )
 
-        # Sélection 5 questions au hasard
+        # iter237y — Sélection 5 questions au hasard, langue utilisateur
+        # avec fallback français. On préfère la langue du joueur ; s'il
+        # n'y en a pas assez, on complète avec FR (défaut).
+        user_lang = (user.get("preferred_lang") or "fr").lower()[:2]
         questions = await conn.fetch(
             """SELECT id, question, options, correct_idx, explanation, category
                  FROM daily_challenge_expert_pool
                 WHERE active=TRUE AND expires_at > NOW()
-                ORDER BY RANDOM() LIMIT 5""",
+                  AND language IN ($1, 'fr')
+                ORDER BY (language = $1) DESC, RANDOM()
+                LIMIT 5""",
+            user_lang,
         )
         if len(questions) < 5:
             raise HTTPException(503, "Pool insuffisant — réessaie dans 1 minute.")

@@ -1668,6 +1668,81 @@ async def deposit_status(tx_id: str, request: Request):
 # Triggered by the user-facing "J'ai payé" button. Idempotent: re-runs the
 # authoritative verify_payment_status / verify_transaction_status flow and
 # credits the wallet immediately on confirmation. Bypasses the webhook.
+class SubmitDepositHashRequest(BaseModel):
+    tx_hash: str
+
+
+# iter237ab — Late hash submission for manual USDT deposits.
+# After the user initiates a `usdt_*` deposit, they leave the page,
+# send the funds from their crypto wallet and need a way to come back
+# and paste the on-chain tx_hash so the admin/auto-verifier can credit
+# their wallet. The `reference` column stores the hash (manual flow).
+@router.patch("/deposit/{tx_id}/hash")
+async def submit_deposit_hash(tx_id: str, req: SubmitDepositHashRequest, request: Request):
+    """Attach (or update) the blockchain tx_hash on a pending USDT deposit.
+
+    Rules:
+      • Deposit must belong to the current user.
+      • Deposit must be `pending` and method must be `usdt_*`.
+      • The hash is stored in `transactions.reference` (existing schema).
+      • Notifies ops so the admin sees the freshly attached hash.
+      • Idempotent: same hash twice → 200, no-op.
+    """
+    user = await get_current_user(request)
+    tx_hash = (req.tx_hash or "").strip()
+    # Loose validation: blockchain tx hashes are typically 64-66 chars
+    # (TRON: 64 hex; BSC/EVM: 0x + 64 hex). We accept 32-100 chars to be
+    # forgiving on edge cases (some explorers prefix differently).
+    if len(tx_hash) < 16 or len(tx_hash) > 200:
+        raise HTTPException(status_code=400, detail="Hash de transaction invalide (16-200 caractères).")
+
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        tx = await conn.fetchrow(
+            "SELECT tx_id, to_user_id, type, status, amount, amount_usd, reference, notes "
+            "FROM transactions WHERE tx_id = $1",
+            tx_id,
+        )
+        if not tx or tx["to_user_id"] != user["user_id"]:
+            raise HTTPException(status_code=404, detail="Dépôt introuvable.")
+        if tx["type"] != "deposit":
+            raise HTTPException(status_code=400, detail="Cette transaction n'est pas un dépôt.")
+        if tx["status"] != "pending":
+            raise HTTPException(status_code=400, detail="Ce dépôt n'est plus en attente.")
+        # Only manual USDT deposits use `reference` as the on-chain hash.
+        notes = tx["notes"] or ""
+        is_usdt_manual = ("USDT" in notes.upper()) or ("[USDT" in notes)
+        if not is_usdt_manual:
+            raise HTTPException(status_code=400, detail="Hash applicable uniquement aux dépôts USDT manuels.")
+
+        await conn.execute(
+            "UPDATE transactions SET reference = $1 WHERE tx_id = $2",
+            tx_hash[:255], tx_id,
+        )
+        await conn.execute(
+            """INSERT INTO audit_logs (user_id, action, resource, details)
+                 VALUES ($1, 'deposit_hash_submitted', 'wallet', $2)""",
+            user["user_id"], f'{{"tx_id": "{tx_id}", "hash_len": {len(tx_hash)}}}',
+        )
+
+    # Best-effort ops notification — the admin now has the hash needed
+    # to verify on-chain.
+    try:
+        notify_deposit(
+            user_id=user["user_id"],
+            user_email=user.get("email", ""),
+            user_name=user.get("name") or user.get("username") or user.get("email", ""),
+            amount=float(tx["amount_usd"] or tx["amount"] or 0),
+            method="usdt_manual_hash_submitted",
+            tx_id=tx_id,
+            status="pending",
+        )
+    except Exception:  # noqa: BLE001
+        pass  # never block the user
+
+    return {"success": True, "tx_id": tx_id, "message": "Hash enregistré. Vérification en cours."}
+
+
 @router.post("/deposit/{tx_id}/force-verify")
 async def deposit_force_verify(tx_id: str, request: Request):
     """Force a verify-now on the provider API for the given deposit.

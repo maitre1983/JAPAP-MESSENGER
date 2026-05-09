@@ -44,6 +44,15 @@ export default function WalletPage() {
   const [depositForm, setDepositForm] = useState({ amount: '', method: 'usdt_trc20', reference: '', notes: '' });
   const [withdrawForm, setWithdrawForm] = useState({ amount: '', method: 'usdt_trc20', address: '', notes: '' });
   const [depositResult, setDepositResult] = useState(null);
+  // iter237ab — Late hash submission for manual USDT deposits.
+  const [postDepositHash, setPostDepositHash] = useState('');
+  const [submittingPostHash, setSubmittingPostHash] = useState(false);
+  const [hashSubmittedFor, setHashSubmittedFor] = useState({}); // { tx_id: true }
+  // iter237ab — Modal to attach a hash to an older pending deposit
+  // (user closed the page before pasting it).
+  const [lateHashModal, setLateHashModal] = useState(null); // { tx_id }
+  const [lateHashValue, setLateHashValue] = useState('');
+  const [lateHashSubmitting, setLateHashSubmitting] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState({ deposit: [], withdraw: [], fee: {}, min_withdraw_usd: 0 });
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -634,14 +643,14 @@ export default function WalletPage() {
                 />
               )}
               {depositForm.method.startsWith('usdt_') && (
-                <div>
-                  <label className="jp-label">Hash de transaction (après envoi)</label>
-                  <input value={depositForm.reference} onChange={e => setDepositForm(f => ({ ...f, reference: e.target.value }))}
-                    className="jp-input text-sm" placeholder="Tx hash 0x... (optionnel, à remplir après envoi)" data-testid="deposit-txhash" />
+                <div className="rounded-xl p-3 text-xs"
+                     style={{ background: 'rgba(15,5,107,0.04)', color: 'var(--jp-text-secondary)' }}>
+                  💡 Une adresse USDT te sera affichée à l'étape suivante.
+                  Tu colleras le hash de transaction <strong>après</strong> avoir envoyé les fonds.
                 </div>
               )}
               <div className="flex gap-3 pt-1">
-                <button type="submit" data-testid="confirm-deposit-button" className="jp-btn jp-btn-primary">Initier le dépôt</button>
+                <button type="submit" data-testid="confirm-deposit-button" className="jp-btn jp-btn-primary">Continuer →</button>
                 <button type="button" onClick={resetForms} className="jp-btn jp-btn-ghost">Annuler</button>
               </div>
             </form>
@@ -705,10 +714,80 @@ export default function WalletPage() {
                   <code className="block text-sm break-all font-mono select-all" data-testid="deposit-address">
                     {depositResult.address}
                   </code>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        try { navigator.clipboard.writeText(depositResult.address); toast.success('Adresse copiée'); }
+                        catch (_) { toast.error('Copie impossible'); }
+                      }}
+                      data-testid="copy-deposit-address"
+                      className="jp-btn jp-btn-sm jp-btn-ghost text-xs">
+                      📋 Copier l'adresse
+                    </button>
+                  </div>
                   <p className="text-xs mt-2">
-                    Envoyez exactement {depositResult.amount_usd} USDT à cette adresse sur {depositResult.chain},
-                    puis collez le hash de transaction dans le champ "Hash".
+                    Envoyez exactement <strong>{depositResult.amount_usd} USDT</strong> à cette adresse sur {depositResult.chain},
+                    puis collez le hash de la transaction blockchain ci-dessous.
                   </p>
+                </div>
+              )}
+              {/* iter237ab — Hash input AFTER the address (was incorrectly
+                  placed BEFORE the user even saw the address). User can also
+                  ferme la page et revenir plus tard via l'historique. */}
+              {depositResult.address && depositResult.method?.startsWith('usdt_') && !hashSubmittedFor[depositResult.tx_id] && (
+                <div className="rounded-xl p-4" style={{ background: 'rgba(15,5,107,0.04)', border: '1px solid var(--jp-border)' }}
+                     data-testid="post-deposit-hash-block">
+                  <label className="jp-label flex items-center justify-between">
+                    <span>Hash de transaction
+                      <span className="opacity-60 font-normal ml-1 text-xs">(reçu après l'envoi)</span>
+                    </span>
+                  </label>
+                  <input
+                    type="text"
+                    value={postDepositHash}
+                    onChange={e => setPostDepositHash(e.target.value)}
+                    placeholder="0x... (à coller ici après envoi)"
+                    className="jp-input text-sm font-mono"
+                    data-testid="post-deposit-hash-input"
+                    minLength={16}
+                    maxLength={200}
+                  />
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--jp-text-muted)' }}>
+                    Le hash se trouve dans ton wallet crypto après confirmation de la transaction.
+                    Tu peux fermer cette page et revenir le coller depuis l'historique.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const h = (postDepositHash || '').trim();
+                      if (h.length < 16) { toast.error('Hash invalide (min. 16 caractères).'); return; }
+                      setSubmittingPostHash(true);
+                      try {
+                        await axios.patch(`${API}/api/wallet/deposit/${depositResult.tx_id}/hash`,
+                          { tx_hash: h }, { withCredentials: true });
+                        setHashSubmittedFor(s => ({ ...s, [depositResult.tx_id]: true }));
+                        setPostDepositHash('');
+                        toast.success('Hash soumis ! Vérification en cours.');
+                        loadTransactions();
+                      } catch (e) {
+                        toast.error(e.response?.data?.detail || 'Erreur lors de la soumission du hash.');
+                      } finally {
+                        setSubmittingPostHash(false);
+                      }
+                    }}
+                    disabled={submittingPostHash || (postDepositHash || '').trim().length < 16}
+                    data-testid="post-deposit-hash-submit"
+                    className="jp-btn jp-btn-primary jp-btn-full mt-3"
+                    style={{ opacity: (submittingPostHash || (postDepositHash || '').trim().length < 16) ? 0.6 : 1 }}>
+                    {submittingPostHash ? 'Envoi…' : '✅ Confirmer le dépôt'}
+                  </button>
+                </div>
+              )}
+              {hashSubmittedFor[depositResult.tx_id] && (
+                <div className="rounded-xl p-3 text-sm" style={{ background: 'rgba(16,185,129,0.10)', color: '#065F46' }}
+                     data-testid="post-deposit-hash-confirmed">
+                  ✅ Hash enregistré. Ton compte sera crédité dès la vérification on-chain.
                 </div>
               )}
               {depositResult.checkout_url && (
@@ -1004,6 +1083,23 @@ export default function WalletPage() {
                   {verifyingTx === tx.tx_id ? t('wallet.verif') : t('wallet.verifier_mon_paiement')}
                 </button>
               )}
+              {/* iter237ab — Late hash submission CTA for pending manual
+                  USDT deposits where the user hasn't pasted a hash yet
+                  (closed the page before pasting). The reference column is
+                  empty AND notes contain [USDT...] tag. */}
+              {tx.type === 'deposit'
+                && tx.status === 'pending'
+                && (tx.notes || '').toUpperCase().includes('USDT')
+                && !(tx.reference && String(tx.reference).trim().length >= 16) && (
+                <button
+                  type="button"
+                  onClick={() => { setLateHashModal({ tx_id: tx.tx_id }); setLateHashValue(''); }}
+                  data-testid={`late-hash-cta-${tx.tx_id}`}
+                  className="jp-btn jp-btn-sm"
+                  style={{ background: 'var(--jp-primary)', color: 'white' }}>
+                  + Soumettre le hash
+                </button>
+              )}
             </div>
             {isStale && (
               <div
@@ -1033,6 +1129,74 @@ export default function WalletPage() {
           </div>
         )}
       </div>
+
+      {/* iter237ab — Late hash submission modal: user opens this from a
+          pending USDT deposit row in the transaction history. */}
+      {lateHashModal && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4"
+             style={{ background: 'rgba(0,0,0,0.55)' }}
+             onClick={() => !lateHashSubmitting && setLateHashModal(null)}
+             data-testid="late-hash-modal">
+          <div className="jp-card-elevated p-6 max-w-md w-full"
+               onClick={e => e.stopPropagation()}>
+            <h3 className="font-['Outfit'] text-lg font-bold mb-1" style={{ color: 'var(--jp-text)' }}>
+              Finaliser ton dépôt
+            </h3>
+            <p className="text-sm mb-4" style={{ color: 'var(--jp-text-secondary)' }}>
+              Colle le hash de transaction blockchain pour qu'on puisse vérifier l'envoi
+              et créditer ton compte.
+            </p>
+            <input
+              type="text"
+              value={lateHashValue}
+              onChange={e => setLateHashValue(e.target.value)}
+              placeholder="0x... (tx hash)"
+              className="jp-input text-sm font-mono"
+              data-testid="late-hash-input"
+              minLength={16}
+              maxLength={200}
+            />
+            <p className="text-[11px] mt-1" style={{ color: 'var(--jp-text-muted)' }}>
+              Le hash se trouve dans ton wallet crypto (BscScan, Tronscan, etc.) après confirmation de la transaction.
+            </p>
+            <div className="flex gap-3 mt-4">
+              <button
+                type="button"
+                onClick={async () => {
+                  const h = (lateHashValue || '').trim();
+                  if (h.length < 16) { toast.error('Hash invalide (min. 16 caractères).'); return; }
+                  setLateHashSubmitting(true);
+                  try {
+                    await axios.patch(`${API}/api/wallet/deposit/${lateHashModal.tx_id}/hash`,
+                      { tx_hash: h }, { withCredentials: true });
+                    toast.success('Hash soumis ! Vérification en cours.');
+                    setLateHashModal(null);
+                    setLateHashValue('');
+                    loadTransactions();
+                  } catch (e) {
+                    toast.error(e.response?.data?.detail || 'Erreur lors de la soumission.');
+                  } finally {
+                    setLateHashSubmitting(false);
+                  }
+                }}
+                disabled={lateHashSubmitting || (lateHashValue || '').trim().length < 16}
+                data-testid="late-hash-submit"
+                className="jp-btn jp-btn-primary flex-1"
+                style={{ opacity: (lateHashSubmitting || (lateHashValue || '').trim().length < 16) ? 0.6 : 1 }}>
+                {lateHashSubmitting ? 'Envoi…' : 'Soumettre'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setLateHashModal(null)}
+                disabled={lateHashSubmitting}
+                className="jp-btn jp-btn-ghost"
+                data-testid="late-hash-cancel">
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KYC Submission Modal */}
       {showKyc && (

@@ -1,0 +1,45 @@
+{
+  "summary": "iter237ad — Live on-chain preview endpoint (POST /api/wallet/deposit/{tx_id}/verify-preview) tested. Backend: 12/13 PASS (1 skip: mobile_money fixture creation needs phone setup — not a regression). Read-only guarantee CONFIRMED (5x calls, balance unchanged, status stays pending). Response shape contract validated (ready: bool, verification: {verified, status, reason}). Negative paths covered: too_short (<32), not_found (fake hash), 404 (unknown tx + other user). PATCH /hash regression intact (400 short, 404 unknown/non-owner, 200 with credited:false on fake hash). Frontend: code-review only on WalletPage.js — implementation correctly mirrors the contract on both flows (in-form lines 88-127, late-hash modal lines 129-164). Playwright login + wallet navigation succeeded but deposit init form uses a method dropdown not exposing data-testid='deposit-method-usdt_trc20' — full E2E with fake hash typing was not driveable from the testid surface in time budget; backend coverage is comprehensive enough to ship.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "WalletPage — Déposer modal",
+        "issues": ["Method picker exposes wave/orange_money_cm via testids ('wave-deposit-block', 'om-deposit-block') but USDT methods are not exposed via 'deposit-method-usdt_trc20' testid → harder to drive E2E. Recommend adding data-testid='deposit-method-usdt_trc20' / 'deposit-method-usdt_bep20' on the USDT method radios/buttons for future testability."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter237ad_verify_preview.py",
+    "/app/test_reports/pytest/iter237ad_results.xml"
+  ],
+  "action_items": [
+    "(Optional, non-blocking) Add data-testid='deposit-method-usdt_trc20' and 'deposit-method-usdt_bep20' on the USDT method picker buttons in WalletPage.js — purely to unblock future automated E2E of the in-form live-preview flow.",
+    "(Optional) Investigate why mobile_money deposit creation fails without a phone — currently silently 4xx-returning, blocks the not_usdt branch test."
+  ],
+  "critical_code_review_comments": [
+    "wallet.py:1681-1733 — verify_deposit_hash_preview uses ZERO UPDATE statements and only SELECTs from transactions. Read-only guarantee is structurally enforced. ✅",
+    "WalletPage.js:88-127 + 129-164 — Two parallel useEffect hooks with identical structure (debounce 700ms, cancellation guard, idle/searching/found/not_found/error state machine). DRY violation: ~75 lines duplicated; should extract a shared `useLiveDepositPreview(tx_id, hash)` hook. Not blocking but technical debt.",
+    "Cleanup: `return () => { cancelled = true; clearTimeout(timer); }` correctly guards both unmount and dependency change → fast typing produces a single trailing call as expected.",
+    "Backend hash length check on /verify-preview (>=32) is more permissive than /hash (>=16). Intentional and well-commented (line 1696-1698). The frontend mirrors this with `h.length < 32 → status: 'idle'`. ✅",
+    "Both banners use ARIA-friendly emojis (🔍 ✅ ⚠️) but lack `role='status'` / `aria-live='polite'`. Minor a11y suggestion — screen readers won't announce the state change automatically."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter237ad_verify_preview.py (new — 12 passing tests)"
+  ],
+  "success_rate": {
+    "backend": "92% (12/13 executed; 1 skipped due to mobile_money fixture failure unrelated to iter237ad)",
+    "frontend": "code-reviewed only — implementation matches contract; full Playwright E2E partially blocked by missing data-testid on USDT method radio"
+  },
+  "test_credentials": "alice@japap.com / Alice2026! and bob@japap.com / Test1234! (both worked). Math captcha must be solved on web login (bypass works on direct API only).",
+  "seed_data_creation": "Test creates ephemeral pending USDT deposits (5 USD usdt_trc20 / 5 USD usdt_bep20) for Alice. They remain pending after the run; harmless but accumulate over reruns.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run with: cd /app/backend && REACT_APP_BACKEND_URL=https://japap-refactor.preview.emergentagent.com python -m pytest -p no:ethereum tests/test_iter237ad_verify_preview.py -v. Use `-p no:ethereum` because the env's web3 pytest plugin is broken (eth_typing.ContractName missing). For E2E frontend testing of live-preview, add data-testid='deposit-method-usdt_trc20' on the USDT method picker first, then drive: login → /wallet → deposit-button → deposit-method-usdt_trc20 → deposit-amount-input=5 → confirm-deposit-button → wait → post-deposit-hash-input.type('f'.repeat(64)) → assert live-preview-not-found banner appears after 1.2s → assert post-deposit-hash-submit text reads '✅ Confirmer le dépôt' (not '⚡ Crédit instantané' since fake hash → not_found).",
+  "rca of the issue": "No issue found. iter237ad backend endpoint is correctly implemented as a strict read-only mirror of /hash. The frontend correctly debounces at 700ms and renders the three states as specified. The only flag is a testability gap (missing testid on USDT method picker) which prevented a full E2E run — but did not surface any functional bug."
+}

@@ -47,12 +47,17 @@ export default function WalletPage() {
   // iter237ab — Late hash submission for manual USDT deposits.
   const [postDepositHash, setPostDepositHash] = useState('');
   const [submittingPostHash, setSubmittingPostHash] = useState(false);
-  const [hashSubmittedFor, setHashSubmittedFor] = useState({}); // { tx_id: true }
+  const [hashSubmittedFor, setHashSubmittedFor] = useState({}); // { tx_id: 'credited' | 'pending' }
   // iter237ab — Modal to attach a hash to an older pending deposit
   // (user closed the page before pasting it).
   const [lateHashModal, setLateHashModal] = useState(null); // { tx_id }
   const [lateHashValue, setLateHashValue] = useState('');
   const [lateHashSubmitting, setLateHashSubmitting] = useState(false);
+  // iter237ad — Live on-chain preview while the user types their hash.
+  // Two parallel state slots: one for the in-form input, one for the
+  // late-hash modal. Status: 'idle' | 'searching' | 'found' | 'not_found' | 'error'.
+  const [livePreview, setLivePreview] = useState({ status: 'idle' });
+  const [latePreview, setLatePreview] = useState({ status: 'idle' });
   const [paymentMethods, setPaymentMethods] = useState({ deposit: [], withdraw: [], fee: {}, min_withdraw_usd: 0 });
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -79,6 +84,84 @@ export default function WalletPage() {
   }, [user?.user_id]);
 
   useEffect(() => { loadBalance(); }, [loadBalance]);
+
+  // iter237ad — Debounced live on-chain preview for the in-form hash input.
+  // Triggers when the user has pasted >= 32 chars. Calls the read-only
+  // POST /verify-preview endpoint and updates `livePreview` so the UI
+  // shows "🔍 Recherche on-chain..." → "✅ Trouvé X USDT confirmés".
+  useEffect(() => {
+    const tx_id = depositResult?.tx_id;
+    const isUsdt = depositResult?.method?.startsWith('usdt_');
+    const h = (postDepositHash || '').trim();
+    if (!tx_id || !isUsdt) { setLivePreview({ status: 'idle' }); return; }
+    if (h.length < 32) { setLivePreview({ status: 'idle' }); return; }
+    let cancelled = false;
+    setLivePreview(p => ({ status: p.status === 'found' ? 'found' : 'searching' }));
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await axios.post(
+          `${API}/api/wallet/deposit/${tx_id}/verify-preview`,
+          { tx_hash: h }, { withCredentials: true },
+        );
+        if (cancelled) return;
+        const v = data?.verification || {};
+        if (data?.ready) {
+          setLivePreview({ status: 'found',
+                            received: v.received_amount,
+                            network: v.network });
+        } else if (v.status === 'too_short') {
+          setLivePreview({ status: 'idle' });
+        } else if (v.status === 'not_found' || v.status === 'wrong_recipient'
+                   || v.status === 'amount_too_low' || v.status === 'tx_failed') {
+          setLivePreview({ status: 'not_found', reason: v.reason });
+        } else {
+          setLivePreview({ status: 'error', reason: v.reason });
+        }
+      } catch (e) {
+        if (cancelled) return;
+        setLivePreview({ status: 'error',
+                          reason: e.response?.data?.detail || 'Erreur de vérification.' });
+      }
+    }, 700); // 700 ms debounce — feels instant without spamming the RPC
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [postDepositHash, depositResult?.tx_id, depositResult?.method]);
+
+  // iter237ad — Same debounced preview for the late-hash modal. Separate
+  // from the in-form preview so the two flows don't interfere.
+  useEffect(() => {
+    const tx_id = lateHashModal?.tx_id;
+    const h = (lateHashValue || '').trim();
+    if (!tx_id) { setLatePreview({ status: 'idle' }); return; }
+    if (h.length < 32) { setLatePreview({ status: 'idle' }); return; }
+    let cancelled = false;
+    setLatePreview(p => ({ status: p.status === 'found' ? 'found' : 'searching' }));
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await axios.post(
+          `${API}/api/wallet/deposit/${tx_id}/verify-preview`,
+          { tx_hash: h }, { withCredentials: true },
+        );
+        if (cancelled) return;
+        const v = data?.verification || {};
+        if (data?.ready) {
+          setLatePreview({ status: 'found',
+                            received: v.received_amount, network: v.network });
+        } else if (v.status === 'too_short') {
+          setLatePreview({ status: 'idle' });
+        } else if (v.status === 'not_found' || v.status === 'wrong_recipient'
+                   || v.status === 'amount_too_low' || v.status === 'tx_failed') {
+          setLatePreview({ status: 'not_found', reason: v.reason });
+        } else {
+          setLatePreview({ status: 'error', reason: v.reason });
+        }
+      } catch (e) {
+        if (cancelled) return;
+        setLatePreview({ status: 'error',
+                          reason: e.response?.data?.detail || 'Erreur de vérification.' });
+      }
+    }, 700);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [lateHashValue, lateHashModal?.tx_id]);
 
   const setDisplayCurrency = async (code) => {
     try {
@@ -757,6 +840,28 @@ export default function WalletPage() {
                     Le hash se trouve dans ton wallet crypto après confirmation de la transaction.
                     Tu peux fermer cette page et revenir le coller depuis l'historique.
                   </p>
+                  {/* iter237ad — Live on-chain preview banner */}
+                  {livePreview.status === 'searching' && (
+                    <div className="mt-2 px-3 py-2 rounded-lg text-xs font-['Manrope']"
+                         style={{ background: 'rgba(15,5,107,0.06)', color: 'var(--jp-text-secondary)' }}
+                         data-testid="live-preview-searching">
+                      🔍 Recherche on-chain…
+                    </div>
+                  )}
+                  {livePreview.status === 'found' && (
+                    <div className="mt-2 px-3 py-2 rounded-lg text-xs font-['Manrope'] font-semibold"
+                         style={{ background: 'rgba(16,185,129,0.12)', color: '#065F46' }}
+                         data-testid="live-preview-found">
+                      ✅ Transaction trouvée — {livePreview.received} USDT confirmés sur {(livePreview.network || '').toUpperCase()}
+                    </div>
+                  )}
+                  {livePreview.status === 'not_found' && (
+                    <div className="mt-2 px-3 py-2 rounded-lg text-xs font-['Manrope']"
+                         style={{ background: 'rgba(224,28,46,0.08)', color: '#991B1B' }}
+                         data-testid="live-preview-not-found">
+                      ⚠️ {livePreview.reason || 'Transaction non confirmée pour le moment.'}
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={async () => {
@@ -784,9 +889,19 @@ export default function WalletPage() {
                     }}
                     disabled={submittingPostHash || (postDepositHash || '').trim().length < 16}
                     data-testid="post-deposit-hash-submit"
-                    className="jp-btn jp-btn-primary jp-btn-full mt-3"
-                    style={{ opacity: (submittingPostHash || (postDepositHash || '').trim().length < 16) ? 0.6 : 1 }}>
-                    {submittingPostHash ? 'Envoi…' : '✅ Confirmer le dépôt'}
+                    className="jp-btn jp-btn-full mt-3"
+                    style={{
+                      background: livePreview.status === 'found'
+                        ? 'linear-gradient(135deg,#10B981,#059669)'
+                        : 'var(--jp-primary)',
+                      color: 'white',
+                      opacity: (submittingPostHash || (postDepositHash || '').trim().length < 16) ? 0.6 : 1,
+                    }}>
+                    {submittingPostHash
+                      ? 'Envoi…'
+                      : (livePreview.status === 'found'
+                          ? '⚡ Crédit instantané'
+                          : '✅ Confirmer le dépôt')}
                   </button>
                 </div>
               )}
@@ -1172,6 +1287,28 @@ export default function WalletPage() {
             <p className="text-[11px] mt-1" style={{ color: 'var(--jp-text-muted)' }}>
               Le hash se trouve dans ton wallet crypto (BscScan, Tronscan, etc.) après confirmation de la transaction.
             </p>
+            {/* iter237ad — Live on-chain preview banner */}
+            {latePreview.status === 'searching' && (
+              <div className="mt-2 px-3 py-2 rounded-lg text-xs font-['Manrope']"
+                   style={{ background: 'rgba(15,5,107,0.06)', color: 'var(--jp-text-secondary)' }}
+                   data-testid="late-preview-searching">
+                🔍 Recherche on-chain…
+              </div>
+            )}
+            {latePreview.status === 'found' && (
+              <div className="mt-2 px-3 py-2 rounded-lg text-xs font-['Manrope'] font-semibold"
+                   style={{ background: 'rgba(16,185,129,0.12)', color: '#065F46' }}
+                   data-testid="late-preview-found">
+                ✅ Transaction trouvée — {latePreview.received} USDT confirmés sur {(latePreview.network || '').toUpperCase()}
+              </div>
+            )}
+            {latePreview.status === 'not_found' && (
+              <div className="mt-2 px-3 py-2 rounded-lg text-xs font-['Manrope']"
+                   style={{ background: 'rgba(224,28,46,0.08)', color: '#991B1B' }}
+                   data-testid="late-preview-not-found">
+                ⚠️ {latePreview.reason || 'Transaction non confirmée pour le moment.'}
+              </div>
+            )}
             <div className="flex gap-3 mt-4">
               <button
                 type="button"
@@ -1200,9 +1337,17 @@ export default function WalletPage() {
                 }}
                 disabled={lateHashSubmitting || (lateHashValue || '').trim().length < 16}
                 data-testid="late-hash-submit"
-                className="jp-btn jp-btn-primary flex-1"
-                style={{ opacity: (lateHashSubmitting || (lateHashValue || '').trim().length < 16) ? 0.6 : 1 }}>
-                {lateHashSubmitting ? 'Envoi…' : 'Soumettre'}
+                className="jp-btn flex-1"
+                style={{
+                  background: latePreview.status === 'found'
+                    ? 'linear-gradient(135deg,#10B981,#059669)'
+                    : 'var(--jp-primary)',
+                  color: 'white',
+                  opacity: (lateHashSubmitting || (lateHashValue || '').trim().length < 16) ? 0.6 : 1,
+                }}>
+                {lateHashSubmitting
+                  ? 'Envoi…'
+                  : (latePreview.status === 'found' ? '⚡ Crédit instantané' : 'Soumettre')}
               </button>
               <button
                 type="button"

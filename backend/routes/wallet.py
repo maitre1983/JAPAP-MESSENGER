@@ -1677,6 +1677,62 @@ class SubmitDepositHashRequest(BaseModel):
 # send the funds from their crypto wallet and need a way to come back
 # and paste the on-chain tx_hash so the admin/auto-verifier can credit
 # their wallet. The `reference` column stores the hash (manual flow).
+@router.post("/deposit/{tx_id}/verify-preview")
+async def verify_deposit_hash_preview(tx_id: str, req: SubmitDepositHashRequest, request: Request):
+    """iter237ad — Read-only on-chain probe used while the user is typing
+    their hash. Same verification logic as `/hash` but NEVER touches the
+    DB (no UPDATE on transactions, no credit on wallets). The frontend
+    polls this endpoint with a debounce so the user sees a real-time
+    "🔍 Recherche on-chain → ✅ Transaction trouvée X USDT confirmés"
+    indicator before clicking "Confirmer". Magic UX without WebSockets.
+
+    Returns: {ready: bool, verification: {verified, status, reason, ...}}
+    `ready=true` means the hash has been validated AND the user can hit
+    the confirm button to receive an instant credit.
+    """
+    user = await get_current_user(request)
+    tx_hash = (req.tx_hash or "").strip()
+    # Permissive lower-bound: probe as soon as the user pastes something
+    # that looks like a hash (>= 32 chars). Lighter than the strict 16
+    # guard on the write endpoint — keeps the polling silent on partial
+    # input.
+    if len(tx_hash) < 32 or len(tx_hash) > 200:
+        return {"ready": False,
+                "verification": {"verified": False, "status": "too_short",
+                                 "reason": "Hash incomplet."}}
+
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        tx = await conn.fetchrow(
+            "SELECT to_user_id, type, status, amount, amount_usd, notes "
+            "FROM transactions WHERE tx_id = $1",
+            tx_id,
+        )
+    if not tx or tx["to_user_id"] != user["user_id"]:
+        raise HTTPException(status_code=404, detail="Dépôt introuvable.")
+    if tx["type"] != "deposit" or tx["status"] != "pending":
+        return {"ready": False,
+                "verification": {"verified": False, "status": "not_pending",
+                                 "reason": "Ce dépôt n'est plus en attente."}}
+    notes = tx["notes"] or ""
+    if not (("USDT" in notes.upper()) or ("[USDT" in notes)):
+        return {"ready": False,
+                "verification": {"verified": False, "status": "not_usdt",
+                                 "reason": "Pas un dépôt USDT manuel."}}
+
+    from services.usdt_onchain_verify import (
+        verify_usdt_deposit, detect_network_from_notes,
+    )
+    network = detect_network_from_notes(notes)
+    expected_amount = Decimal(str(tx["amount_usd"] or tx["amount"] or 0))
+    if not network or expected_amount <= 0:
+        return {"ready": False,
+                "verification": {"verified": False, "status": "skipped",
+                                 "reason": "Réseau ou montant indéterminé."}}
+    onchain = await verify_usdt_deposit(network, tx_hash, expected_amount)
+    return {"ready": bool(onchain.get("verified")), "verification": onchain}
+
+
 @router.patch("/deposit/{tx_id}/hash")
 async def submit_deposit_hash(tx_id: str, req: SubmitDepositHashRequest, request: Request):
     """Attach (or update) the blockchain tx_hash on a pending USDT deposit.

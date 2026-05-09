@@ -1,4 +1,4 @@
-# JAPAP — PRD (mise à jour 08/05/2026 — iter237aa)
+# JAPAP — PRD (mise à jour 09/05/2026 — iter237ab)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
@@ -6,6 +6,54 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 ## Langue utilisateur
 **Français** (obligatoire).
 
+
+## iter237ab — Flux dépôt USDT manuel : hash après envoi + reprise via historique (09/05/2026)
+
+**2 corrections UX critiques** sur le flux de dépôt USDT manuel (TRC20 / BEP20).
+
+### Correction 1 — Hash placé APRÈS l'envoi (logique correcte)
+**AVANT (bug)** : le formulaire demandait le hash AVANT que l'utilisateur ait vu l'adresse. Impossible à remplir.
+**APRÈS (corrigé)** : 
+- Étape 1 = montant + méthode → bouton "Continuer →"
+- Étape 2 = adresse + bouton "Copier" + bloc "Hash de transaction" + bouton "✅ Confirmer le dépôt"
+- Encart info bleu à l'étape 1 : "💡 Une adresse USDT te sera affichée à l'étape suivante. Tu colleras le hash de transaction APRÈS avoir envoyé les fonds."
+
+### Correction 2 — Reprise depuis l'historique
+Si l'utilisateur ferme la page sans coller le hash, le dépôt reste `pending` avec `reference=''`. Pour ne pas le perdre :
+- Bouton **"+ Soumettre le hash"** (testid `late-hash-cta-{tx_id}`) sur chaque ligne d'historique correspondant à un dépôt USDT pending sans hash (`reference` vide ou < 16 chars + `notes` contient 'USDT').
+- Click → modal `late-hash-modal` avec input + submit qui appelle PATCH `/api/wallet/deposit/{tx_id}/hash`.
+- Après soumission : toast success + rechargement transactions → le bouton disparaît automatiquement.
+
+### Backend — `routes/wallet.py`
+**Nouveau endpoint** : `PATCH /api/wallet/deposit/{tx_id}/hash` (lignes 1670-1750).
+- Body : `{tx_hash: str}`.
+- Validation : 16-200 caractères, ownership, status='pending', notes contient 'USDT'.
+- UPDATE `transactions.reference = $1` (le schéma existant utilise déjà ce champ pour le hash blockchain).
+- Audit log `deposit_hash_submitted`.
+- Notification ops via `notify_deposit(method='usdt_manual_hash_submitted')` en best-effort (non-blocking).
+- Idempotent : même hash 2x → 200 OK.
+
+### Frontend — `pages/WalletPage.js`
+- États ajoutés : `postDepositHash`, `submittingPostHash`, `hashSubmittedFor`, `lateHashModal`, `lateHashValue`, `lateHashSubmitting`.
+- Champ Hash retiré de la phase 1 (lignes 636-642 → encart info).
+- Bloc post-deposit-hash ajouté après l'adresse (testid `post-deposit-hash-block`).
+- Bouton `Continuer →` (au lieu de `Initier le dépôt`).
+- Bouton `Copier l'adresse` (testid `copy-deposit-address`) ajouté.
+- Bannière succès `post-deposit-hash-confirmed`.
+- Modal `late-hash-modal` ajouté avant le KycSubmissionModal.
+- Bouton `late-hash-cta-{tx_id}` dans la liste des transactions, conditionnel sur `tx.type='deposit'`, `tx.status='pending'`, `notes` contient 'USDT', `reference.length < 16`.
+
+### Validation iter248 (testing agent)
+- **Backend pytest 6/6 PASS** (`test_iter248_deposit_hash.py`) : 200 OK pour hash valide, 400 hash trop court/long, 404 tx_id inexistant ou autre user, 400 status non-pending, 400 méthode non-USDT, idempotence OK.
+- **Frontend E2E PASS** : flow complet validé sur preview (login Alice → /wallet → Déposer → usdt_trc20 → 5 USD → Continuer → adresse visible → coller hash → ✅ Hash enregistré). Régression `late-hash-cta` validée sur 3 pending tx, le CTA disparaît après submit.
+- **0 régression** sur NowPayments automatique, Hubtel, Orange Money, Wave.
+
+### Notes pour audit
+- `is_usdt_manual` filtre par substring 'USDT' dans `notes` (cas insensitif). Pour un raffinement futur, utiliser le préfixe structuré `[USDT (TRC` pour isoler strictement les dépôts manuels (cas où un user tape 'USDT' dans ses propres notes pour un NowPayments).
+- `tx_hash[:255]` est de la défensive code — la validation Pydantic rejette déjà >200 chars.
+- Pas d'audit trail du `previous_hash` lors d'un overwrite — possible amélioration future si l'admin demande le diff.
+
+---
 
 ## iter237aa — Fix bug : texte de question invisible dans le Défi du Jour payant (08/05/2026)
 

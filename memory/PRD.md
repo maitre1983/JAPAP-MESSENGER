@@ -1,4 +1,4 @@
-# JAPAP — PRD (mise à jour 09/05/2026 — iter237ad)
+# JAPAP — PRD (mise à jour 09/05/2026 — iter237ae)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
@@ -6,6 +6,30 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 ## Langue utilisateur
 **Français** (obligatoire).
 
+
+## iter237ae — Lien block-explorer dans le banner "✅ Transaction trouvée" (09/05/2026)
+
+**Objectif** : renforcer la confiance ("c'est verified, c'est public") après la détection on-chain en exposant un lien direct vers BscScan/Tronscan.
+
+### Frontend — `pages/WalletPage.js`
+- Constantes en tête de fichier :
+  ```js
+  const EXPLORER_URLS = {
+    bep20: (hash) => `https://bscscan.com/tx/${hash}`,
+    trc20: (hash) => `https://tronscan.org/#/transaction/${hash}`,
+  };
+  const EXPLORER_LABELS = { bep20: 'BscScan', trc20: 'Tronscan' };
+  ```
+- Banner `live-preview-found` (in-form) : ajout d'un `<a target="_blank" rel="noopener noreferrer">🔗 Voir sur BscScan</a>` à droite du texte. Layout flex + `flex-wrap` pour gérer mobile.
+- Banner `late-preview-found` (modal historique) : même chose avec `lateHashValue`.
+- Testids exposés : `live-preview-explorer-link`, `late-preview-explorer-link`.
+
+### Validation
+- ✅ Lint propre.
+- Hot-reload appliqué — UI mise à jour sans restart.
+- 5 lignes de logique applicative + 2 ajouts JSX → aucun risque de régression.
+
+---
 
 ## iter237ad — Live on-chain preview pendant la frappe (09/05/2026)
 

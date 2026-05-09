@@ -26,6 +26,15 @@ import { useTranslation } from 'react-i18next';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
+// iter237ae — Block explorer URL templates. Used to give the user a
+// 1-click "view on-chain" button after the live-preview confirms their
+// USDT transfer. Reinforces trust ("c'est verified, c'est public").
+const EXPLORER_URLS = {
+  bep20: (hash) => `https://bscscan.com/tx/${hash}`,
+  trc20: (hash) => `https://tronscan.org/#/transaction/${hash}`,
+};
+const EXPLORER_LABELS = { bep20: 'BscScan', trc20: 'Tronscan' };
+
 export default function WalletPage() {
   const { t } = useTranslation();
   const { user, refreshUser } = useAuth();
@@ -850,11 +859,22 @@ export default function WalletPage() {
                     </div>
                   )}
                   {livePreview.status === 'found' && (
-                    <div className="mt-2 px-3 py-2 rounded-lg text-xs font-['Manrope'] font-semibold"
+                    <div className="mt-2 px-3 py-2 rounded-lg text-xs font-['Manrope'] font-semibold flex items-center justify-between gap-3 flex-wrap"
                          role="status" aria-live="polite"
                          style={{ background: 'rgba(16,185,129,0.12)', color: '#065F46' }}
                          data-testid="live-preview-found">
-                      ✅ Transaction trouvée — {livePreview.received} USDT confirmés sur {(livePreview.network || '').toUpperCase()}
+                      <span>✅ Transaction trouvée — {livePreview.received} USDT confirmés sur {(livePreview.network || '').toUpperCase()}</span>
+                      {EXPLORER_URLS[livePreview.network] && (
+                        <a
+                          href={EXPLORER_URLS[livePreview.network](postDepositHash.trim())}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          data-testid="live-preview-explorer-link"
+                          className="text-xs font-bold underline whitespace-nowrap"
+                          style={{ color: '#047857' }}>
+                          🔗 Voir sur {EXPLORER_LABELS[livePreview.network]}
+                        </a>
+                      )}
                     </div>
                   )}
                   {livePreview.status === 'not_found' && (
@@ -1300,11 +1320,22 @@ export default function WalletPage() {
               </div>
             )}
             {latePreview.status === 'found' && (
-              <div className="mt-2 px-3 py-2 rounded-lg text-xs font-['Manrope'] font-semibold"
+              <div className="mt-2 px-3 py-2 rounded-lg text-xs font-['Manrope'] font-semibold flex items-center justify-between gap-3 flex-wrap"
                    role="status" aria-live="polite"
                    style={{ background: 'rgba(16,185,129,0.12)', color: '#065F46' }}
                    data-testid="late-preview-found">
-                ✅ Transaction trouvée — {latePreview.received} USDT confirmés sur {(latePreview.network || '').toUpperCase()}
+                <span>✅ Transaction trouvée — {latePreview.received} USDT confirmés sur {(latePreview.network || '').toUpperCase()}</span>
+                {EXPLORER_URLS[latePreview.network] && (
+                  <a
+                    href={EXPLORER_URLS[latePreview.network](lateHashValue.trim())}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid="late-preview-explorer-link"
+                    className="text-xs font-bold underline whitespace-nowrap"
+                    style={{ color: '#047857' }}>
+                    🔗 Voir sur {EXPLORER_LABELS[latePreview.network]}
+                  </a>
+                )}
               </div>
             )}
             {latePreview.status === 'not_found' && (

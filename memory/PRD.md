@@ -1,4 +1,4 @@
-# JAPAP — PRD (mise à jour 09/05/2026 — iter237ac)
+# JAPAP — PRD (mise à jour 09/05/2026 — iter237ad)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
@@ -6,6 +6,41 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 ## Langue utilisateur
 **Français** (obligatoire).
 
+
+## iter237ad — Live on-chain preview pendant la frappe (09/05/2026)
+
+**Objectif** : transformer le dépôt USDT en expérience "magique" comparable à NowPayments — pendant que l'utilisateur tape son hash, le frontend affiche en temps réel "🔍 Recherche on-chain → ✅ Transaction trouvée X USDT confirmés" et le bouton mute en "⚡ Crédit instantané". Au clic, le PATCH /hash habituel crédite le wallet.
+
+### Backend — `routes/wallet.py`
+- **Nouveau endpoint** : `POST /api/wallet/deposit/{tx_id}/verify-preview` (lignes 1675-1745).
+- **Read-only strict** : aucun UPDATE, juste un SELECT + appel `verify_usdt_deposit()`.
+- Validation permissive (>= 32 chars vs 16 sur PATCH) → silent sur saisie partielle.
+- Retourne `{ready: bool, verification: {verified, status, reason, received_amount, network, ...}}`.
+- Statuts spéciaux préview : `too_short` (silent côté UI), `not_pending`, `not_usdt`, plus tous les statuts de `verify_usdt_deposit`.
+
+### Frontend — `pages/WalletPage.js`
+- 2 nouveaux states : `livePreview` (in-form), `latePreview` (modal historique).
+- 2 useEffect avec **debounce 700ms** + cleanup `cancelled` flag → fast-typing produit un seul appel trailing.
+- 3 banners par flow (testids `live-preview-{searching|found|not-found}` et `late-preview-*`) :
+  - 🔍 Recherche on-chain… (pendant l'appel HTTP)
+  - ✅ Transaction trouvée — X USDT confirmés sur {NETWORK}
+  - ⚠️ {reason} (not_found / wrong_recipient / amount_too_low / etc.)
+- Bouton dynamique : "⚡ Crédit instantané" (gradient vert) si `status === 'found'`, sinon "✅ Confirmer le dépôt" / "Soumettre".
+- Accessibilité : `role="status"` + `aria-live="polite"` sur les 6 banners → screen readers annoncent le changement.
+
+### Validation iter250 (testing agent)
+- ✅ **Backend pytest 12/13 PASS** (1 skip non-régressif sur fixture mobile_money) — tous les chemins négatifs couverts (too_short, not_found, not_pending, not_usdt, 404 cross-user).
+- ✅ **Read-only guarantee** structurellement vérifiée : 5x calls /verify-preview avec hash valide → `transactions.reference` reste vide, `transactions.status` reste `pending`, `wallets.balance` inchangé.
+- ✅ **Régression PATCH /hash** intacte (400/404/200 selon les cas).
+- ✅ **Code-review frontend** : implementation correcte sur les 2 flows, debounce + cleanup vérifiés.
+- ✅ Testid `deposit-method-{m.id}` déjà présent (testing agent l'avait raté), donc `deposit-method-usdt_trc20` / `deposit-method-usdt_bep20` sont déjà drivable en E2E.
+
+### Notes pour audit futur
+- **DRY refactor possible** : les 2 useEffect sont structurellement identiques. Extraire en hook custom `useLiveDepositPreview(tx_id, hash)` quand on en aura besoin un 3ème endroit.
+- **WebSocket vs polling debounce** : le polling debounce 700ms suffit pour ce use case (frappe humaine ~5 chars/s, donc 1 appel par paste). WebSocket aurait été overkill.
+- Pas de rate-limit anti-abuse sur `/verify-preview` aujourd'hui — si un user spamme, il déclenche au max ~85 appels/min sur Tronscan/BSC RPC. Acceptable pour l'instant ; à revoir si on observe un abuse.
+
+---
 
 ## iter237ac — Vérification on-chain automatique des dépôts USDT (09/05/2026)
 

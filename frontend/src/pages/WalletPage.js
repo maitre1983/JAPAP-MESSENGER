@@ -843,6 +843,7 @@ export default function WalletPage() {
                   {/* iter237ad — Live on-chain preview banner */}
                   {livePreview.status === 'searching' && (
                     <div className="mt-2 px-3 py-2 rounded-lg text-xs font-['Manrope']"
+                         role="status" aria-live="polite"
                          style={{ background: 'rgba(15,5,107,0.06)', color: 'var(--jp-text-secondary)' }}
                          data-testid="live-preview-searching">
                       🔍 Recherche on-chain…
@@ -850,6 +851,7 @@ export default function WalletPage() {
                   )}
                   {livePreview.status === 'found' && (
                     <div className="mt-2 px-3 py-2 rounded-lg text-xs font-['Manrope'] font-semibold"
+                         role="status" aria-live="polite"
                          style={{ background: 'rgba(16,185,129,0.12)', color: '#065F46' }}
                          data-testid="live-preview-found">
                       ✅ Transaction trouvée — {livePreview.received} USDT confirmés sur {(livePreview.network || '').toUpperCase()}
@@ -857,6 +859,7 @@ export default function WalletPage() {
                   )}
                   {livePreview.status === 'not_found' && (
                     <div className="mt-2 px-3 py-2 rounded-lg text-xs font-['Manrope']"
+                         role="status" aria-live="polite"
                          style={{ background: 'rgba(224,28,46,0.08)', color: '#991B1B' }}
                          data-testid="live-preview-not-found">
                       ⚠️ {livePreview.reason || 'Transaction non confirmée pour le moment.'}
@@ -1290,6 +1293,7 @@ export default function WalletPage() {
             {/* iter237ad — Live on-chain preview banner */}
             {latePreview.status === 'searching' && (
               <div className="mt-2 px-3 py-2 rounded-lg text-xs font-['Manrope']"
+                   role="status" aria-live="polite"
                    style={{ background: 'rgba(15,5,107,0.06)', color: 'var(--jp-text-secondary)' }}
                    data-testid="late-preview-searching">
                 🔍 Recherche on-chain…
@@ -1297,6 +1301,7 @@ export default function WalletPage() {
             )}
             {latePreview.status === 'found' && (
               <div className="mt-2 px-3 py-2 rounded-lg text-xs font-['Manrope'] font-semibold"
+                   role="status" aria-live="polite"
                    style={{ background: 'rgba(16,185,129,0.12)', color: '#065F46' }}
                    data-testid="late-preview-found">
                 ✅ Transaction trouvée — {latePreview.received} USDT confirmés sur {(latePreview.network || '').toUpperCase()}
@@ -1304,6 +1309,7 @@ export default function WalletPage() {
             )}
             {latePreview.status === 'not_found' && (
               <div className="mt-2 px-3 py-2 rounded-lg text-xs font-['Manrope']"
+                   role="status" aria-live="polite"
                    style={{ background: 'rgba(224,28,46,0.08)', color: '#991B1B' }}
                    data-testid="late-preview-not-found">
                 ⚠️ {latePreview.reason || 'Transaction non confirmée pour le moment.'}

@@ -1,0 +1,45 @@
+{
+  "summary": "iter237ac on-chain auto-verification of manual USDT deposits — backend tests fully PASSED (17/18, 1 skipped due to no available non-USDT pending deposit). Service-level (detect_network_from_notes, verify_usdt_deposit) and endpoint-level (PATCH /api/wallet/deposit/{tx_id}/hash with fake hash) validated. Negative path confirmed: fake hash → credited=false, status=pending, wallet balance unchanged, DB row remains pending with reference updated. Idempotency verified. Regression (short hash 400, non-owner 404, unknown tx 404) intact. Found ONE frontend miss: the post-deposit-hash-submit flow (NOT the late-hash-modal) does not honor data.credited for the toast/banner.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "WalletPage.js — post-deposit-hash-submit (lines 762-784)",
+        "issue": "After PATCH /api/wallet/deposit/{tx_id}/hash succeeds, the toast is hardcoded to 'Hash soumis ! Vérification en cours.' and the banner (post-deposit-hash-confirmed) statically reads '✅ Hash enregistré...'. It NEVER renders '⚡ Dépôt vérifié on-chain et crédité instantanément !' nor calls loadBalance()/refreshUser() even when response.data.credited === true. Only the late-hash-modal (line 1172-1178) handles data.credited correctly.",
+        "selector": "[data-testid='post-deposit-hash-submit'] / [data-testid='post-deposit-hash-confirmed']",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter237ac_onchain_verify.py",
+    "/app/test_reports/pytest/iter237ac_results.xml"
+  ],
+  "action_items": [
+    "Frontend: in WalletPage.js around lines 766-772, capture the PATCH response (`const { data } = await axios.patch(...)`) and branch on data.credited: show '⚡ Dépôt vérifié on-chain et crédité instantanément !' + setHashSubmittedFor with credited flag + call loadBalance() and refreshUser() when credited; otherwise keep current 'Hash soumis !' message. Also update the `post-deposit-hash-confirmed` banner JSX (line 787-792) to read the credited state and render the appropriate text — same pattern already used in the late-hash-modal (line 1172-1178).",
+    "Optional: ensure /app/backend/tests/test_iter237ac_onchain_verify.py runs in CI with REACT_APP_BACKEND_URL exported (otherwise integration tests skip silently)."
+  ],
+  "critical_code_review_comments": [
+    "services/usdt_onchain_verify.py is well-bounded (10s timeout, never raises). Public BSC RPC fallback iterates 3 nodes — solid. Tronscan single endpoint — if 429, deposit stays pending (graceful). Logic for amount comparison uses Decimal — correct.",
+    "wallet.py PATCH endpoint correctly uses FOR UPDATE + status check before crediting → safe against concurrent admin approve+auto-credit double-credit.",
+    "Frontend: post-deposit-hash-submit and late-hash-modal duplicate logic for hash submission — should be extracted into a shared helper that handles data.credited uniformly. Currently only the modal honors the iter237ac contract."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter237ac_onchain_verify.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (17/17 executed; 1 skipped due to no non-USDT pending deposit fixture)",
+    "frontend": "50% (late-hash-modal honors data.credited; post-deposit-hash flow does not)"
+  },
+  "test_credentials": "Used alice@japap.com / Alice2026! and bob@japap.com / Test1234! with captcha bypass JAPAP_E2E_BYPASS_2026/0",
+  "seed_data_creation": "Test creates ephemeral usdt_trc20 / usdt_bep20 / mobile_money pending deposits for Alice. They remain pending after the run (small amounts: 5 USD / 1 USD); harmless but accumulate over reruns.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run with: cd /app/backend && REACT_APP_BACKEND_URL=https://japap-refactor.preview.emergentagent.com python -m pytest -p no:ethereum tests/test_iter237ac_onchain_verify.py -v. The web3 pytest plugin is broken in the env (eth_typing.ContractName missing) — use `-p no:ethereum` to disable it. After main agent fixes the post-deposit-hash-submit conditional, do a UI E2E (login → /wallet → Déposer → usdt_trc20 → 5$ → paste fake hash → confirm) and check that toast says 'Hash soumis ! Vérification en cours.' (because hash is bidon) — not the credited variant.",
+  "rca of the issue": "The post-deposit-hash-submit handler in WalletPage.js (lines 762-784) was written before iter237ac and was never updated to consume the new `credited`/`verification` keys from the backend response. The late-hash-modal (lines 1166-1186) was updated correctly. Both flows hit the same backend endpoint but only one branch reads `data.credited`. Fix: mirror the modal's branching logic in the post-deposit-hash-submit handler, then update the static banner JSX at line 787-791 to read a credited flag stored alongside hashSubmittedFor."
+}

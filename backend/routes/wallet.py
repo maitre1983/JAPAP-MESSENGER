@@ -1725,22 +1725,94 @@ async def submit_deposit_hash(tx_id: str, req: SubmitDepositHashRequest, request
             user["user_id"], f'{{"tx_id": "{tx_id}", "hash_len": {len(tx_hash)}}}',
         )
 
+    # iter237ac — On-chain auto-verification. We run this OUTSIDE the
+    # connection block above (httpx call could be slow) and acquire a
+    # fresh connection only if verification succeeds. Failure modes (
+    # network down / not_found / wrong_recipient / amount_too_low) leave
+    # the deposit `pending` — the admin will continue handling it via the
+    # existing manual review flow. Best-effort, never blocks the user.
+    from services.usdt_onchain_verify import (
+        verify_usdt_deposit, detect_network_from_notes,
+    )
+    network = detect_network_from_notes(notes)
+    expected_amount = Decimal(str(tx["amount_usd"] or tx["amount"] or 0))
+    onchain = {"verified": False, "status": "skipped"}
+    if network and expected_amount > 0:
+        onchain = await verify_usdt_deposit(network, tx_hash, expected_amount)
+        logger.info("[deposit-onchain] tx=%s network=%s verified=%s status=%s",
+                    tx_id, network, onchain.get("verified"), onchain.get("status"))
+
+    credited = False
+    if onchain.get("verified"):
+        # Verified → credit atomically. Use a fresh transaction so the
+        # UPDATE+INSERT pair stays consistent. If a concurrent request
+        # already credited (e.g. admin clicked "Approve" at the same time),
+        # the status check before the UPDATE makes us a no-op.
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    "SELECT status, amount, to_user_id FROM transactions "
+                    "WHERE tx_id = $1 FOR UPDATE",
+                    tx_id,
+                )
+                if row and row["status"] == "pending":
+                    await conn.execute(
+                        "UPDATE wallets SET balance = balance + $1, updated_at = $2 "
+                        "WHERE user_id = $3",
+                        row["amount"], datetime.now(timezone.utc), row["to_user_id"],
+                    )
+                    await conn.execute(
+                        "UPDATE transactions SET status = 'completed' WHERE tx_id = $1",
+                        tx_id,
+                    )
+                    notif_id = f"notif_{uuid.uuid4().hex[:12]}"
+                    await conn.execute(
+                        """INSERT INTO notifications (notif_id, user_id, type, title, message, data)
+                           VALUES ($1, $2, 'deposit_completed', 'Dépôt confirmé', $3, $4)""",
+                        notif_id, row["to_user_id"],
+                        f"Votre dépôt de {row['amount']} USD a été crédité (vérification on-chain).",
+                        f'{{"tx_id": "{tx_id}", "provider": "usdt_onchain", '
+                        f'"network": "{network}", "received_amount": "{onchain.get("received_amount", "")}"}}',
+                    )
+                    await conn.execute(
+                        """INSERT INTO audit_logs (user_id, action, resource, details)
+                           VALUES ($1, 'deposit_auto_credited', 'wallet', $2)""",
+                        row["to_user_id"],
+                        f'{{"tx_id": "{tx_id}", "network": "{network}", '
+                        f'"received_amount": "{onchain.get("received_amount", "")}"}}',
+                    )
+                    credited = True
+
     # Best-effort ops notification — the admin now has the hash needed
-    # to verify on-chain.
+    # to verify on-chain (or the auto-verification already credited).
     try:
         notify_deposit(
             user_id=user["user_id"],
             user_email=user.get("email", ""),
             user_name=user.get("name") or user.get("username") or user.get("email", ""),
             amount=float(tx["amount_usd"] or tx["amount"] or 0),
-            method="usdt_manual_hash_submitted",
+            method="usdt_manual_hash_submitted" if not credited else "usdt_auto_verified",
             tx_id=tx_id,
-            status="pending",
+            status="completed" if credited else "pending",
         )
     except Exception:  # noqa: BLE001
         pass  # never block the user
 
-    return {"success": True, "tx_id": tx_id, "message": "Hash enregistré. Vérification en cours."}
+    if credited:
+        return {
+            "success": True, "tx_id": tx_id,
+            "credited": True,
+            "status": "completed",
+            "verification": onchain,
+            "message": "Dépôt vérifié on-chain et crédité instantanément ! ⚡",
+        }
+    return {
+        "success": True, "tx_id": tx_id,
+        "credited": False,
+        "status": "pending",
+        "verification": onchain,
+        "message": "Hash enregistré. Vérification en cours.",
+    }
 
 
 @router.post("/deposit/{tx_id}/force-verify")

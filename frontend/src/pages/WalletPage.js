@@ -1167,9 +1167,15 @@ export default function WalletPage() {
                   if (h.length < 16) { toast.error('Hash invalide (min. 16 caractères).'); return; }
                   setLateHashSubmitting(true);
                   try {
-                    await axios.patch(`${API}/api/wallet/deposit/${lateHashModal.tx_id}/hash`,
+                    const { data } = await axios.patch(`${API}/api/wallet/deposit/${lateHashModal.tx_id}/hash`,
                       { tx_hash: h }, { withCredentials: true });
-                    toast.success('Hash soumis ! Vérification en cours.');
+                    if (data.credited) {
+                      toast.success('Dépôt vérifié on-chain et crédité instantanément ! ⚡');
+                      loadBalance();
+                      refreshUser();
+                    } else {
+                      toast.success('Hash soumis ! Vérification en cours.');
+                    }
                     setLateHashModal(null);
                     setLateHashValue('');
                     loadTransactions();

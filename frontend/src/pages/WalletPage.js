@@ -764,11 +764,17 @@ export default function WalletPage() {
                       if (h.length < 16) { toast.error('Hash invalide (min. 16 caractères).'); return; }
                       setSubmittingPostHash(true);
                       try {
-                        await axios.patch(`${API}/api/wallet/deposit/${depositResult.tx_id}/hash`,
+                        const { data } = await axios.patch(`${API}/api/wallet/deposit/${depositResult.tx_id}/hash`,
                           { tx_hash: h }, { withCredentials: true });
-                        setHashSubmittedFor(s => ({ ...s, [depositResult.tx_id]: true }));
+                        setHashSubmittedFor(s => ({ ...s, [depositResult.tx_id]: data.credited ? 'credited' : 'pending' }));
                         setPostDepositHash('');
-                        toast.success('Hash soumis ! Vérification en cours.');
+                        if (data.credited) {
+                          toast.success('Dépôt vérifié on-chain et crédité instantanément ! ⚡');
+                          loadBalance();
+                          refreshUser();
+                        } else {
+                          toast.success('Hash soumis ! Vérification en cours.');
+                        }
                         loadTransactions();
                       } catch (e) {
                         toast.error(e.response?.data?.detail || 'Erreur lors de la soumission du hash.');
@@ -785,9 +791,16 @@ export default function WalletPage() {
                 </div>
               )}
               {hashSubmittedFor[depositResult.tx_id] && (
-                <div className="rounded-xl p-3 text-sm" style={{ background: 'rgba(16,185,129,0.10)', color: '#065F46' }}
+                <div className="rounded-xl p-3 text-sm"
+                     style={{
+                       background: hashSubmittedFor[depositResult.tx_id] === 'credited'
+                         ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.10)',
+                       color: '#065F46',
+                     }}
                      data-testid="post-deposit-hash-confirmed">
-                  ✅ Hash enregistré. Ton compte sera crédité dès la vérification on-chain.
+                  {hashSubmittedFor[depositResult.tx_id] === 'credited'
+                    ? '⚡ Dépôt vérifié on-chain et crédité instantanément !'
+                    : '✅ Hash enregistré. Ton compte sera crédité dès la vérification on-chain.'}
                 </div>
               )}
               {depositResult.checkout_url && (

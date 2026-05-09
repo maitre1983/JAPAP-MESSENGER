@@ -1,4 +1,4 @@
-# JAPAP — PRD (mise à jour 09/05/2026 — iter237ab)
+# JAPAP — PRD (mise à jour 09/05/2026 — iter237ac)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
@@ -6,6 +6,68 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 ## Langue utilisateur
 **Français** (obligatoire).
 
+
+## iter237ac — Vérification on-chain automatique des dépôts USDT (09/05/2026)
+
+**Objectif** : Dès que l'utilisateur soumet son hash via `PATCH /api/wallet/deposit/{tx_id}/hash`, appeler la blockchain pour vérifier la transaction et créditer instantanément si tout est valide. Délai dépôt → crédit : **30 minutes → 30 secondes**.
+
+### Backend — `services/usdt_onchain_verify.py` (nouveau)
+- `detect_network_from_notes(notes)` : 'trc20' / 'bep20' / None.
+- `verify_usdt_deposit(network, tx_hash, expected_amount_usd)` : entrée publique.
+- **TRC20 (Tron)** : appelle `https://apilist.tronscanapi.com/api/transaction-info?hash={hash}` (pas de clé requise). Parse `trc20TransferInfo`/`tokenTransferInfo`, vérifie contract = `TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t`, recipient = `JAPAP_TRC20_ADDRESS`, amount ≥ expected.
+- **BEP20 (BSC)** : utilise les **public RPC nodes BSC** (`bsc-dataseed.binance.org`, defibit, ninicoin) en JSON-RPC `eth_getTransactionReceipt` — **PAS BscScan** (V1 deprecated, V2 paid plan requis pour BSC). Iteration sur 3 nodes en cas de panne. Parse les logs Transfer (topic `0xddf252ad…`), vérifie contract = `0x55d398326f99059fF775485246999027B3197955`, recipient = `JAPAP_BEP20_ADDRESS`, amount ≥ expected (USDT BEP20 a 18 décimales).
+- Toutes les requêtes HTTP timeout 10s, never raises (best-effort).
+- Statuts retournés : `confirmed`, `not_found`, `wrong_recipient`, `amount_too_low`, `tx_failed`, `unconfirmed`, `parse_error`, `error`, `config_missing`, `unknown_network`.
+
+### Backend — `routes/wallet.py::submit_deposit_hash`
+- Après UPDATE `transactions.reference`, appelle `verify_usdt_deposit(network, tx_hash, expected_amount_usd)`.
+- Si `verified=True` → transaction atomique avec `SELECT FOR UPDATE` (anti double-crédit) :
+  1. `UPDATE wallets SET balance = balance + amount`
+  2. `UPDATE transactions SET status = 'completed'`
+  3. INSERT notification "Dépôt confirmé"
+  4. INSERT audit log `deposit_auto_credited`
+- Réponse : `{success: true, tx_id, credited: bool, status: 'completed'|'pending', verification: {verified, status, reason, ...}, message}`.
+
+### Frontend — `pages/WalletPage.js`
+- 2 flows mis à jour : `post-deposit-hash-submit` (étape 2 du wizard) **et** `late-hash-modal` (depuis l'historique).
+- Si `data.credited === true` :
+  - Toast `'⚡ Dépôt vérifié on-chain et crédité instantanément !'`
+  - `loadBalance()` + `refreshUser()` → solde mis à jour immédiatement
+  - Banner vert plus saturé `'⚡ Dépôt vérifié on-chain et crédité instantanément !'`
+- Si `data.credited === false` (cas par défaut, hash invalide ou non vérifiable) :
+  - Toast `'Hash soumis ! Vérification en cours.'`
+  - Banner standard `'✅ Hash enregistré. Ton compte sera crédité dès la vérification on-chain.'`
+
+### Configuration `backend/.env`
+```
+BSCSCAN_API_KEY=JJAG589HX7B532EFIEUD64WRSVN2RQGMNC   # futur fallback
+JAPAP_TRC20_ADDRESS=TPCdbwJCj5eQvSCnRKPRwshpGU8N8Hhi9N
+JAPAP_BEP20_ADDRESS=0x4D5aA771662090773BBf5D0e1468B15ea8E5Bab1
+```
+
+### Validation iter249 (testing agent + main agent)
+- **Backend pytest 17/17 PASS** (`test_iter237ac_onchain_verify.py`) : detect_network, verify_usdt_deposit avec fake hash → not_found, PATCH avec fake hash → credited=false / status=pending / wallet inchangé, idempotence, régressions 400/404 intactes.
+- **Validation manuelle main agent** sur **vraies transactions on-chain** (block BSC live + Tronscan recent transfers) :
+  - BEP20 real tx : `verified=True`, received_amount correct
+  - BEP20 wrong recipient : `wrong_recipient`
+  - BEP20 amount inflé : `amount_too_low`
+  - BEP20 fake hash : `not_found`
+  - TRC20 real tx : `verified=True`, received_amount correct
+  - TRC20 wrong recipient : `wrong_recipient`
+- **Frontend post-fix iter249** : les 2 flows (post-deposit + late-hash-modal) honorent désormais `data.credited`.
+
+### Sécurité
+- `SELECT ... FOR UPDATE` avant UPDATE wallets/transactions → anti race-condition entre auto-credit et admin manual approve.
+- Status check pre-update : si la tx est passée à `completed` entre-temps, le crédit est skipé.
+- Audit log `deposit_auto_credited` distinct de l'audit admin manual → traçabilité totale.
+- Best-effort : aucune exception ne bloque l'utilisateur (timeout / rate limit / node down → dépôt reste pending, admin review).
+
+### Notes pour audit futur
+- Pour future scaling > 100 BEP20 deposits/min : envisager un node BSC dédié (Ankr, QuickNode) ou Etherscan V2 paid pour éviter rate limits sur les public RPC.
+- Pour TRC20 sous forte charge : Tronscan API a un rate limit (429) — alternative possible : public TRON node JSON-RPC (`https://api.trongrid.io/`).
+- L'audit log `deposit_auto_credited` permet de calculer le ratio auto vs manual pour identifier les hash invalides ou les réseaux problématiques.
+
+---
 
 ## iter237ab — Flux dépôt USDT manuel : hash après envoi + reprise via historique (09/05/2026)
 

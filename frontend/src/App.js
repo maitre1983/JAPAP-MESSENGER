@@ -53,6 +53,9 @@ const FollowRequestsPage = lazy(() => import('@/pages/FollowRequestsPage'));
 const DepositReturnPage = lazy(() => import('@/pages/wallet/DepositReturnPage'));
 // iter237af — Hubtel Mobile Money (Ghana 🇬🇭) standalone page.
 const WalletHubtelMomoPage = lazy(() => import('@/pages/WalletHubtelMomoPage'));
+// iter238 — Paystack Ghana pages (strictly additive).
+const WalletPaystackPage = lazy(() => import('@/pages/WalletPaystackPage'));
+const WalletPaystackResultPage = lazy(() => import('@/pages/WalletPaystackResultPage'));
 
 // iter237n — Legal pages (CGU / CGJ / RGPD) + About.
 const CGUPage = lazy(() => import('@/pages/legal/CGUPage'));
@@ -244,6 +247,9 @@ function AppRouter() {
       <Route path="/wallet/deposit/return" element={<ProtectedRoute><DepositReturnPage /></ProtectedRoute>} />
       {/* iter237af — Hubtel Mobile Money (Ghana 🇬🇭) — strictly additive */}
       <Route path="/wallet/hubtel-momo" element={<ProtectedRoute><WalletHubtelMomoPage /></ProtectedRoute>} />
+      {/* iter238 — Paystack Ghana — strictly additive */}
+      <Route path="/wallet/paystack" element={<ProtectedRoute><WalletPaystackPage /></ProtectedRoute>} />
+      <Route path="/wallet/paystack/result" element={<ProtectedRoute><WalletPaystackResultPage /></ProtectedRoute>} />
       <Route path="/services" element={<ProtectedRoute><ServicesPage /></ProtectedRoute>} />
       <Route path="/groups" element={<ProtectedRoute><GroupsPage /></ProtectedRoute>} />
       <Route path="/pages" element={<ProtectedRoute><PagesPage /></ProtectedRoute>} />

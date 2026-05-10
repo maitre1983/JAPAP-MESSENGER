@@ -19,6 +19,8 @@ import AdminOrangeMoneySection from '@/components/admin/AdminOrangeMoneySection'
 import AdminWaveSection from '@/components/admin/AdminWaveSection';
 // iter237i — Catalogue méthodes (toggles ON/OFF) + Analytics par méthode.
 import PaymentMethodsCatalogAdmin from '@/components/admin/PaymentMethodsCatalogAdmin';
+// iter238 — Paystack admin settings card (strictly additive).
+import PaystackSettingsCard from '@/components/admin/PaystackSettingsCard';
 const API = process.env.REACT_APP_BACKEND_URL;
 
 const getStatus_style = (t) => ({
@@ -563,6 +565,9 @@ function PaymentSettings() {
 
       {/* iter237i — Catalogue & Analytics des méthodes de paiement. */}
       <PaymentMethodsCatalogAdmin />
+
+      {/* iter238 — Paystack admin settings (strictly additive). */}
+      <PaystackSettingsCard />
 
       <button disabled={loading} onClick={save} className="jp-btn jp-btn-primary" data-testid="pay-save-settings">
         {loading ? 'Enregistrement…' : t('payments_admin.enregistrer_les_parametres_de_paiem')}

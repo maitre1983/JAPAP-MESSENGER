@@ -1250,5 +1250,26 @@
     },
     "operator_detected": "Network detected: {{operator}}",
     "operator_unknown": "Operator not recognized — please double-check the number."
+  },
+  "paystack": {
+    "method_label": "Card / Mobile Money (Paystack) 🇬🇭",
+    "intro": "Deposit in USD via Paystack — pay with your card or Ghana Mobile Money. Funds are credited automatically once Paystack confirms the payment.",
+    "amount_label": "Amount to deposit (USD)",
+    "amount_placeholder": "E.g: 10.00",
+    "limits_info": "Min {{min}} USD — Max {{max}} USD",
+    "converting": "Fetching live rate…",
+    "rate_label": "Rate: 1 USD = {{rate}} GHS",
+    "you_will_pay": "You will pay approximately",
+    "ghs_suffix": "GHS",
+    "submit_btn": "Deposit now",
+    "redirect_info": "⏳ Redirecting to Paystack…",
+    "success_banner": "✅ Deposit of {{usd}} USD confirmed and credited!",
+    "failed_banner": "❌ Your deposit failed. No amount was charged.",
+    "amount_too_low": "Minimum amount: {{min}} USD",
+    "amount_too_high": "Maximum amount: {{max}} USD",
+    "pending_warning": "You already have a pending deposit. Please wait for confirmation.",
+    "error": {
+      "generic": "Something went wrong. Please try again."
+    }
   }
 }

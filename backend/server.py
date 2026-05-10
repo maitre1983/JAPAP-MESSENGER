@@ -192,6 +192,18 @@ try:
 except Exception as _e:
     logger.error("[iter237af] hubtel_momo router failed to load: %s", _e)
 
+# iter238 — Paystack Ghana + payment-method toggle middleware (additive).
+try:
+    from routes.paystack import paystack_router
+    from routes.payment_methods_status import payment_methods_status_router
+    from middleware.payment_toggles import PaymentTogglesMiddleware
+    fastapi_app.include_router(paystack_router)
+    fastapi_app.include_router(payment_methods_status_router)
+    fastapi_app.add_middleware(PaymentTogglesMiddleware)
+    logger.info("[iter238] paystack + toggles loaded")
+except Exception as _e:
+    logger.error("[iter238] paystack/toggles failed to load: %s", _e)
+
 # iter237n — Legal acceptance routes (CGU/CGJ/RGPD).
 try:
     from routes.legal import legal_router

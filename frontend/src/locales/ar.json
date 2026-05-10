@@ -1190,5 +1190,26 @@
     "francais": "الفرنسية",
     "portugues": "البرتغالية",
     "espanol": "الإسبانية"
+  },
+  "paystack": {
+    "method_label": "بطاقة / موبايل موني (Paystack) 🇬🇭",
+    "intro": "إيداع بالدولار الأمريكي عبر Paystack — ادفع ببطاقتك أو خدمة Mobile Money غانا. تُضاف الأموال تلقائياً بمجرد تأكيد Paystack للدفع.",
+    "amount_label": "المبلغ المراد إيداعه (USD)",
+    "amount_placeholder": "مثال: 10.00",
+    "limits_info": "الحد الأدنى {{min}} USD — الحد الأقصى {{max}} USD",
+    "converting": "جارٍ حساب السعر المباشر…",
+    "rate_label": "السعر: 1 USD = {{rate}} GHS",
+    "you_will_pay": "ستدفع تقريباً",
+    "ghs_suffix": "GHS",
+    "submit_btn": "إيداع الآن",
+    "redirect_info": "⏳ جارٍ التحويل إلى Paystack…",
+    "success_banner": "✅ تم تأكيد وإضافة إيداع {{usd}} USD!",
+    "failed_banner": "❌ فشل إيداعك. لم يتم خصم أي مبلغ.",
+    "amount_too_low": "الحد الأدنى للمبلغ: {{min}} USD",
+    "amount_too_high": "الحد الأقصى للمبلغ: {{max}} USD",
+    "pending_warning": "لديك بالفعل إيداع قيد الانتظار. يرجى الانتظار للتأكيد.",
+    "error": {
+      "generic": "حدث خطأ. يرجى المحاولة مرة أخرى."
+    }
   }
 }

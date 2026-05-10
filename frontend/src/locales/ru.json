@@ -1,0 +1,28 @@
+{
+  "common": {
+    "back": "Назад",
+    "cancel": "Отмена",
+    "loading": "Загрузка…"
+  },
+  "paystack": {
+    "method_label": "Карта / Mobile Money (Paystack) 🇬🇭",
+    "intro": "Депозит в USD через Paystack — оплата картой или Mobile Money Ghana. Средства зачисляются автоматически после подтверждения Paystack.",
+    "amount_label": "Сумма пополнения (USD)",
+    "amount_placeholder": "Напр: 10.00",
+    "limits_info": "Мин {{min}} USD — Макс {{max}} USD",
+    "converting": "Расчёт курса в реальном времени…",
+    "rate_label": "Курс: 1 USD = {{rate}} GHS",
+    "you_will_pay": "Вы заплатите приблизительно",
+    "ghs_suffix": "GHS",
+    "submit_btn": "Пополнить сейчас",
+    "redirect_info": "⏳ Перенаправление на Paystack…",
+    "success_banner": "✅ Депозит {{usd}} USD подтверждён и зачислен!",
+    "failed_banner": "❌ Ваш депозит не прошёл. Средства не были списаны.",
+    "amount_too_low": "Минимальная сумма: {{min}} USD",
+    "amount_too_high": "Максимальная сумма: {{max}} USD",
+    "pending_warning": "У вас уже есть ожидающий депозит. Дождитесь подтверждения.",
+    "error": {
+      "generic": "Что-то пошло не так. Пожалуйста, повторите попытку."
+    }
+  }
+}

@@ -1,10 +1,70 @@
-# JAPAP — PRD (mise à jour 10/05/2026 — iter237ag)
+# JAPAP — PRD (mise à jour 10/05/2026 — iter238)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter238 — Paystack Ghana + désactivation NowPayments / Hubtel-card (STRICTEMENT ADDITIF) (10/05/2026)
+
+**Demande user** : intégrer Paystack (carte + Mobile Money Ghana) en USD avec conversion live USD↔GHS. Désactiver NowPayments et Hubtel-card via toggles admin. **Zéro modification** du code existant — uniquement de nouveaux fichiers + 3 lignes d'enregistrement.
+
+### Backend (nouveaux fichiers uniquement)
+- `services/paystack_service.py` — credentials (admin DB → env), `is_paystack_enabled()`, `get_deposit_limits()`, `verify_webhook_signature()` (HMAC-SHA512), `generate_reference()` (`JAPAP-XXX`), `get_usd_to_ghs_info` (manuel admin → cache 1h → live `open.er-api.com` → fallback admin → 14.50), `convert_usd_to_ghs` (USD→GHS→pesewas).
+- `routes/paystack.py` — endpoints :
+  - `GET  /api/paystack/convert?amount_usd=X` (auth, debounced par frontend)
+  - `GET  /api/paystack/limits` (auth)
+  - `POST /api/paystack/deposit/initialize` (auth, anti-dup 30 min, tx créé AVANT l'appel, refund si init échoue)
+  - `GET  /api/paystack/callback` (public, vérif via Paystack API, `SELECT FOR UPDATE`, redirect frontend)
+  - `POST /api/paystack/webhook` (public, HMAC sig obligatoire, `SELECT FOR UPDATE`, idempotent)
+- `routes/payment_methods_status.py` — `GET /api/wallet/payment-methods/status` (auth) → toggles de toutes les méthodes lus depuis `admin_settings`.
+- `middleware/payment_toggles.py` — middleware Starlette qui bloque `/api/wallet/nowpayments/*` (sauf webhook) et `/api/payments/hubtel/initiate` quand toggle off (403 `method_disabled`). Webhooks toujours acceptés.
+- `tests/test_paystack.py` — 5 tests unitaires HMAC + reference (✅ tous passent).
+
+### Frontend (nouveaux fichiers uniquement)
+- `components/wallet/PaystackWidget.jsx` — formulaire dépôt USD, debounce 500 ms sur convert, validation min/max client, redirection `authorization_url`, support RTL conditionnel (`dir="rtl"` si lang AR).
+- `pages/WalletPaystackPage.jsx` — page `/wallet/paystack`.
+- `pages/WalletPaystackResultPage.jsx` — page `/wallet/paystack/result?status=success|failed&amount_usd=X` (auto-redirect 4 s vers `/wallet`).
+- `components/admin/PaystackSettingsCard.jsx` — admin card autonome (credentials masqué/visible, 3 toggles `paystack_enabled` / `hubtel_card_enabled` / `nowpayments_enabled`, limites min/max, taux manuel + fallback + lecture seule du taux live).
+- `locales/{en,fr,es,ar}.json` — namespace `paystack.*` ajouté.
+- `locales/ru.json` — nouveau (minimal Paystack + common).
+
+### Fichiers existants modifiés (additif uniquement)
+- `server.py` : ajout de 3 lignes (2 `include_router` + 1 `add_middleware`) dans un `try/except` isolé.
+- `App.js` : ajout de 2 lazy imports + 2 routes.
+- `i18n.js` : ajout de 1 import + 1 entrée `resources.ru`.
+- `pages/admin/PaymentsAdminTab.jsx` : ajout de 1 import + 1 ligne JSX (mount `<PaystackSettingsCard />`).
+
+### Sécurité & atomicité
+- ✅ HMAC-SHA512 obligatoire sur webhook (`x-paystack-signature`), bytes bruts, constant-time compare.
+- ✅ Double vérification (callback redirect + webhook) ; les deux appellent Paystack Verify API.
+- ✅ `SELECT FOR UPDATE` sur les transactions avant crédit → zéro double-credit possible.
+- ✅ Anti-dup : 1 seul dépôt Paystack pending par user par 30 minutes.
+- ✅ Transaction créée AVANT l'appel Paystack → aucune transaction orpheline.
+- ✅ Webhook NOT blocked par middleware (exemption explicite) → in-flight transactions toujours créditées même si admin désactive Paystack.
+- ✅ Toggles seedés : `paystack_enabled=true`, `nowpayments_enabled=false`, `hubtel_card_enabled=false`.
+
+### Validation (curl + smoke screenshot)
+- ✅ `GET /api/paystack/convert?amount_usd=25` → `{amount_ghs: 281.22, rate: 11.2486, source: live}`
+- ✅ `GET /api/paystack/limits` → `{deposit: {min: 1, max: 5000}, fx: {...}}`
+- ✅ `GET /api/wallet/payment-methods/status` → `{paystack: true, nowpayments: false, hubtel_card: false, ...}`
+- ✅ `POST /api/paystack/deposit/initialize` amount=0.5 → 400 `amount_too_low`
+- ✅ `POST /api/paystack/webhook` no sig → 401 `invalid_signature`
+- ✅ `GET /api/wallet/nowpayments/test-connection` → 403 `method_disabled` (middleware)
+- ✅ `POST /api/payments/hubtel/initiate` → 403 `method_disabled` (middleware)
+- ✅ `POST /api/wallet/nowpayments/webhook` → 401 (NOT 403 = middleware exemption works)
+- ✅ HMAC tests `tests/test_paystack.py` : 5/5 passent
+- ✅ UI Playwright : widget rend i18n FR (montant + taux live + boutons), result success/failed pages OK.
+
+### Configuration prod
+- Webhook URL à enregistrer côté Paystack : `https://japapmessenger.com/api/paystack/webhook`
+- Secrets requis : `PAYSTACK_SECRET_KEY`, `PAYSTACK_PUBLIC_KEY` (already in Emergent Secrets).
+- Admin panel : `Paiements → Paramètres paiement → Configuration Paystack 🇬🇭` permet de modifier credentials, toggles, limites et taux sans redéploiement.
+
+### Multilingue
+- FR / EN / ES / AR (RTL via `dir="rtl"` conditionnel sur le widget + résultat) / RU (nouveau locale minimal).
 
 
 ## iter237ag — Hubtel MoMo : auto-détection opérateur Ghana (10/05/2026)

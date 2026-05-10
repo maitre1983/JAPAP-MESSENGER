@@ -29,6 +29,8 @@ import yo from './locales/yo.json';
 import hi from './locales/hi.json';
 import bn from './locales/bn.json';
 import ta from './locales/ta.json';
+// iter238 — Russian (minimal Paystack + common). Strictly additive.
+import ru from './locales/ru.json';
 
 import { SUPPORTED_CODES, isRTL } from './constants/languages';
 
@@ -48,6 +50,7 @@ i18n
       hi: { translation: hi },
       bn: { translation: bn },
       ta: { translation: ta },
+      ru: { translation: ru },
     },
     fallbackLng: 'fr',
     supportedLngs: SUPPORTED_CODES,

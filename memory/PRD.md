@@ -7,6 +7,45 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter239a2 — Hubtel MoMo : normalisation format local + log Hubtel détaillé (10/05/2026)
+
+**Bug rapporté** : Le numéro `233555861556` reçoit une erreur "USSD prompt could not be sent" générique. L'utilisateur ne sait pas si c'est un problème de format de numéro, un problème réseau Hubtel, ou un problème de credentials.
+
+**Diagnostic** : 3 corrections cumulatives pour identifier la vraie cause + élargir l'acceptation des formats de numéro.
+
+### Corrections appliquées
+**1. Backend `services/hubtel_momo.py`** :
+- `_CHANNEL_PREFIXES` : ajout de `23358` à `tigo-gh` (AirtelTigo). Note : `23355` reste sous MTN conformément à NCA Ghana 2024 — le numéro `0555861556` est correctement MTN, malgré le commentaire utilisateur qui disait AirtelTigo (qui est faux : `055` = MTN historique depuis 2019).
+- Nouvelle fonction `normalize_msisdn(msisdn)` : accepte `233XXXXXXXXX` (12), `+233XXXXXXXXX`, `0XXXXXXXXX` (local 10), strips spaces/dashes/parens, output canonique `233XXXXXXXXX`.
+- `is_ghana_number` et `detect_channel` appellent désormais `normalize_msisdn` en interne.
+
+**2. Backend `routes/hubtel_momo.py`** :
+- `msisdn = normalize_msisdn(req.customer_msisdn or "")` et idem pour `recipient_msisdn` (retrait).
+- Nouvelle fonction `_extract_hubtel_message(body, fallback)` qui parcourt les variantes de payload Hubtel (`Description`, `description`, `Message`, `data.description`, etc.) pour surfacer le vrai message au client.
+- Les deux 502 `hubtel_init_failed` (dépôt + retrait) incluent désormais `code` (Hubtel ResponseCode) et `message` réel de Hubtel + log `logger.warning` avec le corps complet.
+
+**3. Frontend `HubtelMomoWidget.jsx`** :
+- `OPERATOR_PREFIXES` synchronisé : `23358` ajouté à AirtelTigo.
+- Helper `normalizeMsisdn(raw)` (miroir backend).
+- `normalizedMsisdn` calculé via `useMemo`, utilisé pour : détection opérateur, validation 12 chiffres, label "Opérateur détecté", payload backend (`customer_msisdn` / `recipient_msisdn`).
+- L'utilisateur peut taper `0555861556` OU `+233 24 123 4567` OU `233241234567` → tous normalisés et acceptés.
+
+### Validation
+- ✅ 16/16 cas backend (`detect_channel`) : `0555861556` → mtn-gh ✅, `0581234567` → tigo-gh ✅, `0201234567` → vodafone-gh ✅, formats locaux/+/espaces tous OK.
+- ✅ 4/4 cas frontend (Playwright) : badge "MTN" sur `0555861556`, "AirtelTigo" sur `0581234567`, "Telecel" sur `0201234567`, warning unknown sur `0991234567`.
+- ✅ Lint Python & JS propres.
+
+### Diagnostic attendu pour l'utilisateur
+Avec la **Correction 3 (log détaillé)**, lors du prochain test depuis la prod, vous verrez :
+- Soit le **vrai message Hubtel** dans l'erreur (ex: `"Invalid Channel"`, `"Daily limit exceeded"`, `"Customer not registered for Mobile Money"`) → vous pourrez diagnostiquer la racine.
+- Soit dans les **logs backend prod** (`/var/log/...`) : `[hubtel-momo] deposit init failed code=XXXX body={...}` avec le payload complet.
+
+Si le bug persiste après le redéploiement de iter239a2, c'est très probablement (par ordre de probabilité) :
+1. Le numéro `0555861556` est inactif côté MTN
+2. Les credentials Hubtel (api_key/collection_account) sont incorrects ou pour un autre environnement Hubtel (test vs live)
+3. Le compte Hubtel n'est pas configuré pour accepter MTN-GH
+
+
 ## iter239a — Toggles 7 méthodes via system_settings (source unique) (10/05/2026)
 
 **Vision** : Dashboard admin = centre de contrôle unique. Toute méthode de paiement doit être désactivable à chaud, sans redéploiement, avec effet immédiat sur frontend ET backend.

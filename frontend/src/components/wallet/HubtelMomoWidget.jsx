@@ -33,7 +33,7 @@ const CONVERT_DEBOUNCE_MS = 500;
  */
 const OPERATOR_PREFIXES = [
   { id: 'mtn',         label: 'MTN',        prefixes: ['23324', '23325', '23353', '23354', '23355', '23359'] },
-  { id: 'airteltigo',  label: 'AirtelTigo', prefixes: ['23326', '23327', '23356', '23357'] },
+  { id: 'airteltigo',  label: 'AirtelTigo', prefixes: ['23326', '23327', '23356', '23357', '23358'] },
   { id: 'telecel',     label: 'Telecel',    prefixes: ['23320', '23350'] },
 ];
 
@@ -43,6 +43,21 @@ function detectOperator(msisdn) {
     if (op.prefixes.some(p => msisdn.startsWith(p))) return op;
   }
   return null;
+}
+
+/**
+ * iter239a2 — Normalise a Ghana phone number to international format
+ * `233XXXXXXXXX`. Mirrors `services.hubtel_momo.normalize_msisdn`.
+ * Accepts +233, 233, and local 0XXXXXXXXX (10-digit) formats.
+ */
+function normalizeMsisdn(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  const cleaned = raw.replace(/[\s()-]/g, '');
+  if (cleaned.startsWith('+233')) return cleaned.slice(1);
+  if (cleaned.startsWith('0') && cleaned.length === 10 && /^\d+$/.test(cleaned.slice(1))) {
+    return '233' + cleaned.slice(1);
+  }
+  return cleaned;
 }
 
 /**
@@ -63,10 +78,13 @@ export function HubtelMomoWidget({ mode, onSuccess, onCancel }) {
   const isWithdraw = mode === 'withdraw';
   const i18nKey = isWithdraw ? 'withdraw' : 'deposit';
 
-  const operator = useMemo(() => detectOperator(msisdn), [msisdn]);
+  // iter239a2 — normalise once so detection & submission use the same
+  // canonical 233XXXXXXXXX value regardless of how the user typed it.
+  const normalizedMsisdn = useMemo(() => normalizeMsisdn(msisdn), [msisdn]);
+  const operator = useMemo(() => detectOperator(normalizedMsisdn), [normalizedMsisdn]);
   const operatorUnknown = useMemo(
-    () => msisdn.length === 12 && msisdn.startsWith(GHANA_PREFIX) && !operator,
-    [msisdn, operator],
+    () => normalizedMsisdn.length === 12 && normalizedMsisdn.startsWith(GHANA_PREFIX) && !operator,
+    [normalizedMsisdn, operator],
   );
 
   // Load admin limits on mount.
@@ -81,9 +99,10 @@ export function HubtelMomoWidget({ mode, onSuccess, onCancel }) {
   }, []);
 
   // Client-side Ghana eligibility check, fires on every msisdn change.
-  // Backend re-validates — this is purely a UX shortcut.
+  // Backend re-validates — this is purely a UX shortcut. iter239a2:
+  // works on the *normalised* msisdn so `0555…` is accepted as Ghana.
   useEffect(() => {
-    const m = (msisdn || '').replace(/[^\d]/g, '');
+    const m = normalizedMsisdn.replace(/[^\d]/g, '');
     if (!m) { setEligibilityError(null); return; }
     if (!m.startsWith(GHANA_PREFIX)) {
       setEligibilityError(t('hubtelMomo.error.non_eligible'));
@@ -92,7 +111,7 @@ export function HubtelMomoWidget({ mode, onSuccess, onCancel }) {
     } else {
       setEligibilityError(null);
     }
-  }, [msisdn, t]);
+  }, [normalizedMsisdn, t]);
 
   // Debounced USD → GHS conversion preview while typing.
   useEffect(() => {
@@ -131,7 +150,7 @@ export function HubtelMomoWidget({ mode, onSuccess, onCancel }) {
     !submitting
     && amountWithinLimits
     && !eligibilityError
-    && msisdn.length === 12
+    && normalizedMsisdn.length === 12
     && name.trim().length > 0
   );
 
@@ -143,9 +162,11 @@ export function HubtelMomoWidget({ mode, onSuccess, onCancel }) {
       const endpoint = isWithdraw
         ? `${API}/api/wallet/withdraw/hubtel-momo`
         : `${API}/api/wallet/deposit/hubtel-momo`;
+      // iter239a2 — submit the canonical 233XXXXXXXXX form. Backend also
+      // re-normalises defensively.
       const payload = isWithdraw
-        ? { amount: a, recipient_msisdn: msisdn, recipient_name: name.trim() }
-        : { amount: a, customer_msisdn: msisdn, customer_name: name.trim() };
+        ? { amount: a, recipient_msisdn: normalizedMsisdn, recipient_name: name.trim() }
+        : { amount: a, customer_msisdn: normalizedMsisdn, customer_name: name.trim() };
       const { data } = await axios.post(endpoint, payload, { withCredentials: true });
       toast.success(data.message || t(`hubtelMomo.${i18nKey}.pending`));
       onSuccess && onSuccess(data);

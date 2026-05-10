@@ -46,7 +46,31 @@ from services.hubtel_momo import (
     get_proxies,
     get_withdrawal_limits,
     is_ghana_number,
+    normalize_msisdn,
 )
+
+
+def _extract_hubtel_message(body: dict | None, fallback: str) -> str:
+    """iter239a2 — Surface the actual Hubtel error to the user. Hubtel
+    response shapes vary; we try the most common keys before falling
+    back to a generic message. Sanitised to ≤ 250 chars."""
+    if not isinstance(body, dict):
+        return fallback
+    candidates = [
+        body.get("Description"),
+        body.get("description"),
+        body.get("Message"),
+        body.get("message"),
+        (body.get("Data") or {}).get("Description")
+            if isinstance(body.get("Data"), dict) else None,
+        (body.get("data") or {}).get("description")
+            if isinstance(body.get("data"), dict) else None,
+        body.get("raw"),
+    ]
+    for c in candidates:
+        if c and isinstance(c, str) and c.strip():
+            return c.strip()[:250]
+    return fallback
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["hubtel_momo"])
@@ -146,7 +170,7 @@ async def hubtel_momo_limits(request: Request):
 @router.post("/wallet/deposit/hubtel-momo")
 async def hubtel_momo_deposit(req: DepositRequest, request: Request):
     user = await get_current_user(request)
-    msisdn = (req.customer_msisdn or "").strip()
+    msisdn = normalize_msisdn(req.customer_msisdn or "")
     name = (req.customer_name or "").strip()[:120]
 
     # 1. Ghana-only.
@@ -259,9 +283,16 @@ async def hubtel_momo_deposit(req: DepositRequest, request: Request):
             await conn.execute("UPDATE transactions SET status='failed' WHERE tx_id=$1", tx_id)
             await _insert_audit(conn, user["user_id"], "hubtel_momo_deposit_init_failed",
                                 {"tx_id": tx_id, "response": response_body or {}, "code": response_code})
+            # iter239a2 — Surface Hubtel's actual error to the client so they
+            # know whether to retry, re-enter the number, or contact support.
+            logger.warning("[hubtel-momo] deposit init failed code=%s body=%s",
+                           response_code, response_body)
             raise HTTPException(status_code=502, detail={
                 "error": "hubtel_init_failed",
-                "message": "The USSD prompt could not be sent. Please try again in a few moments.",
+                "code": response_code or None,
+                "message": _extract_hubtel_message(
+                    response_body,
+                    "The USSD prompt could not be sent. Please try again in a few moments."),
             })
         await _insert_audit(conn, user["user_id"], "hubtel_momo_deposit_initiated",
                             {"tx_id": tx_id, "channel": channel, "amount_ghs": fx["amount_ghs"]})
@@ -468,9 +499,15 @@ async def hubtel_momo_withdraw(req: WithdrawRequest, request: Request):
         # Atomic refund — Hubtel never accepted the order.
         await _refund_withdrawal(pool, tx_id, user["user_id"], amount_dec,
                                   reason=f"hubtel_init_failed_{response_code}")
+        # iter239a2 — Surface Hubtel's actual error.
+        logger.warning("[hubtel-momo] withdrawal init failed code=%s body=%s",
+                       response_code, response_body)
         raise HTTPException(status_code=502, detail={
             "error": "hubtel_init_failed",
-            "message": "The withdrawal could not be initiated. Your balance has been refunded.",
+            "code": response_code or None,
+            "message": _extract_hubtel_message(
+                response_body,
+                "The withdrawal could not be initiated. Your balance has been refunded."),
         })
 
     return {

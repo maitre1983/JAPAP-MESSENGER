@@ -87,36 +87,61 @@ def generate_client_reference() -> str:
     return uuid.uuid4().hex[:36]
 
 
-def is_ghana_number(msisdn: str) -> bool:
-    """Validates a Ghana MSISDN: starts with `233`, exactly 12 digits."""
-    return (
-        isinstance(msisdn, str)
-        and msisdn.startswith("233")
-        and len(msisdn) == 12
-        and msisdn.isdigit()
-    )
-
-
 # Hubtel channel mapping. Source: NCA Ghana number plan (5-char prefixes
 # = `233` + first 2 digits of the subscriber number). Aligned with the
 # frontend `OPERATOR_PREFIXES` table in `HubtelMomoWidget.jsx`. Last
-# refresh: iter238 — 2026-05-10.
+# refresh: iter239a2 — 2026-05-10 (added 23358 to AirtelTigo).
 _CHANNEL_PREFIXES = {
     "mtn-gh":      ["23324", "23325", "23353", "23354", "23355", "23359"],
     "vodafone-gh": ["23320", "23350"],
-    "tigo-gh":     ["23326", "23327", "23356", "23357"],
+    "tigo-gh":     ["23326", "23327", "23356", "23357", "23358"],
 }
+
+
+def normalize_msisdn(msisdn: str) -> str:
+    """
+    iter239a2 — Normalises any Ghana MSISDN to international format
+    `233XXXXXXXXX` (12 digits). Accepts:
+      • 233XXXXXXXXX  (already international) → unchanged
+      • +233XXXXXXXXX (with leading +)         → strips the +
+      • 0XXXXXXXXX    (local 10-digit format)  → replaces 0 with 233
+
+    Spaces, dashes, and parentheses are stripped first. Non-Ghana inputs
+    pass through unchanged (caller validates with `is_ghana_number`).
+    """
+    if not isinstance(msisdn, str):
+        return ""
+    s = msisdn.strip().replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+    if s.startswith("+233"):
+        return s[1:]
+    if s.startswith("0") and len(s) == 10 and s[1:].isdigit():
+        return "233" + s[1:]
+    return s
+
+
+def is_ghana_number(msisdn: str) -> bool:
+    """Validates a Ghana MSISDN: starts with `233`, exactly 12 digits.
+    Auto-normalises common variants before checking (iter239a2)."""
+    s = normalize_msisdn(msisdn)
+    return (
+        isinstance(s, str)
+        and s.startswith("233")
+        and len(s) == 12
+        and s.isdigit()
+    )
 
 
 def detect_channel(msisdn: str) -> str | None:
     """Maps a Ghana MSISDN to a Hubtel `Channel` value (mtn-gh /
     vodafone-gh / tigo-gh). Returns None if the prefix is unknown —
-    the caller should reject the request with 400 unknown_network."""
-    if not is_ghana_number(msisdn):
+    the caller should reject the request with 400 unknown_network.
+    iter239a2: auto-normalises local-format numbers first."""
+    s = normalize_msisdn(msisdn)
+    if not is_ghana_number(s):
         return None
     for channel, prefixes in _CHANNEL_PREFIXES.items():
         for pfx in prefixes:
-            if msisdn.startswith(pfx):
+            if s.startswith(pfx):
                 return channel
     return None
 
@@ -125,5 +150,6 @@ __all__ = [
     "get_proxies",
     "get_hubtel_auth", "get_collection_account", "get_disbursement_account",
     "get_callback_base_url", "get_deposit_limits", "get_withdrawal_limits",
-    "generate_client_reference", "is_ghana_number", "detect_channel",
+    "generate_client_reference",
+    "normalize_msisdn", "is_ghana_number", "detect_channel",
 ]

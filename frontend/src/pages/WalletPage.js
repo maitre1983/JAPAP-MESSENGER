@@ -1122,24 +1122,9 @@ export default function WalletPage() {
         const eligibleOMDep = !!cc && cc !== 'GH';
         const eligibleOMWith = cc === 'CM' && phone.startsWith('+237');
         const eligibleWave = WAVE_COUNTRIES.includes(cc);
-        const isAdmin = !!(user?.is_admin || user?.role === 'admin' || user?.role === 'superadmin');
         const reload = () => { loadTransactions(); loadBalance?.(); };
         return (
           <div data-testid="mobile-money-section">
-            {isAdmin && (
-              <div className="text-[10px] opacity-60 px-3 py-2 rounded-lg mb-2"
-                   style={{ background: 'rgba(0,0,0,0.05)', fontFamily: 'monospace',
-                            color: 'var(--jp-text)', border: '1px dashed var(--jp-border)' }}
-                   data-testid="mobile-money-admin-debug">
-                🔍 Debug admin · Pays détecté : <strong>{cc || '∅'}</strong>
-                {' '}· code_iso=<code>{cc_iso || '∅'}</code>
-                {' '}· raw=<code>{cc_raw || '∅'}</code>
-                {' '}· phone=<code>{phone || '∅'}</code>
-                <br />OM-dépôt {eligibleOMDep ? '✓' : '✗'}
-                {' '}· OM-retrait {eligibleOMWith ? '✓' : '✗'}
-                {' '}· Wave {eligibleWave ? '✓' : '✗'}
-              </div>
-            )}
             <h3 className="font-['Outfit'] text-base font-bold mb-2" style={{ color: 'var(--jp-text)' }}>
               💸 Mobile Money
             </h3>

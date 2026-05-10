@@ -1,10 +1,24 @@
-# JAPAP — PRD (mise à jour 10/05/2026 — iter238b)
+# JAPAP — PRD (mise à jour 10/05/2026 — iter238c)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter238c — Suppression bannière "Debug admin" (sensitive data leak) (10/05/2026)
+
+**Demande user** : la bannière `🔍 Debug admin · Pays détecté : ... · OM-dépôt ✗ · OM-retrait ✗ · Wave ✗` était visible **en production** pour le compte admin (logs de debug pays + flags d'éligibilité = info sensible). À supprimer définitivement, partout (prod + preview + même superadmin).
+
+### Fix appliqué
+- `WalletPage.js` : suppression de la variable `isAdmin` (uniquement utilisée par cette bannière) et de tout le bloc JSX `<div data-testid="mobile-money-admin-debug">…</div>` (14 lignes supprimées).
+- **Logique d'éligibilité préservée** : `cc_iso`, `cc_raw`, `cc`, `phone`, `eligibleOMDep`, `eligibleOMWith`, `eligibleWave` toujours calculées et passées en `eligible={...}` aux sections OM dépôt / OM retrait / Wave dépôt / Wave retrait (lignes 1138/1151/1164…).
+
+### Validation
+- ✅ `grep "Debug admin\|mobile-money-admin-debug\|isAdmin"` → 0 résultat dans WalletPage.js.
+- ✅ Frontend lint propre.
+- ✅ Playwright (connecté en `admin@japap.com`) : `data-testid="mobile-money-admin-debug"` absent ; pas de texte "Debug admin" / "Pays détecté" dans le DOM ; section Mobile Money toujours rendue (CM OM dépôt + retrait, Wave Afrique de l'Ouest visibles avec leur logique d'éligibilité intacte).
 
 
 ## iter238b — Alignement préfixes Hubtel + CTA WalletPage (10/05/2026)

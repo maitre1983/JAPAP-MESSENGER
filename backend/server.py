@@ -204,6 +204,14 @@ try:
 except Exception as _e:
     logger.error("[iter238] paystack/toggles failed to load: %s", _e)
 
+# iter238c — Admin wallet diagnostics (back-office only, additive).
+try:
+    from routes.admin_wallet_diagnostics import admin_wallet_diagnostics_router
+    fastapi_app.include_router(admin_wallet_diagnostics_router)
+    logger.info("[iter238c] admin_wallet_diagnostics router loaded")
+except Exception as _e:
+    logger.error("[iter238c] admin_wallet_diagnostics failed to load: %s", _e)
+
 # iter237n — Legal acceptance routes (CGU/CGJ/RGPD).
 try:
     from routes.legal import legal_router

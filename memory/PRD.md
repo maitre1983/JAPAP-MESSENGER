@@ -7,18 +7,32 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
-## iter238c — Suppression bannière "Debug admin" (sensitive data leak) (10/05/2026)
+## iter238c — Suppression bannière "Debug admin" + Route admin diagnostics (10/05/2026)
 
-**Demande user** : la bannière `🔍 Debug admin · Pays détecté : ... · OM-dépôt ✗ · OM-retrait ✗ · Wave ✗` était visible **en production** pour le compte admin (logs de debug pays + flags d'éligibilité = info sensible). À supprimer définitivement, partout (prod + preview + même superadmin).
+**Demande user** : supprimer définitivement la bannière "Debug admin" (data leak) ET ajouter une route back-office dédiée pour les mêmes infos (support sait debugger sans exposer le user).
 
-### Fix appliqué
-- `WalletPage.js` : suppression de la variable `isAdmin` (uniquement utilisée par cette bannière) et de tout le bloc JSX `<div data-testid="mobile-money-admin-debug">…</div>` (14 lignes supprimées).
-- **Logique d'éligibilité préservée** : `cc_iso`, `cc_raw`, `cc`, `phone`, `eligibleOMDep`, `eligibleOMWith`, `eligibleWave` toujours calculées et passées en `eligible={...}` aux sections OM dépôt / OM retrait / Wave dépôt / Wave retrait (lignes 1138/1151/1164…).
+### Phase 1 — Suppression bannière (déjà fait)
+- `WalletPage.js` : suppression variable `isAdmin` + bloc JSX `<div data-testid="mobile-money-admin-debug">…</div>`. Logique d'éligibilité préservée.
+
+### Phase 2 — Route admin diagnostics
+**Backend** (nouveau fichier seul)
+- `routes/admin_wallet_diagnostics.py` : `GET /api/admin/wallet/diagnostics?user_id=X`
+  - Gate `require_admin` (admin OR superadmin).
+  - Retourne `{user, country, phone, wallet.balance_usd, eligibility{orange_money_deposit, orange_money_withdraw, wave}}`.
+  - 404 si user introuvable. 403 si non-admin. 401 si non-auth.
+
+**Frontend** (nouveau fichier seul)
+- `pages/AdminWalletDiagnosticsPage.jsx` : route `/admin/wallet/diagnostics?user_id=X`.
+  - Champ recherche par `user_id`, auto-load si query param présent.
+  - 4 cards : Utilisateur, Pays détecté, Wallet, Éligibilité Mobile Money (✓/✗ avec badges Phosphor).
+  - `<ProtectedRoute adminOnly>` côté React + `require_admin` côté API → 2 couches.
+
+**Wiring additif uniquement** : `server.py` (+1 include_router try/except), `App.js` (+1 lazy + 1 route).
 
 ### Validation
-- ✅ `grep "Debug admin\|mobile-money-admin-debug\|isAdmin"` → 0 résultat dans WalletPage.js.
-- ✅ Frontend lint propre.
-- ✅ Playwright (connecté en `admin@japap.com`) : `data-testid="mobile-money-admin-debug"` absent ; pas de texte "Debug admin" / "Pays détecté" dans le DOM ; section Mobile Money toujours rendue (CM OM dépôt + retrait, Wave Afrique de l'Ouest visibles avec leur logique d'éligibilité intacte).
+- ✅ Backend lint propre, frontend lint propre.
+- ✅ Curl : Admin → 200 + payload complet (Bob CM : OM dep/with ✓, Wave ✗) ; Bob → 403 "Admin access required" ; unknown user_id → 404 ; no auth → 401.
+- ✅ Playwright sur `admin@japap.com` : page rend les 4 cards, badges d'éligibilité corrects (data-eligible attributes confirmés).
 
 
 ## iter238b — Alignement préfixes Hubtel + CTA WalletPage (10/05/2026)

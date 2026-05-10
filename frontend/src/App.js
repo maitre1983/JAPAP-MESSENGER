@@ -56,6 +56,8 @@ const WalletHubtelMomoPage = lazy(() => import('@/pages/WalletHubtelMomoPage'));
 // iter238 — Paystack Ghana pages (strictly additive).
 const WalletPaystackPage = lazy(() => import('@/pages/WalletPaystackPage'));
 const WalletPaystackResultPage = lazy(() => import('@/pages/WalletPaystackResultPage'));
+// iter238c — Admin wallet diagnostics (back-office only, additive).
+const AdminWalletDiagnosticsPage = lazy(() => import('@/pages/AdminWalletDiagnosticsPage'));
 
 // iter237n — Legal pages (CGU / CGJ / RGPD) + About.
 const CGUPage = lazy(() => import('@/pages/legal/CGUPage'));
@@ -269,6 +271,8 @@ function AppRouter() {
       <Route path="/reels/:reelId" element={<ProtectedRoute><ReelsPage /></ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
+      {/* iter238c — Admin wallet diagnostics (back-office only, additive). */}
+      <Route path="/admin/wallet/diagnostics" element={<ProtectedRoute adminOnly><AdminWalletDiagnosticsPage /></ProtectedRoute>} />
       {/* iter237n — Pages légales publiques (pas d'auth requise) */}
       <Route path="/legal/cgu" element={<CGUPage />} />
       <Route path="/legal/conditions-de-jeu" element={<CGJPage />} />

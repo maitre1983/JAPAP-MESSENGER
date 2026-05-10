@@ -1247,6 +1247,8 @@
       "invalid_msisdn": "Invalid Ghana phone number (must be 12 digits starting with 233).",
       "out_of_range": "Amount must be between {{min}} and {{max}} USD.",
       "generic": "Something went wrong. Please try again."
-    }
+    },
+    "operator_detected": "Network detected: {{operator}}",
+    "operator_unknown": "Operator not recognized — please double-check the number."
   }
 }

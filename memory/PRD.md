@@ -1,10 +1,40 @@
-# JAPAP — PRD (mise à jour 10/05/2026 — iter237af)
+# JAPAP — PRD (mise à jour 10/05/2026 — iter237ag)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter237ag — Hubtel MoMo : auto-détection opérateur Ghana (10/05/2026)
+
+**Demande user** : suggérer automatiquement l'opérateur Ghana (MTN / AirtelTigo / Telecel) selon le préfixe saisi — *"petit boost de confiance utilisateur"*.
+
+### Frontend (`HubtelMomoWidget.jsx`) — additions seulement
+- Table `OPERATOR_PREFIXES` côté frontend avec les préfixes 5-char standards NCA Ghana :
+  - MTN : `23324, 23325, 23353, 23354, 23355, 23359`
+  - AirtelTigo : `23326, 23327, 23356, 23357`
+  - Telecel (ex-Vodafone) : `23320, 23350`
+- Helper `detectOperator(msisdn)` (pur, sans appel réseau).
+- Badge `data-testid="hubtel-momo-{mode}-operator"` (avec `data-operator-id`) affiché sous le champ téléphone dès qu'un préfixe match.
+- Warning `hubtel-momo-{mode}-operator-unknown` quand l'utilisateur tape un numéro Ghana 12 chiffres mais préfixe non reconnu.
+- 2 nouvelles clés i18n : `hubtelMomo.operator_detected` / `hubtelMomo.operator_unknown` (EN + FR).
+
+### Note
+La table backend `_CHANNEL_PREFIXES` dans `services/hubtel_momo.py` est **inchangée** (mode strictement additif). Le frontend utilise les vrais préfixes NCA Ghana ; le backend continue à résoudre le `Channel` Hubtel indépendamment au moment de la requête.
+
+### Validation (Playwright)
+7/7 cas testés OK :
+| Numéro | Préfixe | Attendu | Détecté |
+|---|---|---|---|
+| 233241234567 | 24 | MTN | ✅ MTN |
+| 233591234567 | 59 | MTN | ✅ MTN |
+| 233271234567 | 27 | AirtelTigo | ✅ AirtelTigo |
+| 233561234567 | 56 | AirtelTigo | ✅ AirtelTigo |
+| 233201234567 | 20 | Telecel | ✅ Telecel |
+| 233501234567 | 50 | Telecel | ✅ Telecel |
+| 233991234567 | 99 | unknown | ✅ warning displayed |
 
 
 ## iter237af — Intégration Hubtel Mobile Money Ghana (STRICTEMENT ADDITIVE) (10/05/2026)

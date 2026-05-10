@@ -19,6 +19,33 @@ const GHANA_PREFIX = '233';
 const CONVERT_DEBOUNCE_MS = 500;
 
 /**
+ * Ghana mobile-network prefixes (industry-standard, 5-char = `233` + first
+ * 2 digits of the subscriber number). Source: NCA Ghana number plan.
+ *
+ *   • MTN         → 24, 25, 53, 54, 55, 59
+ *   • AirtelTigo  → 26, 27, 56, 57
+ *   • Telecel     → 20, 50  (ex-Vodafone, rebranded 04/2024)
+ *
+ * Frontend-only UX hint — the backend re-validates msisdn format and
+ * resolves the Hubtel `Channel` independently. Keeping this table here
+ * (rather than fetching the backend's mapping) avoids a network call
+ * for every keystroke.
+ */
+const OPERATOR_PREFIXES = [
+  { id: 'mtn',         label: 'MTN',        prefixes: ['23324', '23325', '23353', '23354', '23355', '23359'] },
+  { id: 'airteltigo',  label: 'AirtelTigo', prefixes: ['23326', '23327', '23356', '23357'] },
+  { id: 'telecel',     label: 'Telecel',    prefixes: ['23320', '23350'] },
+];
+
+function detectOperator(msisdn) {
+  if (!msisdn || msisdn.length < 5) return null;
+  for (const op of OPERATOR_PREFIXES) {
+    if (op.prefixes.some(p => msisdn.startsWith(p))) return op;
+  }
+  return null;
+}
+
+/**
  * Mode is either 'deposit' or 'withdraw'. The component exposes the
  * same shape for both — only the endpoint and the field labels change.
  */
@@ -35,6 +62,12 @@ export function HubtelMomoWidget({ mode, onSuccess, onCancel }) {
 
   const isWithdraw = mode === 'withdraw';
   const i18nKey = isWithdraw ? 'withdraw' : 'deposit';
+
+  const operator = useMemo(() => detectOperator(msisdn), [msisdn]);
+  const operatorUnknown = useMemo(
+    () => msisdn.length === 12 && msisdn.startsWith(GHANA_PREFIX) && !operator,
+    [msisdn, operator],
+  );
 
   // Load admin limits on mount.
   useEffect(() => {
@@ -199,6 +232,21 @@ export function HubtelMomoWidget({ mode, onSuccess, onCancel }) {
           <p className="text-[11px] mt-1" style={{ color: 'var(--jp-error)' }}
              data-testid={`hubtel-momo-${mode}-msisdn-error`}>
             ⚠️ {eligibilityError}
+          </p>
+        )}
+        {!eligibilityError && operator && (
+          <p className="text-[11px] mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full"
+             style={{ background: 'rgba(15,5,107,0.06)', color: 'var(--jp-text-secondary)' }}
+             data-testid={`hubtel-momo-${mode}-operator`}
+             data-operator-id={operator.id}>
+            <span aria-hidden="true">📡</span>
+            {t('hubtelMomo.operator_detected', { operator: operator.label })}
+          </p>
+        )}
+        {!eligibilityError && operatorUnknown && (
+          <p className="text-[11px] mt-1" style={{ color: 'var(--jp-warning, #b8860b)' }}
+             data-testid={`hubtel-momo-${mode}-operator-unknown`}>
+            ⚠️ {t('hubtelMomo.operator_unknown')}
           </p>
         )}
       </div>

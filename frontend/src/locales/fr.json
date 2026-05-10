@@ -1247,6 +1247,8 @@
       "invalid_msisdn": "Numéro Ghana invalide (12 chiffres commençant par 233).",
       "out_of_range": "Le montant doit être entre {{min}} et {{max}} USD.",
       "generic": "Une erreur est survenue. Réessaie."
-    }
+    },
+    "operator_detected": "Opérateur détecté : {{operator}}",
+    "operator_unknown": "Opérateur non reconnu — vérifiez le numéro."
   }
 }

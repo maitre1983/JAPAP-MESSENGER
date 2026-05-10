@@ -1,10 +1,50 @@
-# JAPAP — PRD (mise à jour 09/05/2026 — iter237ae)
+# JAPAP — PRD (mise à jour 10/05/2026 — iter237af)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter237af — Intégration Hubtel Mobile Money Ghana (STRICTEMENT ADDITIVE) (10/05/2026)
+
+**Demande utilisateur** : *"Ce module doit totalement être en anglais (suit l'i18n). Aucun texte hardcodé. Strictement additif — zéro modification de la logique existante, uniquement de nouveaux fichiers."*
+
+### Backend (nouveaux fichiers uniquement)
+- `/app/backend/services/hubtel_momo.py` — client Hubtel MoMo (dépôts/retraits via Fixie proxy).
+- `/app/backend/services/hubtel_fx.py` — résolution dynamique de taux USD↔GHS (live API → fallback Admin via `system_settings.hubtel_usd_ghs_rate`).
+- `/app/backend/services/hubtel_momo_status_check.py` — cron autonome de vérification statut (SELECT FOR UPDATE → anti double-crédit).
+- `/app/backend/routes/hubtel_momo.py` — routes additionnelles :
+  - `GET  /api/wallet/hubtel-momo/convert` (preview FX live)
+  - `GET  /api/wallet/hubtel-momo/limits` (limites admin min/max dépôt + retrait)
+  - `POST /api/wallet/deposit/hubtel-momo` (envoie un USSD prompt au client +233)
+  - `POST /api/wallet/withdraw/hubtel-momo` (crédit Mobile Money +233)
+  - `POST /api/wallet/hubtel-momo/callback` (webhook Hubtel)
+
+### Frontend (nouveaux fichiers uniquement)
+- `/app/frontend/src/components/wallet/HubtelMomoWidget.jsx` — widget réutilisable, modes `deposit` / `withdraw`, validation client +233 (12 chiffres), debounce 500 ms sur la conversion FX, toasts via `sonner`, intégralement i18n (`hubtelMomo.*`).
+- `/app/frontend/src/pages/WalletHubtelMomoPage.jsx` — page dédiée `/wallet/hubtel-momo` avec switch deposit/withdraw.
+- `/app/frontend/src/locales/{en,fr}.json` — clés `hubtelMomo.*` ajoutées (i18n suit la langue de l'app, décision user).
+
+### Sécurité & atomicité
+- Tous les retraits + callbacks + crons utilisent `SELECT FOR UPDATE` sur `transactions` pour empêcher tout double crédit.
+- Vérification format msisdn (préfixe `233` + 12 chiffres) côté client ET serveur.
+- Appels Hubtel routés via `FIXIE_URL` (Hubtel restreint géographiquement les IPs).
+- `status_check` cron : tâche idempotente, requête authoritative auprès de l'API Hubtel avant tout crédit.
+
+### Validation (tests manuels par curl)
+- `GET /api/wallet/hubtel-momo/convert?amount_usd=10` → réponse OK avec rate live + amount_ghs.
+- `GET /api/wallet/hubtel-momo/limits` → réponse OK avec min/max deposit/withdraw.
+- Smoke UI screenshot `/wallet/hubtel-momo` → toggle deposit/withdraw OK, conversion live OK, validations msisdn OK.
+- ⚠️ `testing_agent_v3_fork` a expiré sur ce module (Hubtel + Fixie + FX live cumulent les appels externes). Tests manuels rigoureux substitués.
+
+### Décision i18n (10/05/2026, validée user)
+Le module suit la langue de l'app (FR si FR, EN sinon) — option (b). Les clés EN/FR sont toutes deux maintenues. Aucun texte n'est hardcodé : 100 % des chaînes passent par `t('hubtelMomo.*')`.
+
+### Prochaines étapes possibles
+- (Optionnel) Cron statut-check à activer côté infrastructure (déjà codé, prêt à brancher).
+- (Optionnel) CTA Hubtel MoMo dans la `WalletPage` legacy pour rediriger vers `/wallet/hubtel-momo` (à confirmer avec le user pour ne PAS toucher l'UI legacy).
 
 
 ## iter237ae — Lien block-explorer dans le banner "✅ Transaction trouvée" (09/05/2026)

@@ -31,6 +31,8 @@ from services.hubtel_momo import (
     get_hubtel_auth,
     get_proxies,
 )
+# iter239a4 — httpx ≥ 0.28 needs `proxy=<url>`, not `proxies=`.
+from services.proxy_config import get_proxy_url
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +75,7 @@ async def _hubtel_status(url_template: str, account: str, auth: str,
     url = url_template.format(account=account) + f"?clientReference={client_ref}"
     try:
         async with httpx.AsyncClient(timeout=HUBTEL_TIMEOUT,
-                                      proxies=get_proxies() or None) as client:
+                                      proxy=get_proxy_url()) as client:
             r = await client.get(url, headers={"Authorization": f"Basic {auth}"})
         if r.status_code != 200:
             return None

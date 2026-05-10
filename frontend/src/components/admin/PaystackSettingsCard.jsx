@@ -264,7 +264,16 @@ export default function PaystackSettingsCard() {
           : <span className="ml-1 opacity-60">— indisponible</span>}
         {fx?.source && <span className="ml-2 opacity-60">({fx.source})</span>}
         <button type="button"
-          onClick={loadFx}
+          onClick={async () => {
+            try {
+              const { data } = await axios.post(`${API}/api/admin/fx/refresh-cache`,
+                                                 {}, { withCredentials: true });
+              setFx(data?.current || null);
+              toast.success(`Cache FX vidé — taux actuel : ${data?.current?.rate}`);
+            } catch (e) {
+              toast.error(e?.response?.data?.detail || 'Erreur refresh');
+            }
+          }}
           className="jp-btn jp-btn-ghost jp-btn-sm text-xs ml-auto"
           data-testid="paystack-fx-refresh">
           Actualiser

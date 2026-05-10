@@ -31,6 +31,8 @@ from datetime import datetime, timedelta, timezone
 import httpx
 
 from services.settings_service import get_setting
+# iter239a4 — Fixie proxy used by ALL outbound vendor / FX calls.
+from services.proxy_config import get_proxy_url
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +40,16 @@ _CACHE: dict = {"rate": None, "fetched_at": None}
 _CACHE_TTL = timedelta(hours=1)
 _DEFAULT_FALLBACK = 14.50
 _TIMEOUT = 5.0
+
+
+def reset_cache() -> None:
+    """iter239a4 — Wipes the in-memory FX cache. Useful when an admin
+    has just changed the FX-related settings and wants the change to
+    propagate immediately even though the manual override would
+    already take priority. Exposed via `POST /api/admin/fx/refresh-cache`."""
+    _CACHE["rate"] = None
+    _CACHE["fetched_at"] = None
+    logger.info("[fx-service] cache cleared")
 
 
 async def _admin_rate(key: str) -> float | None:
@@ -53,7 +65,8 @@ async def _admin_rate(key: str) -> float | None:
 
 async def _live() -> float | None:
     try:
-        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        async with httpx.AsyncClient(timeout=_TIMEOUT,
+                                      proxy=get_proxy_url()) as client:
             r = await client.get("https://open.er-api.com/v6/latest/USD")
         if r.status_code != 200:
             return None
@@ -127,4 +140,5 @@ __all__ = [
     "get_usd_to_ghs_info",
     "get_usd_to_ghs_rate",
     "convert_usd_to_ghs",
+    "reset_cache",
 ]

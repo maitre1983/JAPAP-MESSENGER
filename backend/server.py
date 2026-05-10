@@ -212,6 +212,14 @@ try:
 except Exception as _e:
     logger.error("[iter238c] admin_wallet_diagnostics failed to load: %s", _e)
 
+# iter239a4 — Admin FX cache refresh (additive).
+try:
+    from routes.admin_fx import admin_fx_router
+    fastapi_app.include_router(admin_fx_router)
+    logger.info("[iter239a4] admin_fx router loaded")
+except Exception as _e:
+    logger.error("[iter239a4] admin_fx failed to load: %s", _e)
+
 # iter237n — Legal acceptance routes (CGU/CGJ/RGPD).
 try:
     from routes.legal import legal_router

@@ -44,6 +44,8 @@ from services.paystack_service import (
     is_paystack_enabled,
     verify_webhook_signature,
 )
+# iter239a4 — Fixie proxy so Paystack sees our whitelisted static IP.
+from services.proxy_config import get_proxy_url
 
 logger = logging.getLogger(__name__)
 
@@ -273,7 +275,8 @@ async def paystack_deposit_initialize(req: DepositInitRequest, request: Request)
     response_body: dict | None = None
     response_status: bool = False
     try:
-        async with httpx.AsyncClient(timeout=PAYSTACK_TIMEOUT) as client:
+        async with httpx.AsyncClient(timeout=PAYSTACK_TIMEOUT,
+                                      proxy=get_proxy_url()) as client:
             r = await client.post(
                 f"{PAYSTACK_BASE_URL}/transaction/initialize",
                 headers={
@@ -336,7 +339,8 @@ async def paystack_callback(request: Request,
     # Verify with Paystack — authoritative source.
     tx_data = None
     try:
-        async with httpx.AsyncClient(timeout=PAYSTACK_TIMEOUT) as client:
+        async with httpx.AsyncClient(timeout=PAYSTACK_TIMEOUT,
+                                      proxy=get_proxy_url()) as client:
             r = await client.get(
                 f"{PAYSTACK_BASE_URL}/transaction/verify/{ref}",
                 headers={"Authorization": f"Bearer {secret}"},

@@ -48,6 +48,8 @@ from services.hubtel_momo import (
     is_ghana_number,
     normalize_msisdn,
 )
+# iter239a4 — Fixie proxy URL (httpx ≥ 0.28 API).
+from services.proxy_config import get_proxy_url
 
 
 def _extract_hubtel_message(body: dict | None, fallback: str) -> str:
@@ -261,7 +263,7 @@ async def hubtel_momo_deposit(req: DepositRequest, request: Request):
     response_body = None
     try:
         async with httpx.AsyncClient(timeout=HUBTEL_TIMEOUT,
-                                      proxies=get_proxies() or None) as client:
+                                      proxy=get_proxy_url()) as client:
             r = await client.post(
                 HUBTEL_RECEIVE_URL.format(account=account),
                 headers={
@@ -478,7 +480,7 @@ async def hubtel_momo_withdraw(req: WithdrawRequest, request: Request):
     response_body = None
     try:
         async with httpx.AsyncClient(timeout=HUBTEL_TIMEOUT,
-                                      proxies=get_proxies() or None) as client:
+                                      proxy=get_proxy_url()) as client:
             r = await client.post(
                 HUBTEL_SEND_URL.format(account=account),
                 headers={

@@ -25,15 +25,9 @@ import uuid
 from services.settings_service import get_setting
 
 # ───────────────────────── Proxy (Fixie) ─────────────────────────
-def get_proxies() -> dict:
-    """Returns the Fixie HTTPS proxy config for httpx/requests. Hubtel
-    requires the merchant's outbound IP to be whitelisted; Fixie gives
-    us a fixed pair of IPs to whitelist regardless of what container
-    the backend currently runs in."""
-    fixie = os.environ.get("FIXIE_URL")
-    if not fixie:
-        return {}
-    return {"http://": fixie, "https://": fixie}
+# iter239a4 — Delegated to shared `services.proxy_config` so all
+# vendor-API services (Paystack, Hubtel, FX) use a single helper.
+from services.proxy_config import get_proxies  # noqa: F401  (re-export)
 
 
 # ─────────────────── Settings (admin → env fallback) ─────────────

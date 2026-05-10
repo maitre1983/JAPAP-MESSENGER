@@ -7,6 +7,42 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter239a4 — Proxy Fixie sur Paystack + httpx 0.28 fix + FX cache reset (10/05/2026)
+
+**Demande user** : ajouter le proxy Fixie sur tous les appels Paystack, vérifier Hubtel, créer un helper partagé, et exposer un refresh du cache FX.
+
+### Bug critique découvert pendant l'implémentation
+**httpx 0.28+ a SUPPRIMÉ le kwarg `proxies=`** au profit de `proxy=<single url>`. Le code Hubtel existant utilisait toujours `proxies=` → silently raisait une erreur → les appels Hubtel n'utilisaient PAS le proxy → sortaient en direct (`34.16.56.64`) au lieu de Fixie. **C'est très probablement la racine du USSD qui échoue.**
+
+### Corrections appliquées
+- **Nouveau** `services/proxy_config.py` (shared) :
+  - `get_proxy_url()` → string URL (httpx ≥ 0.28)
+  - `get_proxies()` → legacy dict (rétro-compat httpx ≤ 0.27)
+  - `get_proxies_requests()` → singular keys (`requests` lib compat)
+- **Refactor httpx → `proxy=<url>` :**
+  - `routes/paystack.py` : 2 appels (`/transaction/initialize` + `/transaction/verify/{ref}`)
+  - `routes/hubtel_momo.py` : 2 appels (dépôt + retrait)
+  - `services/hubtel_momo_status_check.py` : 1 appel cron
+  - `services/fx_service.py` : appel live `open.er-api.com`
+- **Nouveau** `routes/admin_fx.py` : `POST /api/admin/fx/refresh-cache` (admin only) vide le cache `_CACHE` et renvoie le taux actuel. Button "Actualiser" dans `PaystackSettingsCard.jsx` réécrit pour POSTer cet endpoint.
+- `services/fx_service.py` : nouvelle fonction `reset_cache()`.
+
+### Validation
+- ✅ `python3` test direct vs Fixie : DIRECT=`34.16.56.64` vs FIXIE=`52.87.82.133` (5/5 stables).
+- ✅ Paystack init via proxy : Paystack répond explicitement avec son message "Your IP address is not allowed" → preuve que la requête sort via le proxy et atteint l'API Paystack.
+- ✅ FX live + Hubtel + Paystack convert → tous via Fixie, tous OK.
+- ✅ Admin refresh-cache → OK, non-admin → 403.
+- ✅ Tous lint passe.
+
+### ⚠️ ACTION CRITIQUE COTÉ USER (Paystack + Hubtel)
+**L'IP outbound Fixie actuelle est `52.87.82.133`** (pas `52.5.155.132` comme indiqué initialement). Pour que Paystack accepte les appels :
+1. Aller dans Paystack Dashboard → Settings → API Keys & Webhooks → IP Whitelist
+2. Ajouter : **`52.87.82.133`**
+3. Idem pour Hubtel (peut-être déjà OK si Hubtel est plus permissif, mais à vérifier).
+
+Le proxy fonctionne techniquement — il ne reste qu'à whitelister la bonne IP.
+
+
 ## iter239a3 — FX centralisé + Paystack visible WalletPage (10/05/2026)
 
 **Bug 1 rapporté** : Toggle `paystack_enabled=true` mais le bouton Paystack n'apparaît pas dans le formulaire de dépôt user.

@@ -1,10 +1,40 @@
-# JAPAP — PRD (mise à jour 10/05/2026 — iter238c)
+# JAPAP — PRD (mise à jour 10/05/2026 — iter239a)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter239a — Toggles 7 méthodes via system_settings (source unique) (10/05/2026)
+
+**Vision** : Dashboard admin = centre de contrôle unique. Toute méthode de paiement doit être désactivable à chaud, sans redéploiement, avec effet immédiat sur frontend ET backend.
+
+### Backend (additif)
+- `middleware/payment_toggles.py` étendu :
+  - URL-prefix gates ajoutés pour `paystack`, `hubtel_momo`, `orange_money`, `wave`.
+  - **Body-level gates** (nouveau pattern) pour `POST /api/wallet/deposit` et `POST /api/wallet/withdraw` : inspecte le champ `method` du JSON et bloque si `usdt_manual_enabled=false`. Le body est lu via `await request.body()` et caché par Starlette pour les handlers downstream — testé OK.
+  - Webhooks/callbacks toujours exemptés (zéro perte de transaction en vol).
+- `routes/admin_settings.py` (+5 lignes acceptées par user) : audit log dans `PUT /api/admin/settings` + `PUT /api/admin/settings/{key}` via nouvelle fonction `_audit_settings_change()`. Enregistre `{admin_user_id, action="admin_setting_updated", resource="system_settings", details={key, before, after}}` dans `audit_logs`. Secret keys → before/after masqués en `***`.
+
+### Frontend (additif)
+- `WalletPage.js` : 
+  - charge `/api/wallet/payment-methods/status` au mount (fallback silencieux).
+  - filter sur les listes `paymentMethods.deposit` et `paymentMethods.withdraw` croisant `m.enabled` ET `methodStatus[k] !== false` selon mapping `m.id → toggle key` (`orange_money_cm → orange_money`, `wave → wave`, `usdt_* → usdt_manual`, `nowpayments_* → nowpayments`, `hubtel_card → hubtel_card`, `paystack → paystack`).
+  - CTA Hubtel Mobile Money Ghana gated par `methodStatus.hubtel_momo`.
+- `components/admin/PaymentMethodsCatalogAdmin.jsx` **fusionné** : lit le toggle depuis `system_settings.{method}_enabled` via `GET /api/wallet/payment-methods/status`, écrit via `PUT /api/admin/settings/{key}_enabled` (audit-loggé). Le champ legacy `payment_methods.enabled` reste utilisé pour les métadonnées (label, icône, pays) mais N'EST PLUS source de vérité du toggle. Ajout d'un sous-label `{toggle_key}` sous chaque méthode pour transparence admin.
+
+### Validation E2E (curl)
+- ✅ `PUT /api/admin/settings/{key}` → 200, audit_logs row insérée (validé : `2026-05-10 21:34 admin_3e4573bfe1 {"key":"hubtel_momo_enabled","after":"true","before":"false"}`).
+- ✅ Tous les 5 nouveaux toggles bloquent en 403 `method_disabled` quand OFF (USDT body-gate, paystack, hubtel_momo, orange_money, wave).
+- ✅ Webhooks NowPayments + Paystack + OM + Wave NON bloqués (transactions en vol protégées).
+- ✅ Re-enable → endpoint repasse en 200 immédiatement (après TTL cache 60 s ; le PUT API invalide le cache donc même les premières requêtes voient le nouveau état).
+- ✅ Frontend Playwright : `hubtel_momo=false` → CTA disparaît instantanément du formulaire de dépôt ; `hubtel_momo=true` → CTA réapparaît.
+
+### À venir (iter239b/c — non livré dans cette itération)
+- **iter239b** : page admin unifiée "Paramètres paiement" avec sections par méthode (USDT addresses, OM/Wave limits, taux global FX) + UI audit log viewer.
+- **iter239c** : mode maintenance global (middleware + interceptor frontend) + paramètres globaux (limites journalières, retrait min/max global).
 
 
 ## iter238c — Suppression bannière "Debug admin" + Route admin diagnostics (10/05/2026)

@@ -68,6 +68,10 @@ export default function WalletPage() {
   const [livePreview, setLivePreview] = useState({ status: 'idle' });
   const [latePreview, setLatePreview] = useState({ status: 'idle' });
   const [paymentMethods, setPaymentMethods] = useState({ deposit: [], withdraw: [], fee: {}, min_withdraw_usd: 0 });
+  // iter239a — overlay of system_settings.{method}_enabled toggles. Filters
+  // both deposit and withdraw method lists so the UI hides any method that
+  // the admin has disabled, without redeploy.
+  const [methodStatus, setMethodStatus] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [error, setError] = useState('');
@@ -213,14 +217,21 @@ export default function WalletPage() {
   const loadGating = useCallback(async () => {
     if (!user?.user_id) return;
     try {
-      const [s, k, pm] = await Promise.all([
+      const [s, k, pm, ms] = await Promise.all([
         axios.get(`${API}/api/settings/public`),
         axios.get(`${API}/api/kyc/status`, { withCredentials: true }),
         axios.get(`${API}/api/wallet/payment-methods`, { withCredentials: true }),
+        // iter239a — pull the live `system_settings.{method}_enabled` toggles
+        // so the deposit/withdraw lists hide methods the admin has just
+        // disabled, with no redeploy. Best-effort: a failure here just
+        // means we fall back to the legacy `m.enabled` field.
+        axios.get(`${API}/api/wallet/payment-methods/status`, { withCredentials: true })
+             .catch(() => ({ data: null })),
       ]);
       setPublicSettings(s.data || {});
       setKycStatus(k.data || { status: 'none' });
       setPaymentMethods(pm.data);
+      setMethodStatus(ms.data || null);
     } catch (err) {
       console.error('[wallet] loadGating failed:', err?.response?.status, err?.message);
     }
@@ -697,7 +708,22 @@ export default function WalletPage() {
               <div>
                 <label className="jp-label">Méthode de dépôt</label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {paymentMethods.deposit?.filter(m => m.enabled).map(m => (
+                  {paymentMethods.deposit?.filter(m => {
+                    // iter239a — runtime gating via system_settings overlay.
+                    if (!m.enabled) return false;
+                    if (!methodStatus) return true;
+                    // Map catalog id → toggle key (same mapping as backend).
+                    const k =
+                      m.id === 'orange_money_cm' ? 'orange_money'
+                    : m.id === 'wave' ? 'wave'
+                    : m.id === 'hubtel_card' ? 'hubtel_card'
+                    : m.id === 'paystack' ? 'paystack'
+                    : m.id === 'hubtel_momo' ? 'hubtel_momo'
+                    : m.id?.startsWith('usdt_') ? 'usdt_manual'
+                    : m.id?.startsWith('nowpayments_') ? 'nowpayments'
+                    : null;
+                    return !k || methodStatus[k] !== false;
+                  }).map(m => (
                     <button key={m.id} type="button"
                       onClick={() => setDepositForm(f => ({ ...f, method: m.id }))}
                       className={`rounded-xl p-3 text-sm font-bold border-2 transition-all flex items-center gap-2 ${depositForm.method === m.id ? 'jp-btn-primary' : 'jp-btn-ghost'}`}
@@ -710,7 +736,8 @@ export default function WalletPage() {
                       </span>
                     </button>
                   ))}
-                  {/* iter238 — Hubtel Mobile Money Ghana CTA (strictly additive). */}
+                  {/* iter238 — Hubtel Mobile Money Ghana CTA (gated by toggle, additive). */}
+                  {methodStatus?.hubtel_momo !== false && (
                   <button type="button"
                     onClick={() => navigate('/wallet/hubtel-momo')}
                     className="rounded-xl p-3 text-sm font-bold border-2 transition-all flex items-center gap-2 jp-btn-ghost"
@@ -722,6 +749,7 @@ export default function WalletPage() {
                       <div className="text-[10px] font-normal opacity-80 mt-0.5">MTN · Telecel · AirtelTigo</div>
                     </span>
                   </button>
+                  )}
                 </div>
               </div>
               <div>
@@ -993,7 +1021,18 @@ export default function WalletPage() {
             <div>
               <label className="jp-label">Réseau USDT</label>
               <div className="grid grid-cols-2 gap-2">
-                {paymentMethods.withdraw?.filter(m => m.enabled).map(m => (
+                {paymentMethods.withdraw?.filter(m => {
+                  // iter239a — runtime gating via system_settings overlay.
+                  if (!m.enabled) return false;
+                  if (!methodStatus) return true;
+                  const k =
+                    m.id === 'orange_money_cm' ? 'orange_money'
+                  : m.id === 'wave' ? 'wave'
+                  : m.id === 'hubtel_card' ? 'hubtel_card'
+                  : m.id?.startsWith('usdt_') ? 'usdt_manual'
+                  : null;
+                  return !k || methodStatus[k] !== false;
+                }).map(m => (
                   <button key={m.id} type="button"
                     onClick={() => setWithdrawForm(f => ({ ...f, method: m.id }))}
                     className={`rounded-xl p-3 text-sm font-bold border-2 transition-all flex items-center gap-2 ${withdrawForm.method === m.id ? 'jp-btn-primary' : 'jp-btn-ghost'}`}

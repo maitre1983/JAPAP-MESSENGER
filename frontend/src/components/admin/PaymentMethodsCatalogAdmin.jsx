@@ -1,7 +1,11 @@
 /**
  * iter237i — Admin : Catalogue des méthodes de paiement (toggles ON/OFF)
  *                  + Dashboard Analytics par méthode (14 jours par défaut).
- * Strictement additif. Branché dans PaymentsAdminTab.jsx (onglet Paramètres).
+ * iter239a — Fusion source de vérité : les toggles écrivent et lisent
+ *            désormais EXCLUSIVEMENT dans `system_settings.{method}_enabled`.
+ *            La table `payment_methods` reste source des métadonnées
+ *            (label, icône, pays, restrictions, analytics) — son champ
+ *            `enabled` n'est plus la source de vérité runtime.
  */
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
@@ -17,12 +21,35 @@ const METHOD_PILL = (id) => {
     hubtel_card:            { bg: '#E5E7EB', fg: '#0F056B' },
     nowpayments_usdttrc20:  { bg: '#D1FAE5', fg: '#065F46' },
     nowpayments_usdtbsc:    { bg: '#FEF3C7', fg: '#92400E' },
+    paystack:               { bg: '#D1FAE5', fg: '#065F46' },
+    hubtel_momo:            { bg: '#FEF3C7', fg: '#92400E' },
+    usdt_trc20:             { bg: '#D1FAE5', fg: '#065F46' },
+    usdt_bep20:             { bg: '#FEF3C7', fg: '#92400E' },
   };
   return map[id] || { bg: '#E5E7EB', fg: '#374151' };
 };
 
+/**
+ * Maps a catalog `method.id` to the `system_settings.{key}_enabled`
+ * toggle that controls it at runtime (frontend + backend middleware).
+ * Multiple catalog IDs may map to the same toggle (e.g. NowPayments
+ * TRC20/BSC share `nowpayments_enabled`).
+ */
+const METHOD_TO_TOGGLE_KEY = {
+  orange_money_cm:        'orange_money_enabled',
+  wave:                   'wave_enabled',
+  hubtel_card:            'hubtel_card_enabled',
+  hubtel_momo:            'hubtel_momo_enabled',
+  paystack:               'paystack_enabled',
+  nowpayments_usdttrc20:  'nowpayments_enabled',
+  nowpayments_usdtbsc:    'nowpayments_enabled',
+  usdt_trc20:             'usdt_manual_enabled',
+  usdt_bep20:             'usdt_manual_enabled',
+};
+
 export default function PaymentMethodsCatalogAdmin() {
   const [methods, setMethods] = useState([]);
+  const [statusMap, setStatusMap] = useState({});  // {toggle_key: bool}
   const [analytics, setAnalytics] = useState([]);
   const [days, setDays] = useState(14);
   const [loading, setLoading] = useState(false);
@@ -38,6 +65,19 @@ export default function PaymentMethodsCatalogAdmin() {
     }
   }, []);
 
+  const loadStatus = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${API}/api/wallet/payment-methods/status`,
+                                        { withCredentials: true });
+      // Convert {paystack: bool, ...} → {paystack_enabled: bool, ...} for direct key match.
+      const out = {};
+      for (const [k, v] of Object.entries(data || {})) {
+        out[`${k}_enabled`] = !!v;
+      }
+      setStatusMap(out);
+    } catch (e) { /* leave statusMap empty; rows will fallback to method.enabled */ }
+  }, []);
+
   const loadAnalytics = useCallback(async () => {
     try {
       const { data } = await axios.get(
@@ -51,18 +91,37 @@ export default function PaymentMethodsCatalogAdmin() {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([loadMethods(), loadAnalytics()]).finally(() => setLoading(false));
-  }, [loadMethods, loadAnalytics]);
+    Promise.all([loadMethods(), loadStatus(), loadAnalytics()])
+      .finally(() => setLoading(false));
+  }, [loadMethods, loadStatus, loadAnalytics]);
+
+  /**
+   * Returns the runtime-enabled state from `system_settings` if a mapping
+   * exists, otherwise falls back to the legacy `m.enabled` (true by default).
+   * This makes the catalog row's status reflect the new source of truth.
+   */
+  const isMethodEnabled = (m) => {
+    const k = METHOD_TO_TOGGLE_KEY[m.id];
+    if (k && statusMap[k] !== undefined) return statusMap[k];
+    return !!m.enabled;
+  };
 
   const toggleMethod = async (m) => {
+    const toggleKey = METHOD_TO_TOGGLE_KEY[m.id];
+    if (!toggleKey) {
+      toast.error(`Méthode '${m.id}' non mappée — édition impossible.`);
+      return;
+    }
     setSavingId(m.id);
-    const next = !m.enabled;
+    const next = !isMethodEnabled(m);
     try {
-      await axios.patch(
-        `${API}/api/admin/payment-methods/${m.id}`,
-        { enabled: next },
+      // iter239a — writes to system_settings (the new source of truth).
+      // Server-side audit log captures who/when/before/after.
+      await axios.put(
+        `${API}/api/admin/settings/${toggleKey}`,
+        { value: next ? 'true' : 'false' },
         { withCredentials: true });
-      setMethods(prev => prev.map(x => x.id === m.id ? { ...x, enabled: next } : x));
+      setStatusMap(prev => ({ ...prev, [toggleKey]: next }));
       toast.success(`${m.label} → ${next ? 'activée' : 'désactivée'}`);
     } catch (e) {
       toast.error(e?.response?.data?.detail || 'Erreur lors du toggle');
@@ -111,6 +170,8 @@ export default function PaymentMethodsCatalogAdmin() {
               {!loading && methods.map(m => {
                 const pill = METHOD_PILL(m.id);
                 const countries = (m.restricted_countries || '').toUpperCase();
+                const enabled = isMethodEnabled(m);
+                const toggleKey = METHOD_TO_TOGGLE_KEY[m.id];
                 return (
                   <tr key={m.id} data-testid={`pm-row-${m.id}`}>
                     <td>
@@ -118,6 +179,12 @@ export default function PaymentMethodsCatalogAdmin() {
                             style={{ background: pill.bg, color: pill.fg }}>
                         {m.icon} {m.label}
                       </span>
+                      {toggleKey && (
+                        <div className="text-[9px] mt-1 font-mono opacity-50"
+                             style={{ color: 'var(--jp-text-muted)' }}>
+                          {toggleKey}
+                        </div>
+                      )}
                     </td>
                     <td className="text-xs font-mono">
                       {countries === 'ALL'
@@ -130,22 +197,22 @@ export default function PaymentMethodsCatalogAdmin() {
                     <td className="text-center">
                       <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider"
                             style={{
-                              background: m.enabled ? '#D1FAE5' : '#FEE2E2',
-                              color: m.enabled ? '#065F46' : '#991B1B',
+                              background: enabled ? '#D1FAE5' : '#FEE2E2',
+                              color: enabled ? '#065F46' : '#991B1B',
                             }}
                             data-testid={`pm-status-${m.id}`}>
-                        {m.enabled ? '✓ Active' : '⏸ Désactivée'}
+                        {enabled ? '✓ Active' : '⏸ Désactivée'}
                       </span>
                     </td>
                     <td className="text-right">
                       <button type="button" onClick={() => toggleMethod(m)}
-                              disabled={savingId === m.id}
+                              disabled={savingId === m.id || !toggleKey}
                               data-testid={`pm-toggle-${m.id}`}
                               className="relative w-12 h-6 rounded-full transition-colors shrink-0"
-                              style={{ background: m.enabled ? 'var(--jp-success, #10B981)' : '#D1D5DB',
-                                       opacity: savingId === m.id ? 0.5 : 1 }}>
+                              style={{ background: enabled ? 'var(--jp-success, #10B981)' : '#D1D5DB',
+                                       opacity: (savingId === m.id || !toggleKey) ? 0.5 : 1 }}>
                         <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform"
-                             style={{ transform: m.enabled ? 'translateX(26px)' : 'translateX(2px)' }} />
+                             style={{ transform: enabled ? 'translateX(26px)' : 'translateX(2px)' }} />
                       </button>
                     </td>
                   </tr>

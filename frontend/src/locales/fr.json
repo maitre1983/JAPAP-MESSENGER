@@ -1220,5 +1220,33 @@
     "francais": "Français",
     "portugues": "Português",
     "espanol": "Español"
+  },
+  "hubtelMomo": {
+    "method_label": "Mobile Money Ghana 🇬🇭",
+    "amount_label": "Montant (USD)",
+    "msisdn_label": "Numéro de téléphone",
+    "name_label": "Nom complet",
+    "name_placeholder": "Joe Doe",
+    "converting": "Calcul du taux en cours…",
+    "limits_label": "Min {{min}} USD — Max {{max}} USD",
+    "fx_rate": "Taux : 1 USD = {{rate}} GHS",
+    "fx_deposit": "Vous enverrez environ {{amount_ghs}} GHS",
+    "fx_withdraw": "Vous recevrez environ {{amount_ghs}} GHS sur votre Mobile Money",
+    "deposit": {
+      "intro": "Les dépôts Mobile Money sont réservés aux clients Ghana (+233).",
+      "submit": "Envoyer le prompt USSD",
+      "pending": "Un prompt USSD a été envoyé sur votre téléphone. Confirmez le paiement."
+    },
+    "withdraw": {
+      "intro": "Les retraits Mobile Money sont réservés aux clients Ghana (+233).",
+      "submit": "Confirmer le retrait",
+      "pending": "Votre retrait est en cours. Vous serez notifié(e) à la confirmation."
+    },
+    "error": {
+      "non_eligible": "Ce mode est réservé aux clients Ghana (+233).",
+      "invalid_msisdn": "Numéro Ghana invalide (12 chiffres commençant par 233).",
+      "out_of_range": "Le montant doit être entre {{min}} et {{max}} USD.",
+      "generic": "Une erreur est survenue. Réessaie."
+    }
   }
 }

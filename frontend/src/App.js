@@ -51,6 +51,8 @@ const UserFollowListPage = lazy(() => import('@/pages/UserFollowListPage'));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
 const FollowRequestsPage = lazy(() => import('@/pages/FollowRequestsPage'));
 const DepositReturnPage = lazy(() => import('@/pages/wallet/DepositReturnPage'));
+// iter237af — Hubtel Mobile Money (Ghana 🇬🇭) standalone page.
+const WalletHubtelMomoPage = lazy(() => import('@/pages/WalletHubtelMomoPage'));
 
 // iter237n — Legal pages (CGU / CGJ / RGPD) + About.
 const CGUPage = lazy(() => import('@/pages/legal/CGUPage'));
@@ -240,6 +242,8 @@ function AppRouter() {
       <Route path="/wallet" element={<ProtectedRoute><WalletPage /></ProtectedRoute>} />
       {/* iter195 — CEO : page dédiée de retour Hubtel (clone EAA) */}
       <Route path="/wallet/deposit/return" element={<ProtectedRoute><DepositReturnPage /></ProtectedRoute>} />
+      {/* iter237af — Hubtel Mobile Money (Ghana 🇬🇭) — strictly additive */}
+      <Route path="/wallet/hubtel-momo" element={<ProtectedRoute><WalletHubtelMomoPage /></ProtectedRoute>} />
       <Route path="/services" element={<ProtectedRoute><ServicesPage /></ProtectedRoute>} />
       <Route path="/groups" element={<ProtectedRoute><GroupsPage /></ProtectedRoute>} />
       <Route path="/pages" element={<ProtectedRoute><PagesPage /></ProtectedRoute>} />

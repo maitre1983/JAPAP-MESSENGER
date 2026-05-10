@@ -184,6 +184,14 @@ try:
 except Exception as _e:
     logger.error("[iter237k] dcq_paid router failed to load: %s", _e)
 
+# iter237af — Hubtel Mobile Money (Ghana 🇬🇭) — strictly additive.
+try:
+    from routes.hubtel_momo import hubtel_momo_router
+    fastapi_app.include_router(hubtel_momo_router)
+    logger.info("[iter237af] hubtel_momo router loaded")
+except Exception as _e:
+    logger.error("[iter237af] hubtel_momo router failed to load: %s", _e)
+
 # iter237n — Legal acceptance routes (CGU/CGJ/RGPD).
 try:
     from routes.legal import legal_router
@@ -346,6 +354,8 @@ async def _iter237c_deferred_workers_start():
         ("seller_reminder",       "services.seller_reminder_worker",           "_loop"),
         ("video_transcode",       "services.video_transcode_worker",           "_loop"),
         ("migration_broadcast",   "services.migration_broadcast",              "_worker_loop"),
+        # iter237af — Hubtel MoMo status check (catches missed callbacks).
+        ("hubtel_momo_status",    "services.hubtel_momo_status_check",         "status_check_loop"),
     ]
     import importlib
     for label, mod_path, sym in _branches:

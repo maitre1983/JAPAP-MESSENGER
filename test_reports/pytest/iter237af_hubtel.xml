@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="15" failures="2" skipped="1" tests="25" time="179.053" timestamp="2026-05-10T19:08:07.618283+00:00" hostname="agent-env-8b343572-668a-4145-bfbd-eff93a871360"><testcase classname="tests.test_iter237af_hubtel_momo.TestHelpers" name="test_is_ghana_number" time="0.015" /><testcase classname="tests.test_iter237af_hubtel_momo.TestHelpers" name="test_detect_channel" time="0.000" /><testcase classname="tests.test_iter237af_hubtel_momo.TestHelpers" name="test_generate_client_reference" time="0.000" /><testcase classname="tests.test_iter237af_hubtel_momo.TestHelpers" name="test_fx_get_usd_to_ghs_info" time="0.000"><skipped type="pytest.skip" message="Covered via HTTP /api/wallet/hubtel-momo/convert test">/app/backend/tests/test_iter237af_hubtel_momo.py:110: Covered via HTTP /api/wallet/hubtel-momo/convert test</skipped></testcase><testcase classname="tests.test_iter237af_hubtel_momo.TestConvertAndLimits" name="test_convert_requires_auth" time="30.098"><failure message="requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=30)">E   TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+E   urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=30)
+
+During handling of the above exception, another exception occurred:
+E   requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=30)</failure></testcase><testcase classname="tests.test_iter237af_hubtel_momo.TestConvertAndLimits" name="test_convert_ok" time="105.407"><error message="failed on setup with &quot;requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)&quot;">E   TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+E   urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)
+
+During handling of the above exception, another exception occurred:
+E   requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)</error></testcase><testcase classname="tests.test_iter237af_hubtel_momo.TestConvertAndLimits" name="test_convert_rejects_negative" time="0.000"><error message="failed on setup with &quot;requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)&quot;">E   TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+E   urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)
+
+During handling of the above exception, another exception occurred:
+E   requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)</error></testcase><testcase classname="tests.test_iter237af_hubtel_momo.TestConvertAndLimits" name="test_limits_ok" time="0.000"><error message="failed on setup with &quot;requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)&quot;">E   TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+E   urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)
+
+During handling of the above exception, another exception occurred:
+E   requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)</error></testcase><testcase classname="tests.test_iter237af_hubtel_momo.TestDepositValidations" name="test_non_ghana_msisdn" time="0.000"><error message="failed on setup with &quot;requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)&quot;">E   TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+E   urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)
+
+During handling of the above exception, another exception occurred:
+E   requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)</error></testcase><testcase classname="tests.test_iter237af_hubtel_momo.TestDepositValidations" name="test_amount_too_low" time="0.000"><error message="failed on setup with &quot;requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)&quot;">E   TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+E   urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)
+
+During handling of the above exception, another exception occurred:
+E   requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)</error></testcase><testcase classname="tests.test_iter237af_hubtel_momo.TestDepositValidations" name="test_amount_too_high" time="0.000"><error message="failed on setup with &quot;requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)&quot;">E   TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+E   urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)
+
+During handling of the above exception, another exception occurred:
+E   requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)</error></testcase><testcase classname="tests.test_iter237af_hubtel_momo.TestDepositValidations" name="test_unknown_network" time="0.000"><error message="failed on setup with &quot;requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)&quot;">E   TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+E   urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)
+
+During handling of the above exception, another exception occurred:
+E   requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)</error></testcase><testcase classname="tests.test_iter237af_hubtel_momo.TestDepositValidations" name="test_valid_ghana_returns_502_or_pending" time="0.000"><error message="failed on setup with &quot;requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)&quot;">E   TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+E   urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)
+
+During handling of the above exception, another exception occurred:
+E   requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)</error></testcase><testcase classname="tests.test_iter237af_hubtel_momo.TestDepositValidations" name="test_anti_dup_pending" time="42.025"><failure message="assert 403 in (200, 409, 502, 500)&#10; +  where 403 = &lt;Response [403]&gt;.status_code">E   assert 403 in (200, 409, 502, 500)
+     +  where 403 = &lt;Response [403]&gt;.status_code</failure></testcase><testcase classname="tests.test_iter237af_hubtel_momo.TestWithdrawValidations" name="test_non_ghana_msisdn" time="0.000"><error message="failed on setup with &quot;requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)&quot;">E   TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+E   urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)
+
+During handling of the above exception, another exception occurred:
+E   requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)</error></testcase><testcase classname="tests.test_iter237af_hubtel_momo.TestWithdrawValidations" name="test_amount_out_of_range_low" time="0.000"><error message="failed on setup with &quot;requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)&quot;">E   TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+E   urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)
+
+During handling of the above exception, another exception occurred:
+E   requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)</error></testcase><testcase classname="tests.test_iter237af_hubtel_momo.TestWithdrawValidations" name="test_amount_out_of_range_high" time="0.000"><error message="failed on setup with &quot;requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)&quot;">E   TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+E   urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)
+
+During handling of the above exception, another exception occurred:
+E   requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)</error></testcase><testcase classname="tests.test_iter237af_hubtel_momo.TestWithdrawValidations" name="test_unknown_network" time="0.000"><error message="failed on setup with &quot;requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)&quot;">E   TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+E   urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)
+
+During handling of the above exception, another exception occurred:
+E   requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)</error></testcase><testcase classname="tests.test_iter237af_hubtel_momo.TestWithdrawValidations" name="test_insufficient_funds_or_refund" time="0.000"><error message="failed on setup with &quot;requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)&quot;">E   TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+E   urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)
+
+During handling of the above exception, another exception occurred:
+E   requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)</error></testcase><testcase classname="tests.test_iter237af_hubtel_momo.TestCallbacks" name="test_callback_receive_no_reference" time="0.145" /><testcase classname="tests.test_iter237af_hubtel_momo.TestCallbacks" name="test_callback_receive_unknown_reference" time="0.657" /><testcase classname="tests.test_iter237af_hubtel_momo.TestCallbacks" name="test_callback_send_no_reference" time="0.111" /><testcase classname="tests.test_iter237af_hubtel_momo.TestCallbacks" name="test_callback_send_unknown_reference" time="0.434" /><testcase classname="tests.test_iter237af_hubtel_momo.TestRegression" name="test_wallet_balance_endpoint" time="0.000"><error message="failed on setup with &quot;requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)&quot;">E   TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+E   urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)
+
+During handling of the above exception, another exception occurred:
+E   requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)</error></testcase><testcase classname="tests.test_iter237af_hubtel_momo.TestRegression" name="test_payment_methods_or_health" time="0.000"><error message="failed on setup with &quot;requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)&quot;">E   TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+E   urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)
+
+During handling of the above exception, another exception occurred:
+E   requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='japap-refactor.preview.emergentagent.com', port=443): Read timed out. (read timeout=45)</error></testcase></testsuite></testsuites>

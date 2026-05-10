@@ -1,10 +1,32 @@
-# JAPAP — PRD (mise à jour 10/05/2026 — iter238)
+# JAPAP — PRD (mise à jour 10/05/2026 — iter238b)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter238b — Alignement préfixes Hubtel + CTA WalletPage (10/05/2026)
+
+**Demande user** : 3 actions strictement additives.
+
+### Action 1 — Backend : `_CHANNEL_PREFIXES` aligné NCA Ghana
+- `services/hubtel_momo.py` : remplacement de la table `_CHANNEL_PREFIXES` (4-char buggés) par les vrais préfixes 5-char NCA Ghana (`23324, 23325, ...`). Aligné sur le frontend `OPERATOR_PREFIXES` de `HubtelMomoWidget.jsx` (iter237ag). Tests `detect_channel`: 8/8 préfixes réels OK.
+
+### Action 2 — Cron `hubtel_momo_status_check` (déjà branché ✅)
+- Le worker est déjà enregistré dans `server.py` line 370 sous le pattern `[iter237c] deferred-started hubtel_momo_status (+30s)` depuis iter237af. Il tourne en boucle infinie via `services.hubtel_momo_status_check.status_check_loop()` avec `POLL_INTERVAL = 300s` (5 min). Logs confirmés : `[hubtel-status] worker started, interval=300.0s`. **Aucune action requise**.
+
+### Action 3 — CTA Mobile Money Ghana dans `WalletPage.js`
+- Ajout d'un bouton supplémentaire dans la grille des méthodes de dépôt, positionné après le `.map()` des méthodes existantes (additif pur). Label : "🇬🇭 Mobile Money Ghana / MTN · Telecel · AirtelTigo". Au clic → navigation vers `/wallet/hubtel-momo` (page existante créée en iter237af).
+- `data-testid="deposit-method-hubtel-momo-cta"`.
+
+### Validation
+- ✅ Backend lint propre.
+- ✅ Frontend lint propre (warning React-hooks pré-existant non-touché).
+- ✅ `detect_channel('233241234567')` → `mtn-gh`, `('233271234567')` → `tigo-gh`, `('233201234567')` → `vodafone-gh`, `('233991234567')` → None. 8/8 OK.
+- ✅ Cron actif (logs supervisor confirmés, interval 300s).
+- ✅ Playwright : CTA visible dans le formulaire de dépôt, click → `/wallet/hubtel-momo` ✅.
 
 
 ## iter238 — Paystack Ghana + désactivation NowPayments / Hubtel-card (STRICTEMENT ADDITIF) (10/05/2026)

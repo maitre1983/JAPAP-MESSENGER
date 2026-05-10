@@ -97,12 +97,14 @@ def is_ghana_number(msisdn: str) -> bool:
     )
 
 
-# Hubtel channel mapping. Source: Hubtel docs — operator prefixes are
-# updated when telecoms reshuffle ranges (last refresh 2026-Q1).
+# Hubtel channel mapping. Source: NCA Ghana number plan (5-char prefixes
+# = `233` + first 2 digits of the subscriber number). Aligned with the
+# frontend `OPERATOR_PREFIXES` table in `HubtelMomoWidget.jsx`. Last
+# refresh: iter238 — 2026-05-10.
 _CHANNEL_PREFIXES = {
-    "mtn-gh":      ["2330", "2335", "2354", "2355", "2359"],
-    "vodafone-gh": ["2332", "2350"],
-    "tigo-gh":     ["2357", "2356", "2320", "2326", "2327"],
+    "mtn-gh":      ["23324", "23325", "23353", "23354", "23355", "23359"],
+    "vodafone-gh": ["23320", "23350"],
+    "tigo-gh":     ["23326", "23327", "23356", "23357"],
 }
 
 

@@ -710,6 +710,18 @@ export default function WalletPage() {
                       </span>
                     </button>
                   ))}
+                  {/* iter238 — Hubtel Mobile Money Ghana CTA (strictly additive). */}
+                  <button type="button"
+                    onClick={() => navigate('/wallet/hubtel-momo')}
+                    className="rounded-xl p-3 text-sm font-bold border-2 transition-all flex items-center gap-2 jp-btn-ghost"
+                    data-testid="deposit-method-hubtel-momo-cta"
+                    style={{ borderColor: 'var(--jp-border)' }}>
+                    <span className="text-2xl">🇬🇭</span>
+                    <span className="flex-1 text-left leading-tight">
+                      Mobile Money Ghana
+                      <div className="text-[10px] font-normal opacity-80 mt-0.5">MTN · Telecel · AirtelTigo</div>
+                    </span>
+                  </button>
                 </div>
               </div>
               <div>

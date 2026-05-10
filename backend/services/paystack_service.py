@@ -122,36 +122,20 @@ async def _fetch_live_rate() -> float | None:
 
 
 async def get_usd_to_ghs_info() -> dict:
-    """Returns {rate, source ∈ {manual,cache,live,fallback}, fetched_at}.
+    """iter239a3 — Delegates to the centralized FX service so Paystack
+    and Hubtel MoMo display the same rate.
 
-    Priority:
-      1. paystack_usd_ghs_rate          (manual admin override)
-      2. in-memory cache (TTL 1 hour)
-      3. live API open.er-api.com
-      4. paystack_usd_ghs_fallback_rate (admin), default 14.50
-    """
-    # 1. Manual override.
-    manual = await _admin_rate("paystack_usd_ghs_rate")
-    if manual is not None:
-        return {"rate": manual, "source": "manual", "fetched_at": None}
-
-    # 2. Cache.
-    now = datetime.now(timezone.utc)
-    if (_FX_CACHE["rate"] and _FX_CACHE["fetched_at"]
-            and (now - _FX_CACHE["fetched_at"]) < _FX_CACHE_TTL):
-        return {"rate": _FX_CACHE["rate"], "source": "cache",
-                "fetched_at": _FX_CACHE["fetched_at"].isoformat()}
-
-    # 3. Live.
-    live = await _fetch_live_rate()
-    if live is not None:
-        _FX_CACHE.update({"rate": live, "fetched_at": now})
-        return {"rate": live, "source": "live", "fetched_at": now.isoformat()}
-
-    # 4. Fallback.
-    fallback = await _admin_rate("paystack_usd_ghs_fallback_rate")
-    rate = fallback if fallback is not None else _FX_DEFAULT_FALLBACK
-    return {"rate": rate, "source": "fallback", "fetched_at": None}
+    Public shape preserved: `{rate, source, fetched_at}`. The legacy
+    `paystack_usd_ghs_rate` and `paystack_usd_ghs_fallback_rate` admin
+    keys remain honored as part of the chain (priority 2 and 7
+    respectively); the new global `usd_ghs_rate` takes precedence."""
+    from services.fx_service import get_usd_to_ghs_info as _global
+    info = await _global()
+    return {
+        "rate": info["rate"],
+        "source": info["source"],
+        "fetched_at": info.get("fetched_at"),
+    }
 
 
 async def convert_usd_to_ghs(amount_usd: float) -> dict:

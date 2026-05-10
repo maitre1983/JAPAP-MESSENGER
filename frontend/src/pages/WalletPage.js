@@ -750,6 +750,20 @@ export default function WalletPage() {
                     </span>
                   </button>
                   )}
+                  {/* iter239a3 — Paystack Ghana CTA (gated by toggle, additive). */}
+                  {methodStatus?.paystack !== false && (
+                  <button type="button"
+                    onClick={() => navigate('/wallet/paystack')}
+                    className="rounded-xl p-3 text-sm font-bold border-2 transition-all flex items-center gap-2 jp-btn-ghost"
+                    data-testid="deposit-method-paystack-cta"
+                    style={{ borderColor: 'var(--jp-border)' }}>
+                    <span className="text-2xl">💳</span>
+                    <span className="flex-1 text-left leading-tight">
+                      Carte / Mobile Money 🇬🇭
+                      <div className="text-[10px] font-normal opacity-80 mt-0.5">Paystack — Visa · Mastercard · MoMo</div>
+                    </span>
+                  </button>
+                  )}
                 </div>
               </div>
               <div>

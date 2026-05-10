@@ -7,6 +7,41 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter239a3 — FX centralisé + Paystack visible WalletPage (10/05/2026)
+
+**Bug 1 rapporté** : Toggle `paystack_enabled=true` mais le bouton Paystack n'apparaît pas dans le formulaire de dépôt user.
+
+**Bug 2 rapporté** : Taux USD→GHS différent entre admin Paystack (13.2) et Hubtel MoMo widget (11.2486). Deux clés DB indépendantes (`paystack_usd_ghs_rate` vs `hubtel_usd_ghs_rate`), pas de source de vérité.
+
+### Fix bug 1 — Paystack CTA dans WalletPage
+- `WalletPage.js` (additif, 12 lignes) : ajout d'un CTA "💳 Carte / Mobile Money 🇬🇭 — Paystack" dans la grille des méthodes de dépôt, placé juste après le CTA Hubtel-momo. Gated par `methodStatus?.paystack !== false`. Click → navigation `/wallet/paystack` (page existante).
+- ✅ Playwright : CTA visible, click → `/wallet/paystack` OK.
+
+### Fix bug 2 — FX service centralisé
+- **Nouveau** `services/fx_service.py` (additif) : `get_usd_to_ghs_info()` avec priorité unifiée :
+  1. `system_settings.usd_ghs_rate` (global admin override — NEW)
+  2. `system_settings.paystack_usd_ghs_rate` (legacy)
+  3. `system_settings.hubtel_usd_ghs_rate` (legacy)
+  4. Cache en mémoire (TTL 1h)
+  5. Live `open.er-api.com`
+  6-8. Fallback admin chain (`usd_ghs_fallback_rate` → legacy → legacy)
+  9. Hard-coded 14.50
+
+- **Refactor minimal** (signatures préservées) :
+  - `services/hubtel_fx.py::get_usd_to_ghs_info()` → délégué à `fx_service`. Anciens callers (`routes/hubtel_momo.py`) zéro impact.
+  - `services/paystack_service.py::get_usd_to_ghs_info()` → délégué à `fx_service`.
+
+- **Admin** `PaystackSettingsCard.jsx` : nouvelle section "🌐 Taux de change global (USD → GHS)" en tête avec champs `usd_ghs_rate` + `usd_ghs_fallback_rate`. Section "Taux Paystack legacy" conservée mais marquée optionnel/rétro-compat.
+
+### Validation
+- ✅ Lint propre (5 fichiers).
+- ✅ E2E curl :
+  - Sans taux manuel → Paystack et Hubtel renvoient le même `rate=11.248639` (source `live`/`cache`) → ✅ source unique.
+  - Admin POSTe `usd_ghs_rate=13.2` → Paystack `13.2` ET Hubtel `13.2` (source `manual`) → ✅ effet immédiat sur les 2 méthodes.
+  - `payment-methods/status` → `paystack: true`.
+- ✅ Playwright : CTA Paystack visible dans WalletPage, navigation OK.
+
+
 ## iter239a2 — Hubtel MoMo : normalisation format local + log Hubtel détaillé (10/05/2026)
 
 **Bug rapporté** : Le numéro `233555861556` reçoit une erreur "USSD prompt could not be sent" générique. L'utilisateur ne sait pas si c'est un problème de format de numéro, un problème réseau Hubtel, ou un problème de credentials.

@@ -24,6 +24,9 @@ const PAYSTACK_KEYS = [
   'paystack_deposit_max',
   'paystack_usd_ghs_rate',
   'paystack_usd_ghs_fallback_rate',
+  // iter239a3 — Global USD→GHS rate (overrides ALL method-specific rates).
+  'usd_ghs_rate',
+  'usd_ghs_fallback_rate',
   // External toggles (controlled here too).
   'hubtel_card_enabled',
   'nowpayments_enabled',
@@ -215,16 +218,41 @@ export default function PaystackSettingsCard() {
 
       <div className="h-px my-3" style={{ background: 'var(--jp-border)' }} />
 
+      {/* iter239a3 — Global USD→GHS rate (overrides ALL Paystack/Hubtel rates). */}
+      <div className="rounded-xl p-3 mb-3"
+           style={{ background: 'rgba(15,5,107,0.06)', border: '1px solid var(--jp-primary)' }}>
+        <div className="text-xs font-bold mb-2 flex items-center gap-2"
+             style={{ color: 'var(--jp-primary)' }}>
+          🌐 Taux de change global (USD → GHS)
+        </div>
+        <p className="text-[10px] mb-2" style={{ color: 'var(--jp-text-secondary)' }}>
+          Si renseigné, ce taux est utilisé par <strong>toutes</strong> les méthodes GHS
+          (Paystack, Hubtel MoMo) — priorité absolue, ignore les taux spécifiques par méthode.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <TextField k="usd_ghs_rate"
+            label="Taux global USD→GHS"
+            placeholder="Laissez vide pour utiliser les taux spécifiques / live"
+            hint="Affecte Paystack ET Hubtel MoMo immédiatement." />
+          <TextField k="usd_ghs_fallback_rate"
+            label="Fallback global USD→GHS"
+            placeholder="Ex: 13.50"
+            hint="Si l'API live échoue et qu'aucun taux manuel n'est défini." />
+        </div>
+      </div>
+
+      <div className="h-px my-3" style={{ background: 'var(--jp-border)' }} />
+
       {/* FX */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <TextField k="paystack_usd_ghs_rate"
-          label="Taux manuel USD→GHS (optionnel)"
-          placeholder="Laissez vide pour le taux live"
-          hint="Si renseigné, ce taux est utilisé en priorité absolue." />
+          label="Taux Paystack (legacy, optionnel)"
+          placeholder="Laissez vide — préférer le taux global"
+          hint="Conservé pour rétro-compat. Le taux global le prend en priorité." />
         <TextField k="paystack_usd_ghs_fallback_rate"
-          label="Taux de secours USD→GHS"
-          placeholder="14.50"
-          hint="Utilisé uniquement si l'API live est down." />
+          label="Fallback Paystack (legacy)"
+          placeholder="Vide → utilise fallback global"
+          hint="Conservé pour rétro-compat." />
       </div>
       <div className="mt-2 p-3 rounded-xl text-xs flex items-center gap-2"
            style={{ background: 'rgba(15,5,107,0.04)', color: 'var(--jp-text-secondary)' }}

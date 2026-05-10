@@ -64,30 +64,23 @@ async def _fetch_live_rate() -> float | None:
 
 
 async def get_usd_to_ghs_info() -> dict:
-    """Returns {rate, source, fetched_at} where source ∈ {"manual",
-    "live", "cache", "fallback"}. The frontend uses `source` to decide
-    whether to display the "live" timestamp."""
-    # 1. Manual admin override.
-    manual = await _admin_rate("hubtel_usd_ghs_rate")
-    if manual is not None:
-        return {"rate": manual, "source": "manual", "fetched_at": None}
+    """iter239a3 — Delegates to the centralized FX service so all USD↔GHS
+    flows (Hubtel MoMo, Paystack, anything else) share the same priority
+    chain and the same in-memory cache. The legacy `hubtel_usd_ghs_rate`
+    and `hubtel_usd_ghs_fallback_rate` admin keys remain honored as part
+    of that chain.
 
-    # 2. Cache (still warm).
-    now = datetime.now(timezone.utc)
-    if _CACHE["rate"] and _CACHE["fetched_at"] and (now - _CACHE["fetched_at"]) < _CACHE_TTL:
-        return {"rate": _CACHE["rate"], "source": "cache",
-                "fetched_at": _CACHE["fetched_at"].isoformat()}
-
-    # 3. Live fetch.
-    live = await _fetch_live_rate()
-    if live is not None:
-        _CACHE.update({"rate": live, "fetched_at": now, "source": "live"})
-        return {"rate": live, "source": "live", "fetched_at": now.isoformat()}
-
-    # 4. Fallback.
-    fallback = await _admin_rate("hubtel_usd_ghs_fallback_rate")
-    rate = fallback if fallback is not None else _DEFAULT_FALLBACK
-    return {"rate": rate, "source": "fallback", "fetched_at": None}
+    Public shape unchanged: `{rate, source, fetched_at}` — callers in
+    `routes/hubtel_momo.py` keep working with zero changes."""
+    from services.fx_service import get_usd_to_ghs_info as _global
+    info = await _global()
+    # Strip the new `key` field for backwards compat — older callers
+    # only know about {rate, source, fetched_at}.
+    return {
+        "rate": info["rate"],
+        "source": info["source"],
+        "fetched_at": info.get("fetched_at"),
+    }
 
 
 async def get_usd_to_ghs_rate() -> float:

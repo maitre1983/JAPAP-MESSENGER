@@ -1253,8 +1253,8 @@
     "operator_unknown": "Operator not recognized — please double-check the number."
   },
   "paystack": {
-    "method_label": "Card / Mobile Money (Paystack) 🇬🇭",
-    "intro": "Deposit in USD via Paystack — pay with your card or Ghana Mobile Money. Funds are credited automatically once Paystack confirms the payment.",
+    "method_label": "Card / Mobile Money",
+    "intro": "Deposit in USD via Paystack — pay with card or Mobile Money. Available for all international customers. Funds are credited automatically once Paystack confirms the payment.",
     "amount_label": "Amount to deposit (USD)",
     "amount_placeholder": "E.g: 10.00",
     "limits_info": "Min {{min}} USD — Max {{max}} USD",
@@ -1271,6 +1271,7 @@
     "pending_warning": "You already have a pending deposit. Please wait for confirmation.",
     "error": {
       "generic": "Something went wrong. Please try again."
-    }
+    },
+    "method_subtitle": "Paystack — Visa · Mastercard · MoMo · International"
   }
 }

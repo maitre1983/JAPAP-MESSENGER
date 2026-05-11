@@ -1193,8 +1193,8 @@
     "espanol": "Español"
   },
   "paystack": {
-    "method_label": "Tarjeta / Mobile Money (Paystack) 🇬🇭",
-    "intro": "Deposite en USD a través de Paystack — pague con su tarjeta o Mobile Money Ghana. Los fondos se acreditan automáticamente cuando Paystack confirma el pago.",
+    "method_label": "Tarjeta / Mobile Money",
+    "intro": "Deposite en USD a través de Paystack — pague con tarjeta o Mobile Money. Disponible para todos los clientes internacionales. Los fondos se acreditan automáticamente cuando Paystack confirma el pago.",
     "amount_label": "Monto a depositar (USD)",
     "amount_placeholder": "Ej: 10.00",
     "limits_info": "Mín {{min}} USD — Máx {{max}} USD",
@@ -1211,6 +1211,7 @@
     "pending_warning": "Ya tienes un depósito pendiente. Espera su confirmación.",
     "error": {
       "generic": "Algo salió mal. Inténtalo de nuevo."
-    }
+    },
+    "method_subtitle": "Paystack — Visa · Mastercard · MoMo · Internacional"
   }
 }

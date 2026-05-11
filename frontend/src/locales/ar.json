@@ -1193,8 +1193,8 @@
     "espanol": "الإسبانية"
   },
   "paystack": {
-    "method_label": "بطاقة / موبايل موني (Paystack) 🇬🇭",
-    "intro": "إيداع بالدولار الأمريكي عبر Paystack — ادفع ببطاقتك أو خدمة Mobile Money غانا. تُضاف الأموال تلقائياً بمجرد تأكيد Paystack للدفع.",
+    "method_label": "بطاقة / موبايل موني",
+    "intro": "إيداع بالدولار الأمريكي عبر Paystack — ادفع ببطاقتك أو خدمة Mobile Money. متاح لجميع العملاء الدوليين. تُضاف الأموال تلقائياً بمجرد تأكيد Paystack للدفع.",
     "amount_label": "المبلغ المراد إيداعه (USD)",
     "amount_placeholder": "مثال: 10.00",
     "limits_info": "الحد الأدنى {{min}} USD — الحد الأقصى {{max}} USD",
@@ -1211,6 +1211,7 @@
     "pending_warning": "لديك بالفعل إيداع قيد الانتظار. يرجى الانتظار للتأكيد.",
     "error": {
       "generic": "حدث خطأ. يرجى المحاولة مرة أخرى."
-    }
+    },
+    "method_subtitle": "Paystack — Visa · Mastercard · MoMo · دولي"
   }
 }

@@ -771,8 +771,10 @@ export default function WalletPage() {
                     style={{ borderColor: 'var(--jp-border)' }}>
                     <span className="text-2xl">💳</span>
                     <span className="flex-1 text-left leading-tight">
-                      Carte / Mobile Money 🇬🇭
-                      <div className="text-[10px] font-normal opacity-80 mt-0.5">Paystack — Visa · Mastercard · MoMo</div>
+                      {t('paystack.method_label', { defaultValue: 'Carte / Mobile Money' })}
+                      <div className="text-[10px] font-normal opacity-80 mt-0.5">
+                        {t('paystack.method_subtitle', { defaultValue: 'Paystack — Visa · Mastercard · MoMo · International' })}
+                      </div>
                     </span>
                   </button>
                   )}

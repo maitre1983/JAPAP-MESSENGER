@@ -99,7 +99,7 @@ export function PaystackWidget({ onCancel }) {
          data-paystack-dir={dir}>
       <div className="rounded-xl p-3 text-xs"
            style={{ background: 'rgba(15,5,107,0.04)', color: 'var(--jp-text-secondary)' }}>
-        🇬🇭 {t('paystack.intro')}
+        🌍 {t('paystack.intro')}
         {limits?.deposit && (
           <div className="mt-1 font-semibold" data-testid="paystack-limits">
             {t('paystack.limits_info', {

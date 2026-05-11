@@ -5,8 +5,8 @@
     "loading": "Загрузка…"
   },
   "paystack": {
-    "method_label": "Карта / Mobile Money (Paystack) 🇬🇭",
-    "intro": "Депозит в USD через Paystack — оплата картой или Mobile Money Ghana. Средства зачисляются автоматически после подтверждения Paystack.",
+    "method_label": "Карта / Mobile Money",
+    "intro": "Депозит в USD через Paystack — оплата картой или Mobile Money. Доступно для всех международных клиентов. Средства зачисляются автоматически после подтверждения Paystack.",
     "amount_label": "Сумма пополнения (USD)",
     "amount_placeholder": "Напр: 10.00",
     "limits_info": "Мин {{min}} USD — Макс {{max}} USD",
@@ -23,7 +23,8 @@
     "pending_warning": "У вас уже есть ожидающий депозит. Дождитесь подтверждения.",
     "error": {
       "generic": "Что-то пошло не так. Пожалуйста, повторите попытку."
-    }
+    },
+    "method_subtitle": "Paystack — Visa · Mastercard · MoMo · Международный"
   },
   "wallet": {
     "hubtel_momo_auto_credit_info": "Автозачисление в процессе… Напишите depot@japapmessenger.com если не зачислено через 10 мин."

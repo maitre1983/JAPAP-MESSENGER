@@ -1,10 +1,40 @@
-# JAPAP — PRD (mise à jour 11/05/2026 — iter239i)
+# JAPAP — PRD (mise à jour 11/05/2026 — iter239j)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter239j — Hubtel credentials swap + Paystack i18n international (11/05/2026)
+
+**Objectif** : corriger les credentials Hubtel inversés (collection ↔ disbursement) et déranchorer Paystack de l'image "Ghana only" — le rendre visiblement international en 5 langues.
+
+### Hubtel — correction credentials (BLOC 2)
+**Symptôme** : test credentials retournait `4101 — Client request keys do not match API keys on business` car les comptes collection/disbursement étaient inversés en DB.
+
+**Actions** :
+- `admin_settings` swappés en preview : `hubtel_collection_account=2021772` (était `2024252`), `hubtel_disbursement_account=2024252` (était `2021772`). API id/key déjà corrects.
+- `/app/backend/.env` aligné : ajout de `HUBTEL_API_ID=XDM9VrA` + correction des 3 autres valeurs (`HUBTEL_API_KEY=a73b…ffbe`, `HUBTEL_COLLECTION_ACCOUNT=2021772`, `HUBTEL_DISBURSEMENT_ACCOUNT=2024252`).
+- **Code inchangé** : `services/hubtel_momo.py` lisait déjà `admin_settings` → `os.environ` en cascade (zéro hardcode). Le `hubtel_bootstrap.py` existant copie env → DB au boot si la ligne DB est vide.
+
+**Résultat E2E** :
+- `POST /api/admin/hubtel/test-credentials` → réponse Hubtel passée de `4101 "keys do not match"` à `4101 "The business you're trying to pay isn't fully set up to receive payments at the moment"` → **les keys matchent désormais le business 2021772**, le blocage restant est côté Hubtel (KYC/onboarding du compte business à finaliser par l'opérateur Hubtel).
+- ⚠️ ACTION USER : Emergent Secrets prod à mettre à jour avec ces 4 valeurs avant prochain redéploiement (`HUBTEL_API_ID/HUBTEL_API_KEY/HUBTEL_COLLECTION_ACCOUNT/HUBTEL_DISBURSEMENT_ACCOUNT`).
+
+### Paystack — i18n international (BLOC 3)
+**Avant** : CTA "Carte / Mobile Money 🇬🇭" hardcodé + sous-titre "Paystack — Visa · Mastercard · MoMo" hardcodé → impression Ghana-only.
+
+**Corrections** :
+- `pages/WalletPage.js` : CTA Paystack remplace les 2 strings hardcodées par `t('paystack.method_label')` et `t('paystack.method_subtitle')` (avec defaultValues de sécurité). Drapeau 🇬🇭 retiré, emoji 💳 conservé.
+- `components/wallet/PaystackWidget.jsx` : intro passe de "🇬🇭 …" à "🌍 …" (drapeau international).
+- 5 locales mis à jour (FR/EN/ES/AR/RU) : `paystack.method_label` (sans drapeau), `paystack.method_subtitle` (= "Paystack — Visa · Mastercard · MoMo · International"), `paystack.intro` (mention explicite "Disponible pour tous les clients internationaux" / equivalent traduit).
+- Hubtel MoMo conserve son CTA "🇬🇭 Mobile Money Ghana — MTN · Telecel · AirtelTigo" (volontairement Ghana-only, validation `+233` côté backend).
+
+**Validation E2E** :
+- ✅ Smoke screenshot wallet/déposer : CTA "💳 Carte / Mobile Money — Paystack — Visa · Mastercard · MoMo · International" rendu, plus de 🇬🇭.
+- ✅ Aucune restriction géographique côté Paystack : `grep -E "country|phone|msisdn|ghana|\+233"` sur les 3 fichiers Paystack → zéro match.
 
 
 ## iter239i — OrphanCleanupBlock UI + WebP thumbs vidéo (11/05/2026)

@@ -1,10 +1,49 @@
-# JAPAP — PRD (mise à jour 10/05/2026 — iter239a)
+# JAPAP — PRD (mise à jour 11/05/2026 — iter239b)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter239b — Hubtel credentials dynamiques via dashboard admin (11/05/2026)
+
+**Demande user** : rendre les 4 credentials Hubtel MoMo (`api_id`, `api_key`, `collection_account`, `disbursement_account`) configurables depuis l'admin, source de vérité = `admin_settings`, fallback env au boot, endpoint test + bouton UI pour valider la validité des accès.
+
+### Backend (additif uniquement)
+- **Nouveau** `services/hubtel_bootstrap.py::init_hubtel_settings()` : au boot, copie silencieusement les variables `HUBTEL_API_ID/KEY/COLLECTION/DISBURSEMENT/CALLBACK_BASE_URL` vers `admin_settings` si les lignes DB sont vides. **Idempotent**, branché dans `server.py::startup`.
+- **Nouveau** `routes/admin_hubtel.py` (3 endpoints, admin-only, audit log + secret masking) :
+  - `GET  /api/admin/hubtel/settings` — renvoie les 4 valeurs, `api_id`/`api_key` masqués (`••••••XXXX`).
+  - `PUT  /api/admin/hubtel/settings` — bulk update Pydantic. Échos masqués ignorés, secrets vides ignorés, `set_setting()` invalide le cache TTL 60s donc effet immédiat. Audit logué via `audit_logs` (secrets masqués `***`).
+  - `POST /api/admin/hubtel/test-credentials` — POST réel vers `https://rmp.hubtel.com/.../{collection}/receive/mobilemoney` via le proxy Fixie, encode `base64(api_id:api_key)` exactement comme `services/hubtel_momo.get_hubtel_auth()`. Renvoie verdict détaillé : `ok` / `auth_failed` (code 4101 / HTTP 401-403) / `account_not_found` (HTTP 404) / `rejected_other` / `network_error`. Le **vrai message Hubtel** (`Description`/`Message`) est inclus dans la réponse.
+- `services/hubtel_momo.py` et `routes/hubtel_momo.py` : **inchangés** — l'auth helper `get_hubtel_auth()` lisait déjà les valeurs via `settings_service.get_setting()` avec fallback env, et les logs détaillés request/response étaient déjà en place (iter239a4b).
+- `server.py` : 1 `include_router(admin_hubtel_router)` + 1 appel `init_hubtel_settings()` dans le startup (try/except isolés).
+
+### Frontend (additif uniquement)
+- **Nouveau** `components/admin/HubtelSettingsCard.jsx` (305 lignes) — monté dans `PaymentsAdminTab.jsx` (+1 import +1 ligne JSX) :
+  - 4 inputs : API ID, API Key (avec toggle Afficher/Masquer 👁), Collection, Disbursement.
+  - Badge ✓ Configuré / ⚠ Incomplet en tête.
+  - Bouton **💾 Enregistrer** — désactivé tant qu'aucun champ n'a été touché.
+  - Bouton **🩺 Tester les credentials** — appelle le nouveau endpoint, peut tester des valeurs en cours d'édition AVANT enregistrement, affiche un banner coloré (vert/rouge/jaune) avec code Hubtel + description.
+  - Secrets jamais affichés en clair : la valeur masquée `••••••XXXX` reste affichée tant que l'admin ne tape pas une nouvelle valeur.
+
+### Validation (curl + screenshot)
+- ✅ `GET /api/admin/hubtel/settings` admin → `api_key` masqué `••••••ffbe`, collection/disbursement en clair, `configured.hubtel_api_key=true`.
+- ✅ `PUT` avec `XDM9VrA / a73b646...ffbe / 2024252 / 2021772` → 200, 4 keys updated.
+- ✅ `PUT` avec valeur masquée (`••••••9VrA`) → ignorée, secret préservé.
+- ✅ `POST /api/admin/hubtel/test-credentials` avec creds test user → verdict `auth_failed` HTTP 403 (les keys fournies ne sont pas associées au collection account `2024252` — comportement attendu).
+- ✅ Non-admin (Bob) → 403, no-auth → 401.
+- ✅ Audit logs : 8 rows enregistrées avec secrets masqués `***`, sources `admin_hubtel`.
+- ✅ Bootstrap au boot : `hubtel_api_key`/`collection_account`/`disbursement_account` copiés depuis env vers `admin_settings`.
+- ✅ Frontend smoke-screenshot : card visible avec tous les inputs/boutons/badges, toggle Show/Hide secret fonctionnel (input type passe de `password` à `text`).
+
+### Sécurité
+- `api_id` + `api_key` jamais renvoyés en clair par GET (masque `••••••` + 4 derniers chars).
+- Échos masqués détectés et ignorés en PUT (pas d'écrasement accidentel).
+- Audit log de TOUTE modification, secrets masqués `***` dans les détails.
+- Endpoints admin-only (`require_admin` → 403 si pas admin, 401 si pas auth).
+- Test envoie un payload Hubtel volontairement non honorable (montant 0.01 GHS) afin de valider l'auth sans risque de prélèvement réel.
 
 
 ## iter239a4b — Hubtel: real error surfaced + smart auth helper (10/05/2026)

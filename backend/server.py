@@ -220,6 +220,14 @@ try:
 except Exception as _e:
     logger.error("[iter239a4] admin_fx failed to load: %s", _e)
 
+# iter239b — Admin Hubtel MoMo credentials (additive).
+try:
+    from routes.admin_hubtel import admin_hubtel_router
+    fastapi_app.include_router(admin_hubtel_router)
+    logger.info("[iter239b] admin_hubtel router loaded")
+except Exception as _e:
+    logger.error("[iter239b] admin_hubtel failed to load: %s", _e)
+
 # iter237n — Legal acceptance routes (CGU/CGJ/RGPD).
 try:
     from routes.legal import legal_router
@@ -943,6 +951,13 @@ async def startup():
             await _ss("messaging_real_send_enabled", "false")
             await _ss("_migration_iter82_safemode_forced", "1")
             logger.info("[iter82] Forced messaging_real_send_enabled=false (safe mode).")
+        # iter239b — silently copy Hubtel MoMo creds from env to admin_settings
+        # on first boot. Idempotent (only writes when DB row empty).
+        try:
+            from services.hubtel_bootstrap import init_hubtel_settings
+            await init_hubtel_settings()
+        except Exception as _e:
+            logger.warning("[iter239b] hubtel bootstrap failed: %s", _e)
     except Exception as e:
         logger.warning(f"Settings seed failed: {e}")
     try:

@@ -21,6 +21,8 @@ import AdminWaveSection from '@/components/admin/AdminWaveSection';
 import PaymentMethodsCatalogAdmin from '@/components/admin/PaymentMethodsCatalogAdmin';
 // iter238 — Paystack admin settings card (strictly additive).
 import PaystackSettingsCard from '@/components/admin/PaystackSettingsCard';
+// iter239b — Hubtel MoMo credentials admin card (strictly additive).
+import HubtelSettingsCard from '@/components/admin/HubtelSettingsCard';
 const API = process.env.REACT_APP_BACKEND_URL;
 
 const getStatus_style = (t) => ({
@@ -568,6 +570,9 @@ function PaymentSettings() {
 
       {/* iter238 — Paystack admin settings (strictly additive). */}
       <PaystackSettingsCard />
+
+      {/* iter239b — Hubtel MoMo credentials (strictly additive). */}
+      <HubtelSettingsCard />
 
       <button disabled={loading} onClick={save} className="jp-btn jp-btn-primary" data-testid="pay-save-settings">
         {loading ? 'Enregistrement…' : t('payments_admin.enregistrer_les_parametres_de_paiem')}

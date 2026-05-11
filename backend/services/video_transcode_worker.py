@@ -150,6 +150,37 @@ async def _process_one(pool, job: dict) -> None:
 
     has_thumb = await generate_thumbnail(out_path, thumb_path)
 
+    # iter239i — Compress the video thumbnail JPG → WebP and push to R2
+    # (best-effort, never blocks publish). If WebP compression or upload
+    # fails, we keep the local JPG as before (zero regression). On success,
+    # the DB record carries the .webp filename so `/api/upload/files/...`
+    # resolves to the WebP file.
+    if has_thumb:
+        try:
+            from services.r2_storage_service import (
+                compress_to_webp, upload_media_file_to_r2,
+            )
+            jpg_bytes = thumb_path.read_bytes()
+            webp_bytes = compress_to_webp(jpg_bytes, max_size=1080, quality=85)
+            if webp_bytes and webp_bytes != jpg_bytes:
+                webp_filename = f"{file_id}_thumb.webp"
+                webp_path = UPLOAD_DIR / webp_filename
+                webp_path.write_bytes(webp_bytes)
+                try:
+                    upload_media_file_to_r2(
+                        webp_path, folder="thumbnails",
+                        content_type="image/webp",
+                    )
+                except Exception as _e:  # noqa: BLE001
+                    logger.warning("[worker-thumb-r2] webp upload failed: %s", _e)
+                # Switch DB record to the WebP filename. The serve_file
+                # endpoint will find it locally first, falls back to R2 if
+                # the pod recycled.
+                thumb_filename = webp_filename
+                thumb_path = webp_path
+        except Exception as _e:  # noqa: BLE001
+            logger.warning("[worker-thumb-webp] compression failed: %s", _e)
+
     # Source ≠ canonical → drop raw to save disk
     if src.suffix.lower() != CANONICAL_VIDEO_EXT:
         try:

@@ -1,10 +1,73 @@
-# JAPAP — PRD (mise à jour 11/05/2026 — iter239g)
+# JAPAP — PRD (mise à jour 11/05/2026 — iter239i)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter239i — OrphanCleanupBlock UI + WebP thumbs vidéo (11/05/2026)
+
+**Objectif** : finaliser les outils admin de stockage et optimiser les miniatures vidéo. 100% additif.
+
+### Bug racine corrigé (P0)
+**Avant** : `StorageAdminCard.jsx` référençait `<OrphanCleanupBlock />` ligne 172 sans avoir défini le composant → `ReferenceError` au runtime qui crashait silencieusement le rendu de `StorageAdminCard` **et** de `VendorHealthDashboard` (composant suivant dans le DOM). Smoke test précédent ne trouvait aucun des deux blocs.
+
+**Fix** : ajout du composant `OrphanCleanupBlock` complet dans `StorageAdminCard.jsx` :
+- 3 endpoints backend (`GET /scan-orphans`, `POST /cleanup-orphans`, `GET /cleanup-orphans-status`) — déjà prêts côté backend depuis iter239h.
+- UI : bouton Scanner (read-only) → affichage des stats (134 posts / 104 avec orphelins / 119 entrées ghost). Bouton "🧹 Nettoyer N entrée(s)" rouge, désactivé tant qu'aucun scan n'a été lancé.
+- Modal de confirmation avec banner d'irréversibilité avant le sweep destructif.
+- Polling 3s pendant la suppression avec progress bar rouge + 4 stat cards live.
+- Testids : `storage-orphan-cleanup-block`, `storage-orphan-scan-btn`, `storage-orphan-cleanup-btn`, `storage-orphan-scan-stats`, `storage-orphan-confirm-modal`.
+
+### Compression WebP thumbnails vidéo (P2)
+**Avant** : `ffmpeg` générait un thumbnail JPEG (qualité 3 = ~150 KB pour 720p), uploadé tel quel sur R2 en `image/jpeg`.
+
+**Fix** : pipeline en 2 étapes (100% additif, fallback JPEG préservé) :
+1. `routes/upload.py::POST /` (single upload synchrone vidéo) — après `generate_thumbnail()` (JPG), lecture du JPG, compression via `compress_to_webp(jpg_bytes, max_size=1080, quality=85)`, écriture du `.webp` local, upload sur R2 avec `content_type=image/webp`. Fallback JPG si Pillow échoue.
+2. `routes/upload.py::POST /multiple` — même logique sur le second flow.
+3. `services/video_transcode_worker.py::_process_one()` (worker async pour les gros uploads vidéo) — après thumbnail, compresse en WebP, push sur R2, met à jour `thumb_filename` en DB pour pointer vers le `.webp` (le `serve_file` endpoint sert le local en priorité + fallback R2 si pod recyclé).
+
+### Validation E2E (Playwright + script Python)
+- ✅ **UI smoke** : 4 blocs admin tous rendus (`storage-admin-card`, `storage-regen-block`, `storage-orphan-cleanup-block`, `vendor-health-dashboard`) count=1 chacun.
+- ✅ **Orphan scan** : click Scanner → toast "Scan terminé — 119 entrée(s) orpheline(s) sur 104 post(s)" → bouton "🧹 Nettoyer 119 entrée(s)" activé → stats live affichées.
+- ✅ **Vendor Health** : 4/6 OK (Tronscan 271ms HTTP 200, BSC RPC 283ms HTTP 200, Fixie 241ms egress=`52.87.82.133`).
+- ✅ **WebP compression** : synthetic 720p JPG 22 KB → 5 KB WebP (−76.9 %, header `RIFF…WEBP` validé).
+- ✅ **Endpoints admin** : `scan-orphans` 200, `cleanup-orphans-status` 200, `vendor-health/status` 200 (admin token).
+- ✅ Lint Python + JS propres.
+
+### Composants frontend touchés
+- `components/admin/StorageAdminCard.jsx` (+ `OrphanCleanupBlock` interne, 130 lignes additives).
+- `components/admin/VendorHealthDashboard.jsx` (déjà créé, désormais visible car plus de crash en amont).
+
+### Backend touché (additif)
+- `routes/upload.py` : +35 lignes (WebP compression dans le single + multi upload).
+- `services/video_transcode_worker.py` : +28 lignes (WebP pour async worker).
+
+
+## iter239h — Vendor Health Dashboard + OrphanCleanup backend (11/05/2026)
+
+**Objectif** : monitoring temps réel de toutes les dépendances tierces critiques (Hubtel MoMo, Paystack, Tronscan, BSC RPC, FX API, Fixie proxy) + outil de nettoyage des médias orphelins en DB.
+
+### Backend Vendor Health
+- **Nouveau** `services/vendor_health.py` :
+  - `_VENDORS = [...]` — liste des 6 vendors à monitorer avec leur URL + payload de ping.
+  - `vendor_health_loop()` — boucle infinie tick toutes les 5 min, ping séquentiel via `httpx` (via Fixie pour Hubtel/Paystack qui sont géo-restreints).
+  - État partagé en mémoire `_state["vendors"]` avec verdict (`ok`/`slow`/`down`) selon seuil latency 1500 ms.
+  - `force_refresh()` — déclenchable manuellement, attend le ping complet avant de renvoyer le snapshot.
+- **Nouveau** `routes/admin_vendor_health.py` :
+  - `GET /api/admin/vendor-health/status` (snapshot lecture seule).
+  - `POST /api/admin/vendor-health/refresh` (force re-ping synchrone, timeout 30s).
+- `server.py` : +1 startup hook (`_asyncio.create_task(vendor_health_loop())`) + 1 include_router try/except.
+
+### Backend Orphan Cleanup
+- `services/legacy_variants_regen.py` extension :
+  - `_is_orphan(entry, r2_suffix_index)` — predicate : string legacy `/api/upload/files/<name>` ET fichier absent local FS ET absent R2.
+  - `scan_orphan_entries()` (read-only) — sweep complet `posts.media`, compte les ghosts par post.
+  - `cleanup_orphan_entries(admin_user_id)` — sweep destructif idempotent : UPDATE `posts.media = $kept` + INSERT `audit_logs` avec les entrées supprimées (cap 20 entrées/log pour borner la taille).
+  - État partagé `_cleanup_state` avec compteurs live.
+- `routes/admin_storage.py` : +3 endpoints (`GET /scan-orphans`, `POST /cleanup-orphans`, `GET /cleanup-orphans-status`).
 
 
 ## iter239g — Job batch régénération variants WebP/AVIF (legacy posts) (11/05/2026)

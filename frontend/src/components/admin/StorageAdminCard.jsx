@@ -279,6 +279,183 @@ function RegenerateVariantsBlock() {
   );
 }
 
+/** iter239h — orphan media cleanup block (legacy posts.media entries
+ * whose source file is gone from both local FS and R2). Strictly additive:
+ * read-only scan first, then explicit "Nettoyer" gate with confirm, then
+ * background sweep with live progress.
+ */
+function OrphanCleanupBlock() {
+  const [scan, setScan] = useState(null);         // {total_posts, posts_with_orphans, orphan_entries, sample_post_ids}
+  const [scanning, setScanning] = useState(false);
+  const [state, setState] = useState(null);       // cleanup live state
+  const [running, setRunning] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const pollRef = useRef(null);
+
+  const loadStatus = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${API}/api/admin/storage/cleanup-orphans-status`,
+                                        { withCredentials: true });
+      setState(data);
+      setRunning(Boolean(data?.running));
+    } catch { /* ignore */ }
+  }, []);
+
+  const scanNow = async () => {
+    setScanning(true);
+    try {
+      const { data } = await axios.get(`${API}/api/admin/storage/scan-orphans`,
+                                        { withCredentials: true });
+      setScan(data);
+      toast.success(`Scan terminé — ${data.orphan_entries} entrée(s) orpheline(s) sur ${data.posts_with_orphans} post(s)`);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Erreur scan orphelins');
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const startCleanup = async () => {
+    setConfirmOpen(false);
+    try {
+      const { data } = await axios.post(`${API}/api/admin/storage/cleanup-orphans`,
+                                         {}, { withCredentials: true });
+      if (data.status === 'already_running') {
+        toast.info('Nettoyage déjà en cours');
+      } else {
+        toast.success('Nettoyage des orphelins lancé en arrière-plan');
+      }
+      setRunning(true);
+      loadStatus();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Erreur démarrage nettoyage');
+    }
+  };
+
+  useEffect(() => { loadStatus(); }, [loadStatus]);
+
+  useEffect(() => {
+    if (!running) {
+      if (pollRef.current) clearInterval(pollRef.current);
+      return undefined;
+    }
+    pollRef.current = setInterval(loadStatus, 3000);
+    return () => clearInterval(pollRef.current);
+  }, [running, loadStatus]);
+
+  const progress = state?.total_posts
+    ? Math.round((state.scanned_posts / state.total_posts) * 100)
+    : 0;
+  const orphanCount = scan?.orphan_entries ?? null;
+
+  return (
+    <div className="mt-4 p-3 rounded-xl border" data-testid="storage-orphan-cleanup-block"
+         style={{ borderColor: 'rgba(0,0,0,0.1)' }}>
+      <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+        <h4 className="font-bold text-sm">🧹 Entrées media orphelines</h4>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={scanNow}
+            disabled={scanning || running}
+            className="jp-btn jp-btn-sm text-xs"
+            style={{ background: 'var(--jp-surface-secondary)', color: 'var(--jp-text)',
+                     opacity: (scanning || running) ? 0.6 : 1 }}
+            data-testid="storage-orphan-scan-btn">
+            {scanning ? '⏳ Scan…' : '🔍 Scanner'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmOpen(true)}
+            disabled={running || !orphanCount}
+            className="jp-btn jp-btn-sm text-xs"
+            style={{ background: '#DC2626', color: 'white',
+                     opacity: (running || !orphanCount) ? 0.5 : 1 }}
+            data-testid="storage-orphan-cleanup-btn">
+            {running ? `${progress}% — ${state?.scanned_posts}/${state?.total_posts}`
+                     : `🧹 Nettoyer ${orphanCount || 0} entrée(s)`}
+          </button>
+        </div>
+      </div>
+      <p className="text-[11px] mb-2" style={{ color: 'var(--jp-text-muted)' }}>
+        Supprime de la table <code>posts.media</code> les références <em>ghost</em>
+        (fichiers absents à la fois du disque local et de R2). Ces entrées
+        renvoient un 404 en prod aujourd'hui. Idempotent + audit-loggé.
+      </p>
+      {scan && (
+        <div className="mb-2 grid grid-cols-2 sm:grid-cols-3 gap-2 text-[10px]"
+             data-testid="storage-orphan-scan-stats">
+          <Stat label="Posts scannés" value={scan.total_posts} />
+          <Stat label="Posts avec orphelins" value={scan.posts_with_orphans} />
+          <Stat label="Entrées orphelines" value={scan.orphan_entries}
+                color={scan.orphan_entries > 0 ? '#991B1B' : '#065F46'} />
+        </div>
+      )}
+      {running && (
+        <div className="h-2 rounded-full overflow-hidden mb-2"
+             style={{ background: 'rgba(0,0,0,0.08)' }}>
+          <div className="h-full transition-all"
+               style={{ width: `${progress}%`, background: '#DC2626' }} />
+        </div>
+      )}
+      {state && (state.scanned_posts > 0 || state.ended_at) && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]"
+             data-testid="storage-orphan-cleanup-stats">
+          <Stat label="Posts scannés"    value={`${state.scanned_posts} / ${state.total_posts}`} />
+          <Stat label="Posts nettoyés"   value={state.posts_cleaned} />
+          <Stat label="Entrées retirées" value={state.entries_removed} color="#991B1B" />
+          <Stat label="Orphelins trouvés" value={state.orphan_entries_found} />
+        </div>
+      )}
+      {!!state?.errors?.length && (
+        <details className="mt-2 text-[10px]">
+          <summary style={{ cursor: 'pointer', color: '#991B1B' }}>
+            {state.errors.length} erreurs (voir détails)
+          </summary>
+          <ul className="ml-3 mt-1" style={{ color: '#991B1B' }}>
+            {state.errors.slice(0, 10).map((e, i) => <li key={i}>{e}</li>)}
+          </ul>
+        </details>
+      )}
+
+      {confirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+             style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="jp-card-elevated max-w-md w-full p-5 jp-animate-scaleIn"
+               data-testid="storage-orphan-confirm-modal">
+            <h4 className="font-['Outfit'] text-lg font-bold mb-2">
+              ⚠️ Confirmer le nettoyage
+            </h4>
+            <p className="text-sm mb-3">
+              <strong>{orphanCount}</strong> entrée(s) ghost vont être retirées
+              de <code>posts.media</code> sur <strong>{scan?.posts_with_orphans}</strong> post(s).
+            </p>
+            <div className="p-3 rounded-xl text-[11px] mb-3"
+                 style={{ background: '#FEF3C7', color: '#92400E' }}>
+              Action <strong>irréversible</strong> mais audit-loggée. Les posts
+              qui n'ont que des orphelins basculeront en text-only (plus de
+              balises <code>&lt;img&gt;</code> cassées).
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button className="jp-btn jp-btn-ghost"
+                onClick={() => setConfirmOpen(false)}
+                data-testid="storage-orphan-cancel">
+                Annuler
+              </button>
+              <button className="jp-btn"
+                style={{ background: '#DC2626', color: 'white' }}
+                onClick={startCleanup}
+                data-testid="storage-orphan-confirm">
+                🧹 Lancer le nettoyage
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Stat({ label, value, color }) {
   return (
     <div className="p-1.5 rounded" style={{ background: 'var(--jp-surface-secondary)' }}>

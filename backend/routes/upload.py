@@ -315,13 +315,35 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
     # a fallback (ephemeral). Frontend URL is replaced with the R2 public URL
     # so subsequent requests never hit our pod for static media.
     r2_url = None
+    # iter239i — Compress video thumbnail JPG → WebP before R2 upload (~60% smaller).
+    # Best-effort: if WebP compression fails, fall back to the original JPG.
     if thumbnail_url and (UPLOAD_DIR / f"{file_id}_thumb.jpg").exists():
+        jpg_path = UPLOAD_DIR / f"{file_id}_thumb.jpg"
+        webp_path = UPLOAD_DIR / f"{file_id}_thumb.webp"
+        webp_ok = False
+        try:
+            from services.r2_storage_service import compress_to_webp
+            jpg_bytes = jpg_path.read_bytes()
+            webp_bytes = compress_to_webp(jpg_bytes, max_size=1080, quality=85)
+            # `compress_to_webp` returns original bytes on failure; only treat
+            # it as a real WebP if the buffer differs from the source JPG.
+            if webp_bytes and webp_bytes != jpg_bytes:
+                webp_path.write_bytes(webp_bytes)
+                webp_ok = True
+        except Exception as _e:  # noqa: BLE001
+            logger.warning("[thumb-webp] compression failed: %s", _e)
         try:
             from services.r2_storage_service import upload_media_file_to_r2
-            r2_thumb_url = upload_media_file_to_r2(
-                UPLOAD_DIR / f"{file_id}_thumb.jpg", folder="thumbnails",
-                content_type="image/jpeg",
-            )
+            if webp_ok:
+                r2_thumb_url = upload_media_file_to_r2(
+                    webp_path, folder="thumbnails",
+                    content_type="image/webp",
+                )
+            else:
+                r2_thumb_url = upload_media_file_to_r2(
+                    jpg_path, folder="thumbnails",
+                    content_type="image/jpeg",
+                )
             thumbnail_url = r2_thumb_url
         except Exception as _e:  # noqa: BLE001
             logger.warning("[r2-upload] thumbnail upload failed: %s", _e)
@@ -457,10 +479,28 @@ async def upload_multiple(request: Request, files: list[UploadFile] = File(...))
             r2_folder = "videos" if is_vid else _folder_for_extension(filepath.suffix)
             r2_url = upload_media_file_to_r2(filepath, folder=r2_folder)
             if thumbnail_url and (UPLOAD_DIR / f"{file_id}_thumb.jpg").exists():
+                # iter239i — WebP-compress the thumbnail before R2 upload.
+                jpg_path = UPLOAD_DIR / f"{file_id}_thumb.jpg"
+                webp_path = UPLOAD_DIR / f"{file_id}_thumb.webp"
+                webp_ok = False
                 try:
-                    thumbnail_url = upload_media_file_to_r2(
-                        UPLOAD_DIR / f"{file_id}_thumb.jpg", folder="thumbnails",
-                        content_type="image/jpeg")
+                    from services.r2_storage_service import compress_to_webp
+                    jpg_bytes = jpg_path.read_bytes()
+                    webp_bytes = compress_to_webp(jpg_bytes, max_size=1080, quality=85)
+                    if webp_bytes and webp_bytes != jpg_bytes:
+                        webp_path.write_bytes(webp_bytes)
+                        webp_ok = True
+                except Exception as _e:  # noqa: BLE001
+                    logger.warning("[thumb-webp-multi] compression failed: %s", _e)
+                try:
+                    if webp_ok:
+                        thumbnail_url = upload_media_file_to_r2(
+                            webp_path, folder="thumbnails",
+                            content_type="image/webp")
+                    else:
+                        thumbnail_url = upload_media_file_to_r2(
+                            jpg_path, folder="thumbnails",
+                            content_type="image/jpeg")
                 except Exception as _e:  # noqa: BLE001
                     logger.warning("[r2-multi] thumb upload failed: %s", _e)
         except Exception as _e:  # noqa: BLE001

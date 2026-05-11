@@ -228,6 +228,14 @@ try:
 except Exception as _e:
     logger.error("[iter239b] admin_hubtel failed to load: %s", _e)
 
+# iter239d — Admin storage (R2 media bucket) router (additive).
+try:
+    from routes.admin_storage import admin_storage_router
+    fastapi_app.include_router(admin_storage_router)
+    logger.info("[iter239d] admin_storage router loaded")
+except Exception as _e:
+    logger.error("[iter239d] admin_storage failed to load: %s", _e)
+
 # iter237n — Legal acceptance routes (CGU/CGJ/RGPD).
 try:
     from routes.legal import legal_router

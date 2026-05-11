@@ -23,6 +23,8 @@ import PaymentMethodsCatalogAdmin from '@/components/admin/PaymentMethodsCatalog
 import PaystackSettingsCard from '@/components/admin/PaystackSettingsCard';
 // iter239b — Hubtel MoMo credentials admin card (strictly additive).
 import HubtelSettingsCard from '@/components/admin/HubtelSettingsCard';
+// iter239d — Cloudflare R2 media storage admin card (strictly additive).
+import StorageAdminCard from '@/components/admin/StorageAdminCard';
 const API = process.env.REACT_APP_BACKEND_URL;
 
 const getStatus_style = (t) => ({
@@ -699,6 +701,9 @@ function PaymentSettings() {
 
       {/* iter239b — Hubtel MoMo credentials (strictly additive). */}
       <HubtelSettingsCard />
+
+      {/* iter239d — Cloudflare R2 media storage stats + migration. */}
+      <StorageAdminCard />
 
       <button disabled={loading} onClick={save} className="jp-btn jp-btn-primary" data-testid="pay-save-settings">
         {loading ? 'Enregistrement…' : t('payments_admin.enregistrer_les_parametres_de_paiem')}

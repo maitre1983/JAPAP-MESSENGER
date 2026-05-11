@@ -21,7 +21,7 @@ import imghdr
 import asyncio
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Query
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from routes.auth import get_current_user
 from services.video_pipeline import (
     SUPPORTED_VIDEO_EXTS, CANONICAL_VIDEO_EXT, CANONICAL_VIDEO_CT,
@@ -311,9 +311,34 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
         # ext == .mp4 case: filename/path already correct after the swap above.
 
     file_url = f"/api/upload/files/{filename}"
+    # iter239d — Try Cloudflare R2 upload (persistent). Local file remains as
+    # a fallback (ephemeral). Frontend URL is replaced with the R2 public URL
+    # so subsequent requests never hit our pod for static media.
+    r2_url = None
+    if thumbnail_url and (UPLOAD_DIR / f"{file_id}_thumb.jpg").exists():
+        try:
+            from services.r2_storage_service import upload_media_file_to_r2
+            r2_thumb_url = upload_media_file_to_r2(
+                UPLOAD_DIR / f"{file_id}_thumb.jpg", folder="thumbnails",
+                content_type="image/jpeg",
+            )
+            thumbnail_url = r2_thumb_url
+        except Exception as _e:  # noqa: BLE001
+            logger.warning("[r2-upload] thumbnail upload failed: %s", _e)
+    try:
+        from services.r2_storage_service import upload_media_file_to_r2
+        from services.r2_storage_service import _folder_for_extension
+        r2_folder = "videos" if is_vid else _folder_for_extension(ext)
+        r2_url = upload_media_file_to_r2(filepath, folder=r2_folder)
+        file_url = r2_url
+        logger.info("[r2-upload] %s -> %s", filename, r2_url)
+    except Exception as _e:  # noqa: BLE001
+        logger.warning("[r2-upload] failed for %s, keeping local fallback: %s",
+                       filename, _e)
     logger.info(f"File uploaded by {user['user_id']}: {filename} "
                  f"({filepath.stat().st_size if filepath.exists() else 0} bytes)"
-                 f"{' [video transcoded]' if is_vid else ''}")
+                 f"{' [video transcoded]' if is_vid else ''}"
+                 f"{' [r2]' if r2_url else ' [local-only]'}")
 
     return {
         "file_id": file_id,
@@ -408,11 +433,28 @@ async def upload_multiple(request: Request, files: list[UploadFile] = File(...))
                     pass
                 filename, filepath = out_filename, out_path
 
+        # iter239d — Push to R2 after the file is finalized.
+        r2_url = None
+        try:
+            from services.r2_storage_service import (
+                upload_media_file_to_r2, _folder_for_extension)
+            r2_folder = "videos" if is_vid else _folder_for_extension(filepath.suffix)
+            r2_url = upload_media_file_to_r2(filepath, folder=r2_folder)
+            if thumbnail_url and (UPLOAD_DIR / f"{file_id}_thumb.jpg").exists():
+                try:
+                    thumbnail_url = upload_media_file_to_r2(
+                        UPLOAD_DIR / f"{file_id}_thumb.jpg", folder="thumbnails",
+                        content_type="image/jpeg")
+                except Exception as _e:  # noqa: BLE001
+                    logger.warning("[r2-multi] thumb upload failed: %s", _e)
+        except Exception as _e:  # noqa: BLE001
+            logger.warning("[r2-multi] upload failed for %s, local fallback: %s",
+                           filename, _e)
         results.append({
             "file_id": file_id,
             "filename": filename,
             "original_name": file.filename,
-            "url": f"/api/upload/files/{filename}",
+            "url": r2_url or f"/api/upload/files/{filename}",
             "size": filepath.stat().st_size if filepath.exists() else len(content),
             "type": "video" if is_vid else None,
             "thumbnail_url": thumbnail_url,
@@ -473,6 +515,25 @@ async def serve_file(request: Request, filename: str, fmt: str = ""):
         raise HTTPException(status_code=400, detail="Invalid filename")
 
     filepath = UPLOAD_DIR / filename
+    # iter239d — Backwards-compatibility for legacy URLs `/api/upload/files/<name>`:
+    # if the file no longer exists on local disk (e.g. pod recycled) but a
+    # matching object exists in R2, redirect there. Probes the most likely R2
+    # folder by file extension. 301 = permanent (browser & CDN can cache).
+    if not filepath.is_file():
+        try:
+            from services.r2_storage_service import (
+                media_object_exists, _folder_for_extension, R2_MEDIA_PUBLIC_URL)
+            folder = _folder_for_extension(ext)
+            # R2 keys carry a `<uuid>_<originalname>` prefix added at upload
+            # time, so a direct `head_object` on `<folder>/<filename>` likely
+            # misses. We try the exact name first (some pre-iter239d files
+            # may have been migrated under their bare name) then bail.
+            if media_object_exists(folder, filename):
+                return RedirectResponse(
+                    f"{R2_MEDIA_PUBLIC_URL}/{folder}/{filename}", status_code=301)
+        except Exception as _e:  # noqa: BLE001
+            logger.debug("[serve-file] R2 fallback skipped for %s: %s", filename, _e)
+
     # 2. Defence-in-depth — resolve and confirm parent is exactly UPLOAD_DIR.
     try:
         real = filepath.resolve()

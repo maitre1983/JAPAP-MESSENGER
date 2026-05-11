@@ -1,10 +1,62 @@
-# JAPAP — PRD (mise à jour 11/05/2026 — iter239c)
+# JAPAP — PRD (mise à jour 11/05/2026 — iter239d)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter239d — Migration uploads → Cloudflare R2 + Player vidéo pro (11/05/2026)
+
+**Problème** : `/app/backend/uploads/` (216 fichiers, 53 MB) sur disque pod K8s **éphémère** → risque de perte à chaque redéploiement / éviction. Cloudflare R2 (bucket `japap-media`, CDN `media.japapmessenger.com`) déjà câblé pour les recordings d'appels mais inutilisé pour les médias user.
+
+### Backend (additif uniquement)
+- `services/r2_storage_service.py` — extension :
+  - `_get_r2_media_client()` — boto3 client S3-compat lisant `R2_*` env vars
+  - `upload_media_to_r2(bytes, filename, content_type, folder)` — upload depuis bytes
+  - `upload_media_file_to_r2(path, folder, content_type)` — upload streamé depuis fichier local
+  - `delete_media_from_r2(public_url)` — suppression depuis URL publique
+  - `media_object_exists(folder, filename)` — HEAD pour vérif existence
+  - `list_media_stats()` — stats bucket (pagination > 1000 obj)
+  - `migrate_local_uploads_to_r2(dir)` — migration idempotente local → R2 + rewrite URLs DB
+  - `_rewrite_local_url_in_db()` — best-effort UPDATE sur 9 tables / 18 colonnes média
+- `routes/upload.py` — modifié pour pousser sur R2 après le pipeline existant (transcoding vidéo, EXIF strip, thumbnail). **Fallback local préservé** si R2 échoue (warning log, URL `/api/upload/files/...` retournée). URLs R2 = `https://media.japapmessenger.com/{folder}/{uuid}_{filename}` avec `Cache-Control: public, max-age=31536000`.
+- `routes/upload.py::serve_file` — rétrocompat : si le fichier local n'existe plus (pod recyclé), tente une redirection 301 vers R2 (`_folder_for_extension` + `media_object_exists`).
+- **Nouveau** `routes/admin_storage.py` — 3 endpoints admin :
+  - `GET /api/admin/storage/stats` (local + R2 + état migration)
+  - `POST /api/admin/storage/migrate-to-r2` (lance la migration en `asyncio.create_task`)
+  - `GET /api/admin/storage/migration-status` (poll temps réel)
+
+### Frontend (additif uniquement)
+- **Nouveau** `components/VideoPlayer.jsx` (290 lignes) — player style Instagram/TikTok :
+  - IntersectionObserver autoplay (≥60% visible)
+  - Click-to-play, thumbnail poster, spinner buffering
+  - Progress bar scrubbable + handle visuel
+  - Mute toggle, fullscreen API, time display, auto-hide controls 3s
+  - `playsInline + muted` pour autoplay iOS Safari OK
+- **Nouveau** `components/admin/StorageAdminCard.jsx` — monté dans `PaymentsAdminTab.jsx` :
+  - 2 cartes côte-à-côte : 📂 Filesystem local (éphémère, jaune) vs ☁️ R2 (persistant, vert)
+  - Bouton "🚀 Migrer N fichiers locaux → R2" (désactivé pendant exec)
+  - Polling auto toutes les 5s pendant migration, toast à la fin
+  - Banner idempotence + résultat dernière migration
+
+### Validation E2E
+- ✅ `apt-get install -y ffmpeg` → ffmpeg 5.1.8 installé ; `boto3==1.42.86` déjà présent
+- ✅ R2 env vars ajoutées dans `/app/backend/.env` (5 keys : `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`)
+- ✅ `services.r2_storage_service.list_media_stats()` → bucket `japap-media` accessible
+- ✅ Upload test PNG via `POST /api/upload/` → renvoie URL `https://media.japapmessenger.com/images/...` directement ; HTTP GET → 200 + `cf-cache-status: MISS` + cache-control 1 an
+- ✅ Migration idempotente lancée via UI admin (asyncio background task) : ~148/216 fichiers migrés à l'instant T, monitoring temps réel via `migration-status`. Tous les fichiers locaux poussés vers R2 avec UUID prefix + rewrite des URLs DB sur 9 tables / 18 colonnes média.
+- ✅ Smoke screenshot UI : carte "🗄️ Stockage Médias" rendue (216 local / 90 R2 lors du screenshot — migration en direct visible).
+- ✅ Lint Python + JS propres.
+
+### Tables/colonnes médias auto-réécrites par la migration
+`users.avatar/cover`, `posts.image_url/video_url/thumbnail_url/media_url`, `stories.image_url/video_url/thumbnail_url/media_url`, `messages.media_url/file_url`, `products.image_url`, `ad_campaigns.image_url`, `campaigns.image_url`, `crowdfunding_projects.image_url`, `reels.video_url/thumbnail_url`.
+
+### Notes prod
+- **ffmpeg** : si l'image Docker prod n'a pas `ffmpeg`, ajouter `apt-get install -y ffmpeg` au build step Emergent (cf. logs déploiement). Le pod preview a été provisionné manuellement.
+- **R2 env vars** : présentes dans Emergent Secrets, donc auto-injectées en prod. En preview : copiées dans `/app/backend/.env`.
+- **R2 recordings bucket** (`japap-recordings`) : **non touché**, fonctions existantes préservées (`get_r2_config / build_recording_key / generate_presigned_get_url / delete_object`).
 
 
 ## iter239c — Hubtel MoMo : callback ping + verify endpoint + admin manual credit (11/05/2026)

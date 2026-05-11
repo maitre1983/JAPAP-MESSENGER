@@ -291,6 +291,88 @@ def _folder_for_extension(ext: str) -> str:
     return "files"
 
 
+# ── iter239e — srcset responsive WebP generator ─────────────────────────
+# Builds three WebP variants of an uploaded image (480w / 1080w / 1920w)
+# and uploads them to R2 under `images/{size}/`. Returns a dict the upload
+# route stores alongside the original URL so the frontend can serve the
+# right size per device with `<img srcset>`. Falls back gracefully if
+# Pillow/Image cannot decode (animated GIFs, AVIF without plugin, etc.).
+_SRCSET_SIZES = {"small": 480, "medium": 1080, "large": 1920}
+_SRCSET_QUALITY = 85
+
+
+def generate_srcset_variants(image_bytes: bytes, filename: str) -> dict:
+    """Generate 3 WebP variants and upload to R2. Returns
+    `{"small_url": ..., "medium_url": ..., "large_url": ...}` (only the keys
+    that succeeded). Failures are logged and silently skipped — the caller
+    keeps the original URL as a fallback so feed rendering never breaks."""
+    out: dict[str, str] = {}
+    try:
+        from PIL import Image  # noqa: PLC0415
+    except ImportError:
+        logger.warning("[srcset] Pillow not installed, skipping variants")
+        return out
+    try:
+        img = Image.open(io_BytesIO(image_bytes))
+        # Drop alpha for output predictability; WebP supports RGBA but some
+        # CDNs prefer RGB. Keep RGBA only when the source has a real alpha
+        # channel to preserve transparency on PNG stickers / logos.
+        if img.mode not in ("RGB", "RGBA"):
+            img = img.convert("RGB")
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[srcset] cannot decode image %s: %s", filename, e)
+        return out
+
+    stem = Path(filename).stem or "image"
+    for size_name, max_width in _SRCSET_SIZES.items():
+        try:
+            if img.width > max_width:
+                ratio = max_width / img.width
+                new_size = (max_width, max(1, int(img.height * ratio)))
+                resized = img.resize(new_size, Image.LANCZOS)
+            else:
+                resized = img.copy()
+            buf = io_BytesIO()
+            resized.save(buf, format="WEBP", quality=_SRCSET_QUALITY, method=4)
+            buf.seek(0)
+            variant_url = upload_media_to_r2(
+                buf.read(),
+                filename=f"{size_name}_{stem}.webp",
+                content_type="image/webp",
+                folder=f"images/{size_name}",
+            )
+            out[f"{size_name}_url"] = variant_url
+        except Exception as e:  # noqa: BLE001
+            logger.warning("[srcset] variant %s failed for %s: %s",
+                           size_name, filename, e)
+    return out
+
+
+def compress_to_webp(image_bytes: bytes, max_size: int = 1080,
+                     quality: int = 85) -> bytes:
+    """Compress a single image to WebP at the given max dimension. Used for
+    avatars / stories / covers where a single sized image is enough (no
+    srcset needed because the render slot is fixed). Returns the original
+    bytes if Pillow cannot decode the input."""
+    try:
+        from PIL import Image  # noqa: PLC0415
+        img = Image.open(io_BytesIO(image_bytes))
+        if img.mode not in ("RGB", "RGBA"):
+            img = img.convert("RGB")
+        if img.width > max_size or img.height > max_size:
+            img.thumbnail((max_size, max_size), Image.LANCZOS)
+        buf = io_BytesIO()
+        img.save(buf, format="WEBP", quality=quality, method=4)
+        return buf.getvalue()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[webp] compression failed, keeping original: %s", e)
+        return image_bytes
+
+
+# Local alias to avoid a top-level `import io` that would shadow other names.
+from io import BytesIO as io_BytesIO  # noqa: E402
+
+
 async def migrate_local_uploads_to_r2(uploads_dir: str = "/app/backend/uploads/") -> dict:
     """Migrate every file in `uploads_dir` to the R2 media bucket and
     rewrite all DB references from `/api/upload/files/<name>` to the new

@@ -205,14 +205,36 @@ export default function FeedPage() {
           // iter190b — Async path: backend returns status='processing' for
           // videos > 50 MB. Toast + poll until ready, then attach URL.
           let url;
+          let mediaEntry; // iter239e — full object with srcset variants if available
           if (u?.status === 'processing' && u.job_id) {
             setUploadPhase('processing');
             const ready = await pollVideoJobWithToast(u.job_id, file.name || 'Ta vidéo');
             url = ready?.url;
+            mediaEntry = ready;
+          } else if (isImage) {
+            url = u?.main?.url;
+            mediaEntry = u?.main || u;
           } else {
-            url = isImage ? u?.main?.url : u?.url;
+            url = u?.url;
+            mediaEntry = u;
           }
-          if (url) mediaUrls.push(url);
+          if (url) {
+            // iter239e — preserve responsive variants (small_url/medium_url/
+            // large_url) + thumbnail in the media entry so the feed renderer
+            // can build `<img srcset>`. Legacy single-string entries still
+            // work — the backend accepts both shapes.
+            const entry = {
+              url,
+              type: isImage ? 'image' : (mediaEntry?.type || undefined),
+              small_url:  mediaEntry?.small_url,
+              medium_url: mediaEntry?.medium_url,
+              large_url:  mediaEntry?.large_url,
+              thumbnail_url: mediaEntry?.thumbnail_url,
+            };
+            // Strip undefined to keep the JSON tidy.
+            Object.keys(entry).forEach(k => entry[k] === undefined && delete entry[k]);
+            mediaUrls.push(Object.keys(entry).length > 1 ? entry : url);
+          }
           perFile[i] = 1; // mark this file done
           recompute();
         }
@@ -775,6 +797,9 @@ export default function FeedPage() {
                           </div>
                         ) : effectiveType === 'image' ? (
                           <ZoomableImage src={src} alt="" maxHeight="80vh"
+                            smallSrc={typeof m === 'object' ? m?.small_url : undefined}
+                            mediumSrc={typeof m === 'object' ? m?.medium_url : undefined}
+                            largeSrc={typeof m === 'object' ? m?.large_url : undefined}
                             onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                         ) : (
                           <a href={src} target="_blank" rel="noreferrer"

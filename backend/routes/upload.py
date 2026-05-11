@@ -335,10 +335,22 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
     except Exception as _e:  # noqa: BLE001
         logger.warning("[r2-upload] failed for %s, keeping local fallback: %s",
                        filename, _e)
+    # iter239e — Generate responsive WebP variants for images (small / medium /
+    # large) so the frontend can pick the right size per device with srcset.
+    # Best-effort: failures keep the original URL as fallback. No-op for videos.
+    variants: dict[str, str] = {}
+    if not is_vid:
+        try:
+            from services.r2_storage_service import generate_srcset_variants
+            variants = generate_srcset_variants(content, filename)
+        except Exception as _e:  # noqa: BLE001
+            logger.warning("[srcset] variants generation failed for %s: %s",
+                           filename, _e)
     logger.info(f"File uploaded by {user['user_id']}: {filename} "
                  f"({filepath.stat().st_size if filepath.exists() else 0} bytes)"
                  f"{' [video transcoded]' if is_vid else ''}"
-                 f"{' [r2]' if r2_url else ' [local-only]'}")
+                 f"{' [r2]' if r2_url else ' [local-only]'}"
+                 f"{' [srcset:%d]' % len(variants) if variants else ''}")
 
     return {
         "file_id": file_id,
@@ -350,6 +362,10 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
         "type": "video" if is_vid else None,
         "thumbnail_url": thumbnail_url,
         "duration": duration,
+        # iter239e — responsive variants (only keys that succeeded).
+        # Frontend uses these to build `<img srcset>`; falls back to `url` if
+        # any variant is missing.
+        **variants,
     }
 
 
@@ -450,6 +466,14 @@ async def upload_multiple(request: Request, files: list[UploadFile] = File(...))
         except Exception as _e:  # noqa: BLE001
             logger.warning("[r2-multi] upload failed for %s, local fallback: %s",
                            filename, _e)
+        # iter239e — srcset variants for non-video uploads.
+        variants: dict[str, str] = {}
+        if not is_vid:
+            try:
+                from services.r2_storage_service import generate_srcset_variants
+                variants = generate_srcset_variants(content, filename)
+            except Exception as _e:  # noqa: BLE001
+                logger.warning("[srcset-multi] failed for %s: %s", filename, _e)
         results.append({
             "file_id": file_id,
             "filename": filename,
@@ -459,6 +483,7 @@ async def upload_multiple(request: Request, files: list[UploadFile] = File(...))
             "type": "video" if is_vid else None,
             "thumbnail_url": thumbnail_url,
             "duration": duration,
+            **variants,
         })
     return results
 
@@ -759,6 +784,33 @@ async def upload_image(
 
     main_url = _persist(processed["main"])
     thumb_url = _persist(processed["thumb"])
+    # iter239d — Push to R2 and use the R2 public URL when available so
+    # avatars/covers survive pod recycles.
+    try:
+        from services.r2_storage_service import upload_media_file_to_r2
+        main_local = UPLOAD_DIR / Path(main_url).name
+        thumb_local = UPLOAD_DIR / Path(thumb_url).name
+        if main_local.is_file():
+            main_url = upload_media_file_to_r2(
+                main_local, folder=("avatars" if kind == "profile" else
+                                    "covers" if kind == "cover" else "images"))
+        if thumb_local.is_file():
+            thumb_url = upload_media_file_to_r2(
+                thumb_local, folder="thumbnails", content_type="image/jpeg")
+    except Exception as _e:  # noqa: BLE001
+        logger.warning("[r2-image] upload failed, keeping local: %s", _e)
+    # iter239e — srcset variants for `kind=post` images (avatar/cover
+    # already produce a single appropriately-sized image, no benefit).
+    variants: dict[str, str] = {}
+    if kind == "post":
+        try:
+            from services.r2_storage_service import generate_srcset_variants
+            variants = generate_srcset_variants(
+                processed["main"]["bytes"],
+                f"{Path(original).stem}.{processed['main']['ext']}",
+            )
+        except Exception as _e:  # noqa: BLE001
+            logger.warning("[srcset-image] failed: %s", _e)
     logger.info(
         "Smart image uploaded by %s: kind=%s source=%sx%s main=%s (%d B) thumb=%s (%d B)",
         user.get("user_id"), kind,
@@ -773,6 +825,7 @@ async def upload_image(
             "mime": processed["main"]["mime"],
             "width": processed["dims"]["main"][0],
             "height": processed["dims"]["main"][1],
+            **variants,
         },
         "thumb": {
             "url": thumb_url, "size": len(processed["thumb"]["bytes"]),

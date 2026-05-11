@@ -23,6 +23,14 @@ import { useRef, useState, useCallback } from 'react';
 
 export default function ZoomableImage({
   src,
+  // iter239e — optional responsive variants. When the upload endpoint
+  // returned `{small_url, medium_url, large_url}` (3 WebP sizes), the feed
+  // passes them down so the browser can pick the right one per device with
+  // `<img srcset>`. Backwards-compatible — any falsy value is dropped and
+  // the single `src` is used (legacy images keep working).
+  smallSrc,
+  mediumSrc,
+  largeSrc,
   alt = '',
   maxHeight = '80vh',
   className = '',
@@ -158,6 +166,14 @@ export default function ZoomableImage({
     >
       <img
         src={src}
+        srcSet={[
+          smallSrc && `${smallSrc} 480w`,
+          mediumSrc && `${mediumSrc} 1080w`,
+          largeSrc && `${largeSrc} 1920w`,
+        ].filter(Boolean).join(', ') || undefined}
+        sizes={(smallSrc || mediumSrc || largeSrc)
+          ? '(max-width: 480px) 480px, (max-width: 1080px) 1080px, 1920px'
+          : undefined}
         alt={alt}
         draggable={false}
         loading="lazy"

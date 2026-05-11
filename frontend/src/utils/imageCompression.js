@@ -11,14 +11,30 @@ const IMAGE_RX = /^image\/(jpeg|jpg|png|webp|gif|heic|heif|bmp|tiff|tif|avif)$/i
 // Extensions de secours quand le navigateur ne renseigne pas le MIME type
 const IMAGE_EXT_RX = /\.(jpg|jpeg|png|webp|gif|heic|heif|bmp|tiff|tif|avif)$/i;
 
+// iter239e — Détection support WebP (true sur tous browsers modernes 2020+).
+// HEIC est converti automatiquement par browser-image-compression vers le format
+// cible — utiliser WebP réduit le poids 25-40% vs JPEG à qualité visuellement
+// équivalente. Fallback JPEG en cas d'erreur d'encode (très rare).
+function _supportsWebP() {
+  if (typeof document === 'undefined') return false;
+  try {
+    const c = document.createElement('canvas');
+    return c.toDataURL('image/webp').startsWith('data:image/webp');
+  } catch (_) { return false; }
+}
+const _WEBP_OK = _supportsWebP();
+
 // Options agressives pour connexion faible
 const DEFAULT_OPTIONS = {
   maxSizeMB: 0.3,            // 300KB max — adapté 2G/3G africain
   maxWidthOrHeight: 1280,    // suffisant pour mobile, réduit le poids
   useWebWorker: true,
-  initialQuality: 0.75,      // qualité réduite vs 0.82 pour plus de compression
-  fileType: 'image/jpeg',    // toujours convertir en JPEG (format universel)
+  initialQuality: _WEBP_OK ? 0.82 : 0.75, // WebP supporte une qualité plus haute pour le même poids
+  fileType: _WEBP_OK ? 'image/webp' : 'image/jpeg',
 };
+
+const _OUT_EXT = _WEBP_OK ? '.webp' : '.jpg';
+const _OUT_MIME = _WEBP_OK ? 'image/webp' : 'image/jpeg';
 
 /**
  * Options selon la qualité de connexion détectée
@@ -51,9 +67,9 @@ export async function compressFile(file, overrides = {}) {
   try {
     const options = { ...getCompressionOptions(), ...overrides };
     const compressed = await imageCompression(file, options);
-    const outName = name.replace(/\.[^.]+$/, '') + '.jpg';
-    if (compressed instanceof File) return new File([compressed], outName, { type: 'image/jpeg' });
-    return new File([compressed], outName, { type: 'image/jpeg' });
+    const outName = name.replace(/\.[^.]+$/, '') + _OUT_EXT;
+    if (compressed instanceof File) return new File([compressed], outName, { type: _OUT_MIME });
+    return new File([compressed], outName, { type: _OUT_MIME });
   } catch (err) {
     console.warn('[compressFile] fallback original:', err?.message || err);
     return file;

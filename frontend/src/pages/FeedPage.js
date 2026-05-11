@@ -229,6 +229,10 @@ export default function FeedPage() {
               small_url:  mediaEntry?.small_url,
               medium_url: mediaEntry?.medium_url,
               large_url:  mediaEntry?.large_url,
+              // iter239f — AVIF variants (additive — null/undef in legacy posts)
+              small_url_avif:  mediaEntry?.small_url_avif,
+              medium_url_avif: mediaEntry?.medium_url_avif,
+              large_url_avif:  mediaEntry?.large_url_avif,
               thumbnail_url: mediaEntry?.thumbnail_url,
             };
             // Strip undefined to keep the JSON tidy.
@@ -800,6 +804,9 @@ export default function FeedPage() {
                             smallSrc={typeof m === 'object' ? m?.small_url : undefined}
                             mediumSrc={typeof m === 'object' ? m?.medium_url : undefined}
                             largeSrc={typeof m === 'object' ? m?.large_url : undefined}
+                            smallSrcAvif={typeof m === 'object' ? m?.small_url_avif : undefined}
+                            mediumSrcAvif={typeof m === 'object' ? m?.medium_url_avif : undefined}
+                            largeSrcAvif={typeof m === 'object' ? m?.large_url_avif : undefined}
                             onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                         ) : (
                           <a href={src} target="_blank" rel="noreferrer"

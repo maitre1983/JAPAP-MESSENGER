@@ -23,7 +23,7 @@ import { useRef, useState, useCallback } from 'react';
 
 export default function ZoomableImage({
   src,
-  // iter239e — optional responsive variants. When the upload endpoint
+  // iter239e — optional WebP responsive variants. When the upload endpoint
   // returned `{small_url, medium_url, large_url}` (3 WebP sizes), the feed
   // passes them down so the browser can pick the right one per device with
   // `<img srcset>`. Backwards-compatible — any falsy value is dropped and
@@ -31,6 +31,12 @@ export default function ZoomableImage({
   smallSrc,
   mediumSrc,
   largeSrc,
+  // iter239f — optional AVIF variants. Same 3 sizes, served via a
+  // `<picture><source type="image/avif">` block. ~25% lighter than WebP
+  // at the same visual quality on Chrome/Edge/Firefox/Safari 2024+.
+  smallSrcAvif,
+  mediumSrcAvif,
+  largeSrcAvif,
   alt = '',
   maxHeight = '80vh',
   className = '',
@@ -164,30 +170,46 @@ export default function ZoomableImage({
       onTouchCancel={handleTouchEnd}
       onDoubleClick={(e) => toggleZoom(e.clientX, e.clientY)}
     >
-      <img
-        src={src}
-        srcSet={[
-          smallSrc && `${smallSrc} 480w`,
-          mediumSrc && `${mediumSrc} 1080w`,
-          largeSrc && `${largeSrc} 1920w`,
-        ].filter(Boolean).join(', ') || undefined}
-        sizes={(smallSrc || mediumSrc || largeSrc)
-          ? '(max-width: 480px) 480px, (max-width: 1080px) 1080px, 1920px'
-          : undefined}
-        alt={alt}
-        draggable={false}
-        loading="lazy"
-        decoding="async"
-        onError={onError}
-        className="w-full h-full object-contain pointer-events-none"
-        style={{
-          maxHeight,
-          transform: `translate(${tx}px, ${ty}px) scale(${scale})`,
-          transformOrigin: 'center center',
-          transition: animating ? 'transform 220ms cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
-          willChange: 'transform',
-        }}
-      />
+      <picture>
+        {(smallSrcAvif || mediumSrcAvif || largeSrcAvif) && (
+          <source
+            type="image/avif"
+            srcSet={[
+              smallSrcAvif  && `${smallSrcAvif} 480w`,
+              mediumSrcAvif && `${mediumSrcAvif} 1080w`,
+              largeSrcAvif  && `${largeSrcAvif} 1920w`,
+            ].filter(Boolean).join(', ')}
+            sizes="(max-width: 480px) 480px, (max-width: 1080px) 1080px, 1920px"
+          />
+        )}
+        {(smallSrc || mediumSrc || largeSrc) && (
+          <source
+            type="image/webp"
+            srcSet={[
+              smallSrc  && `${smallSrc} 480w`,
+              mediumSrc && `${mediumSrc} 1080w`,
+              largeSrc  && `${largeSrc} 1920w`,
+            ].filter(Boolean).join(', ')}
+            sizes="(max-width: 480px) 480px, (max-width: 1080px) 1080px, 1920px"
+          />
+        )}
+        <img
+          src={src}
+          alt={alt}
+          draggable={false}
+          loading="lazy"
+          decoding="async"
+          onError={onError}
+          className="w-full h-full object-contain pointer-events-none"
+          style={{
+            maxHeight,
+            transform: `translate(${tx}px, ${ty}px) scale(${scale})`,
+            transformOrigin: 'center center',
+            transition: animating ? 'transform 220ms cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+            willChange: 'transform',
+          }}
+        />
+      </picture>
       {/* Hint au premier rendu si pas zoomé */}
       {scale === 1 && (
         <div

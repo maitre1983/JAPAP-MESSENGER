@@ -299,19 +299,36 @@ def _folder_for_extension(ext: str) -> str:
 # Pillow/Image cannot decode (animated GIFs, AVIF without plugin, etc.).
 _SRCSET_SIZES = {"small": 480, "medium": 1080, "large": 1920}
 _SRCSET_QUALITY = 85
+_AVIF_QUALITY = 70  # iter239f — AVIF q=70 ≈ WebP q=85 perceptually.
 
 
 def generate_srcset_variants(image_bytes: bytes, filename: str) -> dict:
-    """Generate 3 WebP variants and upload to R2. Returns
-    `{"small_url": ..., "medium_url": ..., "large_url": ...}` (only the keys
-    that succeeded). Failures are logged and silently skipped — the caller
-    keeps the original URL as a fallback so feed rendering never breaks."""
+    """Generate WebP **and** AVIF variants at 3 sizes (480w / 1080w / 1920w)
+    and upload to R2. Returns the URL keys that succeeded — the caller
+    forwards them to the frontend which picks the best format the browser
+    supports via `<picture><source type="image/avif">…`.
+
+    Output keys (all optional, only present when the encode succeeded):
+        small_url / medium_url / large_url             — WebP
+        small_url_avif / medium_url_avif / large_url_avif — AVIF (newer browsers)
+
+    Failures are logged and silently skipped — the caller keeps the
+    original URL as the ultimate fallback so feed rendering never breaks."""
     out: dict[str, str] = {}
     try:
         from PIL import Image  # noqa: PLC0415
     except ImportError:
         logger.warning("[srcset] Pillow not installed, skipping variants")
         return out
+    # iter239f — pillow-avif-plugin registers AVIF on import. Tolerate
+    # absence: WebP variants still get produced, AVIF is just skipped.
+    avif_ok = False
+    try:
+        import pillow_avif  # noqa: F401, PLC0415
+        avif_ok = True
+    except ImportError:
+        logger.info("[srcset] pillow-avif-plugin not installed, AVIF variants skipped")
+
     try:
         img = Image.open(io_BytesIO(image_bytes))
         # Drop alpha for output predictability; WebP supports RGBA but some
@@ -332,16 +349,34 @@ def generate_srcset_variants(image_bytes: bytes, filename: str) -> dict:
                 resized = img.resize(new_size, Image.LANCZOS)
             else:
                 resized = img.copy()
+            # WebP variant
             buf = io_BytesIO()
             resized.save(buf, format="WEBP", quality=_SRCSET_QUALITY, method=4)
             buf.seek(0)
-            variant_url = upload_media_to_r2(
+            out[f"{size_name}_url"] = upload_media_to_r2(
                 buf.read(),
                 filename=f"{size_name}_{stem}.webp",
                 content_type="image/webp",
                 folder=f"images/{size_name}",
             )
-            out[f"{size_name}_url"] = variant_url
+            # AVIF variant (separate try so a WebP success isn't dropped if
+            # AVIF encoding fails on a weird input).
+            if avif_ok:
+                try:
+                    buf = io_BytesIO()
+                    # AVIF q=70 ≈ WebP q=85 perceptually (libaom default).
+                    # Speed 6 = good balance for server-side encoding.
+                    resized.save(buf, format="AVIF", quality=_AVIF_QUALITY, speed=6)
+                    buf.seek(0)
+                    out[f"{size_name}_url_avif"] = upload_media_to_r2(
+                        buf.read(),
+                        filename=f"{size_name}_{stem}.avif",
+                        content_type="image/avif",
+                        folder=f"images/{size_name}",
+                    )
+                except Exception as e:  # noqa: BLE001
+                    logger.warning("[srcset] AVIF %s failed for %s: %s",
+                                   size_name, filename, e)
         except Exception as e:  # noqa: BLE001
             logger.warning("[srcset] variant %s failed for %s: %s",
                            size_name, filename, e)

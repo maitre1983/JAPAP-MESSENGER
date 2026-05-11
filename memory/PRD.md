@@ -1,10 +1,76 @@
-# JAPAP — PRD (mise à jour 11/05/2026 — iter239e)
+# JAPAP — PRD (mise à jour 11/05/2026 — iter239f)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter239f — AVIF bonus + endpoint diagnostics post-deploy (11/05/2026)
+
+**Objectif** : ajouter le format AVIF (encore 30-60% plus petit que WebP) sans casser la rétrocompat. Servir via `<picture><source type="image/avif">` puis WebP puis `<img>` fallback PNG legacy. + un endpoint admin pour vérifier en 1 clic que la prod a bien tout (ffmpeg / R2 / Pillow / AVIF).
+
+### Backend
+- **`requirements.txt`** : +`pillow-avif-plugin==1.5.5` (gère encode/decode AVIF côté Pillow).
+- **`services/r2_storage_service.py`** : `generate_srcset_variants()` produit maintenant **6 variantes** au lieu de 3 :
+  - WebP (`small_url`, `medium_url`, `large_url`) — qualité 85
+  - AVIF (`small_url_avif`, `medium_url_avif`, `large_url_avif`) — qualité 70, speed 6
+  - Failure isolée : un échec AVIF ne perd pas le WebP correspondant (et inversement).
+  - `import pillow_avif` détecté en runtime — si absent (vieux deploy avant migration), AVIF skip silencieux, WebP toujours produit.
+- **`routes/admin_storage.py::GET /api/admin/storage/diagnostics`** (nouvel endpoint) :
+  - Reporte `ffmpeg/ffprobe` path + version, `R2 env vars` (présence + longueur, **jamais la valeur**), bucket reachable + stats, `Pillow + avif_plugin` versions, local upload dir writable.
+  - Verdict `overall_ok` booléen pour smoke-test post-deploy en 1 ligne curl.
+
+### Frontend
+- **`components/media/ZoomableImage.jsx`** : passe d'un `<img srcset>` à un `<picture>` avec 3 sources prioritaires :
+  ```html
+  <picture>
+    <source type="image/avif" srcSet="… 480w, … 1080w, … 1920w" sizes="…">
+    <source type="image/webp" srcSet="… 480w, … 1080w, … 1920w" sizes="…">
+    <img src={legacy} loading="lazy" decoding="async" alt=""/>
+  </picture>
+  ```
+  - Le browser pick le **meilleur format supporté en priorité** (AVIF si dispo, sinon WebP, sinon PNG legacy).
+  - 6 nouvelles props : `smallSrc/mediumSrc/largeSrc` (WebP) + `smallSrcAvif/mediumSrcAvif/largeSrcAvif`. **Toutes optionnelles** — fallback `<img src>` natif.
+- **`pages/FeedPage.js`** : passe les 6 URLs au composant `ZoomableImage` + les inclut dans l'entrée `media[]` envoyée à `/api/feed/posts`.
+
+### Validation E2E (mesures réelles via boto3, contournant le challenge Cloudflare)
+
+**Test upload PNG réaliste (gradient + structure, 140 KB)** :
+| Variante | Taille | vs PNG | vs même-taille WebP |
+|---|---|---|---|
+| original PNG | 142 KB | baseline | — |
+| small WebP (480w) | 4.4 KB | −97% | — |
+| **small AVIF (480w)** | **3.0 KB** | **−97.9%** | **−33%** |
+| medium WebP (1080w) | 11.8 KB | −92% | — |
+| **medium AVIF (1080w)** | **5.7 KB** | **−96.0%** | **−52%** |
+| large WebP (1920w) | 24.1 KB | −83% | — |
+| **large AVIF (1920w)** | **9.3 KB** | **−93.5%** | **−61%** |
+
+- ✅ Upload PNG via API retourne 6 variantes URL différentes
+- ✅ R2 HEAD confirme content-type `image/avif` et `image/webp` corrects
+- ✅ Frontend rend 27 `<picture>` tags dans le feed (zero régression sur posts legacy — fallback `<img src>` natif)
+- ✅ `/api/admin/storage/diagnostics` : verdict `overall_ok: true` (ffmpeg/R2/Pillow/AVIF tous présents)
+- ✅ Lint Python + JS propres
+
+### Endpoint diagnostics post-deploy
+Après chaque redeploy prod, un seul appel suffit :
+```bash
+curl -H "Authorization: Bearer ADMIN_TOKEN" \
+  https://japapmessenger.com/api/admin/storage/diagnostics
+```
+Réponse :
+```json
+{
+  "ffmpeg":   {"ok": true, "version": "ffmpeg version 5.x..."},
+  "r2_env":   {"ok": true, "keys": {...présences...}},
+  "r2_bucket":{"ok": true, "bucket": "japap-media", "total_files": 226},
+  "pillow":   {"ok": true, "version": "12.2.0", "avif_plugin": true},
+  "local_uploads": {"writable": true},
+  "overall_ok": true
+}
+```
 
 
 ## iter239e — Compression WebP + srcset responsive (11/05/2026)

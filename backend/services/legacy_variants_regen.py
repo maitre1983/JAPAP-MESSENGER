@@ -237,6 +237,181 @@ async def _regen_post(post_id: str, media: list,
     return new_media, regenerated, skipped, failed
 
 
+__all__ = ["regenerate_legacy_post_variants", "get_state",
+           "scan_orphan_entries", "cleanup_orphan_entries"]
+
+
+# ════════════════════════════════════════════════════════════════════════
+# iter239h — Orphan cleanup
+# ════════════════════════════════════════════════════════════════════════
+# Removes legacy string entries whose source files are gone (neither local
+# FS nor R2). These are dead `<img src>` 404s in production right now.
+# Cleanup is split in 2 phases for safety:
+#   1. scan_orphan_entries()    → readonly, counts ghosts per post
+#   2. cleanup_orphan_entries() → writes the cleaned media[] back
+# Both share the same `_is_orphan` predicate to stay consistent.
+# ════════════════════════════════════════════════════════════════════════
+
+_cleanup_state: dict = {
+    "running": False,
+    "started_at": None,
+    "ended_at": None,
+    "started_by": None,
+    "scanned_posts": 0,
+    "total_posts": 0,
+    "scanned_entries": 0,
+    "orphan_entries_found": 0,
+    "posts_with_orphans": 0,
+    "posts_cleaned": 0,
+    "entries_removed": 0,
+    "errors": [],
+}
+
+
+def get_cleanup_state() -> dict:
+    return dict(_cleanup_state)
+
+
+def _is_orphan(entry, r2_suffix_index: dict[str, str]) -> bool:
+    """An entry is `orphan` iff it's a legacy string `/api/upload/files/<name>`
+    AND the source file is NOT on local disk AND NOT on R2."""
+    if not isinstance(entry, str):
+        return False
+    m = LEGACY_URL_RE.match(entry)
+    if not m:
+        return False
+    name = m.group(1)
+    # If file exists on disk → reachable, not orphan.
+    if (UPLOAD_DIR / name).is_file():
+        return False
+    # If file exists in R2 (under the uuid-prefixed key) → reachable.
+    if r2_suffix_index.get(name):
+        return False
+    return True
+
+
+async def scan_orphan_entries() -> dict:
+    """Read-only sweep — counts ghost entries without modifying anything.
+    Used by the admin UI to display the count before confirming cleanup."""
+    pool = await get_pool()
+    r2_suffix_index = await asyncio.to_thread(_build_r2_suffix_index)
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """SELECT post_id, media FROM posts
+                WHERE media IS NOT NULL AND media != '[]'::jsonb""",
+        )
+    total_orphans = 0
+    posts_with_orphans = 0
+    sample_post_ids: list[str] = []
+    for row in rows:
+        media = row["media"]
+        if isinstance(media, str):
+            try:
+                media = json.loads(media)
+            except Exception:
+                continue
+        if not isinstance(media, list):
+            continue
+        orphans_in_post = sum(1 for e in media if _is_orphan(e, r2_suffix_index))
+        if orphans_in_post:
+            total_orphans += orphans_in_post
+            posts_with_orphans += 1
+            if len(sample_post_ids) < 5:
+                sample_post_ids.append(row["post_id"])
+    return {
+        "total_posts": len(rows),
+        "posts_with_orphans": posts_with_orphans,
+        "orphan_entries": total_orphans,
+        "sample_post_ids": sample_post_ids,
+    }
+
+
+async def cleanup_orphan_entries(admin_user_id: str) -> dict:
+    """Delete orphan string entries from `posts.media`. Idempotent: posts
+    without orphans are skipped. Each modified post is audit-logged with
+    the removed entries so the action is fully traceable / reversible
+    from the audit trail."""
+    _cleanup_state["running"] = True
+    from datetime import datetime, timezone
+    _cleanup_state["started_at"] = datetime.now(timezone.utc).isoformat()
+    _cleanup_state["ended_at"] = None
+    _cleanup_state["scanned_posts"] = 0
+    _cleanup_state["total_posts"] = 0
+    _cleanup_state["scanned_entries"] = 0
+    _cleanup_state["orphan_entries_found"] = 0
+    _cleanup_state["posts_with_orphans"] = 0
+    _cleanup_state["posts_cleaned"] = 0
+    _cleanup_state["entries_removed"] = 0
+    _cleanup_state["errors"] = []
+    _cleanup_state["started_by"] = admin_user_id
+
+    pool = await get_pool()
+    try:
+        r2_suffix_index = await asyncio.to_thread(_build_r2_suffix_index)
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """SELECT post_id, media FROM posts
+                    WHERE media IS NOT NULL AND media != '[]'::jsonb""",
+            )
+        _cleanup_state["total_posts"] = len(rows)
+        logger.info("[orphan-cleanup] starting sweep over %d posts (r2 index %d entries)",
+                    len(rows), len(r2_suffix_index))
+
+        for row in rows:
+            _cleanup_state["scanned_posts"] += 1
+            media = row["media"]
+            if isinstance(media, str):
+                try:
+                    media = json.loads(media)
+                except Exception:
+                    continue
+            if not isinstance(media, list):
+                continue
+            removed: list = []
+            kept: list = []
+            for entry in media:
+                _cleanup_state["scanned_entries"] += 1
+                if _is_orphan(entry, r2_suffix_index):
+                    removed.append(entry)
+                else:
+                    kept.append(entry)
+            if not removed:
+                continue
+            _cleanup_state["orphan_entries_found"] += len(removed)
+            _cleanup_state["posts_with_orphans"] += 1
+            try:
+                async with pool.acquire() as conn:
+                    async with conn.transaction():
+                        await conn.execute(
+                            "UPDATE posts SET media = $2 WHERE post_id = $1",
+                            row["post_id"], json.dumps(kept),
+                        )
+                        await conn.execute(
+                            """INSERT INTO audit_logs (user_id, action, resource, details)
+                               VALUES ($1, 'orphan_media_cleanup', 'posts', $2)""",
+                            admin_user_id,
+                            json.dumps({
+                                "post_id": row["post_id"],
+                                "removed_count": len(removed),
+                                "removed_entries": removed[:20],  # cap for size
+                                "remaining": len(kept),
+                            }),
+                        )
+                _cleanup_state["posts_cleaned"] += 1
+                _cleanup_state["entries_removed"] += len(removed)
+            except Exception as e:  # noqa: BLE001
+                _cleanup_state["errors"].append(f"{row['post_id']}: {e}")
+            if _cleanup_state["scanned_posts"] % 25 == 0:
+                await asyncio.sleep(0)
+        logger.info("[orphan-cleanup] finished — cleaned=%d posts, removed=%d entries",
+                    _cleanup_state["posts_cleaned"], _cleanup_state["entries_removed"])
+    finally:
+        _cleanup_state["running"] = False
+        from datetime import datetime, timezone
+        _cleanup_state["ended_at"] = datetime.now(timezone.utc).isoformat()
+    return get_cleanup_state()
+
+
 async def regenerate_legacy_post_variants() -> dict:
     """Public entrypoint — single sweep over all posts. Caller is expected
     to spawn this with `asyncio.create_task` so the HTTP handler returns
@@ -314,4 +489,6 @@ async def regenerate_legacy_post_variants() -> dict:
     return get_state()
 
 
-__all__ = ["regenerate_legacy_post_variants", "get_state"]
+__all__ = ["regenerate_legacy_post_variants", "get_state",
+           "scan_orphan_entries", "cleanup_orphan_entries",
+           "get_cleanup_state"]

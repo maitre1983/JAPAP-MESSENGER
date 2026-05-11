@@ -168,6 +168,9 @@ export default function StorageAdminCard() {
       {/* iter239g — Legacy posts variant regeneration */}
       <RegenerateVariantsBlock />
 
+      {/* iter239h — Orphan media cleanup */}
+      <OrphanCleanupBlock />
+
       <div className="mt-4 p-3 rounded-xl text-[11px]"
            style={{ background: '#EFF6FF', color: '#1E40AF' }}>
         💡 La migration est <strong>idempotente</strong> — vous pouvez la

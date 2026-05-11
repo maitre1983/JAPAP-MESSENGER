@@ -133,6 +133,40 @@ async def admin_storage_regenerate_status(request: Request):
     return _regen_state()
 
 
+# ─────────────── iter239h — Orphan media cleanup ────────────────────────
+@router.get("/scan-orphans")
+async def admin_storage_scan_orphans(request: Request):
+    """Read-only count of orphan media entries (files missing from local
+    FS AND R2). Used to gate the destructive `cleanup-orphans` action."""
+    await require_admin(request)
+    from services.legacy_variants_regen import scan_orphan_entries
+    return await scan_orphan_entries()
+
+
+@router.post("/cleanup-orphans")
+async def admin_storage_cleanup_orphans(request: Request):
+    """Spawn a background sweep that removes orphan media entries from
+    `posts.media`. Idempotent + audit-logged. Posts with only orphans
+    end up with an empty media array — they keep rendering as text-only
+    posts (no broken <img> tags)."""
+    admin = await require_admin(request)
+    from services.legacy_variants_regen import (
+        cleanup_orphan_entries,
+        get_cleanup_state as _cleanup_state_getter,
+    )
+    if _cleanup_state_getter()["running"]:
+        return {"status": "already_running", "state": _cleanup_state_getter()}
+    asyncio.create_task(cleanup_orphan_entries(admin["user_id"]))
+    return {"status": "started", "state": _cleanup_state_getter()}
+
+
+@router.get("/cleanup-orphans-status")
+async def admin_storage_cleanup_orphans_status(request: Request):
+    await require_admin(request)
+    from services.legacy_variants_regen import get_cleanup_state
+    return get_cleanup_state()
+
+
 @router.get("/diagnostics")
 async def admin_storage_diagnostics(request: Request):
     """iter239f — Post-deploy verification endpoint. Reports the runtime

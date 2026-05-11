@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { Heart, ChatCircle, ShareNetwork, HandCoins, X, Plus, CaretLeft, SpeakerHigh, SpeakerSlash, VideoCamera, PaperPlaneRight } from '@phosphor-icons/react';
 import AdSlot from '@/components/AdSlot';
+// iter239h — Pro VideoPlayer (autoplay on view, click-to-pause, fullscreen).
+import VideoPlayer from '@/components/VideoPlayer';
 import { pollVideoJobWithToast } from '@/utils/videoUploadPoll';
 import uploadErrorMessage from '@/utils/uploadErrorMessage';
 import UploadProgressButton from '@/components/UploadProgressButton';
@@ -460,14 +462,19 @@ export default function ReelsPage() {
           ) : null,
           <div key={r.reel_id} className="h-screen w-full snap-start relative flex items-center justify-center"
             data-testid={`reel-${r.reel_id}`}>
-            <video
-              ref={el => (videoRefs.current[i] = el)}
-              src={r.video_url.startsWith('http') ? r.video_url : `${API}${r.video_url}`}
-              poster={r.thumbnail_url || undefined}
+            {/* iter239h — VideoPlayer replaces the raw <video>. The internal
+                IntersectionObserver autoplays at ≥60% visible and pauses
+                otherwise, which matches the TikTok-style scroll-snap UX
+                more reliably than the previous manual scroll handler. */}
+            <VideoPlayer
+              videoUrl={r.video_url.startsWith('http') ? r.video_url : `${API}${r.video_url}`}
+              thumbnailUrl={r.thumbnail_url || undefined}
+              autoplay
+              muted
               loop
-              playsInline
-              className="w-full h-full object-cover"
-              onClick={(e) => e.currentTarget.paused ? e.currentTarget.play() : e.currentTarget.pause()}
+              aspectRatio="9/16"
+              className="w-full h-full"
+              testId={`reel-video-${r.reel_id}`}
             />
             {/* Overlay bottom-left: creator + caption (iter210 — safe-area stacked) */}
             <div

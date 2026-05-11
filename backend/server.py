@@ -236,6 +236,14 @@ try:
 except Exception as _e:
     logger.error("[iter239d] admin_storage failed to load: %s", _e)
 
+# iter239h — Admin vendor health monitoring (additive).
+try:
+    from routes.admin_vendor_health import admin_vendor_health_router
+    fastapi_app.include_router(admin_vendor_health_router)
+    logger.info("[iter239h] admin_vendor_health router loaded")
+except Exception as _e:
+    logger.error("[iter239h] admin_vendor_health failed to load: %s", _e)
+
 # iter237n — Legal acceptance routes (CGU/CGJ/RGPD).
 try:
     from routes.legal import legal_router
@@ -966,6 +974,14 @@ async def startup():
             await init_hubtel_settings()
         except Exception as _e:
             logger.warning("[iter239b] hubtel bootstrap failed: %s", _e)
+        # iter239h — start the vendor-health monitoring loop (every 5 min).
+        try:
+            import asyncio as _asyncio
+            from services.vendor_health import vendor_health_loop
+            _asyncio.create_task(vendor_health_loop())
+            logger.info("[iter239h] vendor health loop scheduled at startup")
+        except Exception as _e:
+            logger.warning("[iter239h] vendor health loop failed to schedule: %s", _e)
     except Exception as e:
         logger.warning(f"Settings seed failed: {e}")
     try:

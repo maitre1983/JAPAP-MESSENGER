@@ -25,6 +25,8 @@ import PaystackSettingsCard from '@/components/admin/PaystackSettingsCard';
 import HubtelSettingsCard from '@/components/admin/HubtelSettingsCard';
 // iter239d — Cloudflare R2 media storage admin card (strictly additive).
 import StorageAdminCard from '@/components/admin/StorageAdminCard';
+// iter239h — Vendor health monitoring dashboard (strictly additive).
+import VendorHealthDashboard from '@/components/admin/VendorHealthDashboard';
 const API = process.env.REACT_APP_BACKEND_URL;
 
 const getStatus_style = (t) => ({
@@ -704,6 +706,9 @@ function PaymentSettings() {
 
       {/* iter239d — Cloudflare R2 media storage stats + migration. */}
       <StorageAdminCard />
+
+      {/* iter239h — Vendor health monitoring (Hubtel/Paystack/Tronscan/BSC/FX/Fixie). */}
+      <VendorHealthDashboard />
 
       <button disabled={loading} onClick={save} className="jp-btn jp-btn-primary" data-testid="pay-save-settings">
         {loading ? 'Enregistrement…' : t('payments_admin.enregistrer_les_parametres_de_paiem')}

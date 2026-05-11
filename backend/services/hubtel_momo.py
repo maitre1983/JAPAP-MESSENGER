@@ -41,7 +41,40 @@ async def _setting(key: str, default: str | None = None) -> str | None:
 
 
 async def get_hubtel_auth() -> str | None:
-    return await _setting("hubtel_api_key", os.environ.get("HUBTEL_API_KEY"))
+    """
+    iter239a4b — Returns the ready-to-use Basic-auth payload (already
+    base64-encoded) for the Hubtel API. Accepts THREE input formats:
+
+      1. `HUBTEL_API_ID` + `HUBTEL_API_KEY` (separate) → encodes as
+         `base64("API_ID:API_KEY")`. PREFERRED — matches what the
+         Hubtel dashboard exposes.
+      2. `hubtel_api_id` + `hubtel_api_key` admin settings (same as 1).
+      3. Single `HUBTEL_API_KEY` containing either a raw `API_ID:API_KEY`
+         (with a colon) → auto-base64-encoded, or an already-encoded
+         base64 string (legacy/passthrough).
+
+    Returns None if no credentials are configured.
+    """
+    import base64 as _b64
+
+    # Option 1/2: separate id + key.
+    api_id  = await _setting("hubtel_api_id",  os.environ.get("HUBTEL_API_ID"))
+    api_key = await _setting("hubtel_api_key", os.environ.get("HUBTEL_API_KEY"))
+    if api_id and api_key:
+        # If the stored key still contains a colon, it's already in the
+        # `id:key` form — strip the id we computed above and recompose
+        # cleanly to avoid `id:id:key`.
+        if ":" in api_key:
+            api_key = api_key.split(":", 1)[1]
+        raw = f"{api_id}:{api_key}".encode("utf-8")
+        return _b64.b64encode(raw).decode("ascii")
+
+    # Option 3a: single value containing the colon → encode it.
+    if api_key and ":" in api_key:
+        return _b64.b64encode(api_key.encode("utf-8")).decode("ascii")
+
+    # Option 3b: single value that's already base64 (legacy).
+    return api_key or None
 
 
 async def get_collection_account() -> str | None:

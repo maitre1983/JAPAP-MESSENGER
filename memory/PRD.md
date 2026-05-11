@@ -7,6 +7,37 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter239a4b — Hubtel: real error surfaced + smart auth helper (10/05/2026)
+
+**Demande user** : Hubtel renvoie "something really bad happened", besoin du vrai message.
+
+### Corrections
+- **`routes/hubtel_momo.py`** : pour les 2 endpoints (dépôt + retrait) :
+  - Log INFO **avant** l'appel : `account / channel / amount_ghs / msisdn / client_ref / auth_prefix`.
+  - Log INFO **après** l'appel : `http_status / ResponseCode / full body`.
+  - Réponse 502 enrichie : `{error, code, http_status, message: "Hubtel [{code}]: {real_msg}"}` (au lieu du générique).
+
+- **`services/hubtel_momo.py::get_hubtel_auth()`** — *smart auth* qui accepte 3 formats :
+  1. `HUBTEL_API_ID` + `HUBTEL_API_KEY` séparés (env ou admin settings) → base64-encodés en interne. **PRÉFÉRÉ**.
+  2. Valeur unique au format `"API_ID:API_KEY"` (avec colon) → encodée automatiquement.
+  3. Valeur unique déjà base64 (legacy passthrough).
+
+### 🔴 Diagnostic clair côté Hubtel
+En testant avec les credentials fournies (`XDM9VrA / a73b646bee664204aa39f682d207ffbe`) :
+```
+HTTP 401 — ResponseCode 4101
+Hubtel: "Client request keys do not match API keys on business"
+```
+L'API ID/Key fournie **n'est pas associée au merchant account `2029069`** (Collection Account). Hubtel lie les API keys à un "business" précis. Il faut :
+1. Soit récupérer dans le dashboard Hubtel les API keys du business propriétaire de `2029069`/`2021772`,
+2. Soit utiliser le merchant account associé aux nouvelles credentials.
+
+### Validation
+- ✅ Test unitaire 3 formats : separate / colon / legacy → tous produisent le bon Base64.
+- ✅ Logs complets visibles dans `/var/log/supervisor/backend.err.log` : request prefix + response code + body raw.
+- ✅ Le client (frontend) reçoit désormais : `"Hubtel [4101]: Client request keys do not match API keys on business"`.
+
+
 ## iter239a4 — Proxy Fixie sur Paystack + httpx 0.28 fix + FX cache reset (10/05/2026)
 
 **Demande user** : ajouter le proxy Fixie sur tous les appels Paystack, vérifier Hubtel, créer un helper partagé, et exposer un refresh du cache FX.

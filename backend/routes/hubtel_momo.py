@@ -261,6 +261,15 @@ async def hubtel_momo_deposit(req: DepositRequest, request: Request):
     }
     response_code: Optional[str] = None
     response_body = None
+    response_status = None
+    # iter239a4b — Diagnostic logs (BEFORE the call) so we can verify
+    # credentials/account/channel even if Hubtel times out.
+    logger.info(
+        "[hubtel-momo] deposit request | account=%s | channel=%s | "
+        "amount_ghs=%s | msisdn=%s | client_ref=%s | auth_prefix=%s...",
+        account, channel, fx["amount_ghs"], msisdn, client_reference,
+        (auth or "")[:8],
+    )
     try:
         async with httpx.AsyncClient(timeout=HUBTEL_TIMEOUT,
                                       proxy=get_proxy_url()) as client:
@@ -272,29 +281,44 @@ async def hubtel_momo_deposit(req: DepositRequest, request: Request):
                 },
                 json=payload,
             )
+        response_status = r.status_code
         try:
             response_body = r.json()
         except Exception:
             response_body = {"raw": r.text[:500]}
         response_code = str(response_body.get("ResponseCode") or response_body.get("responseCode") or "")
+        # iter239a4b — Always log the full Hubtel response (status + raw body).
+        logger.info(
+            "[hubtel-momo] deposit response | http=%s | resp_code=%s | body=%s",
+            response_status, response_code, response_body,
+        )
     except Exception as e:  # noqa: BLE001
-        logger.warning("[hubtel-momo] deposit network error: %s", e)
+        logger.error("[hubtel-momo] deposit network error: %s | account=%s channel=%s msisdn=%s",
+                     e, account, channel, msisdn)
 
     async with pool.acquire() as conn:
         if response_code != HUBTEL_RESPONSE_OK:
             await conn.execute("UPDATE transactions SET status='failed' WHERE tx_id=$1", tx_id)
             await _insert_audit(conn, user["user_id"], "hubtel_momo_deposit_init_failed",
-                                {"tx_id": tx_id, "response": response_body or {}, "code": response_code})
-            # iter239a2 — Surface Hubtel's actual error to the client so they
-            # know whether to retry, re-enter the number, or contact support.
-            logger.warning("[hubtel-momo] deposit init failed code=%s body=%s",
-                           response_code, response_body)
+                                {"tx_id": tx_id, "response": response_body or {},
+                                 "code": response_code, "http_status": response_status})
+            # iter239a4b — Surface Hubtel's actual error code + message to the
+            # client so the user (and us in the logs) can pinpoint root cause.
+            hubtel_msg = _extract_hubtel_message(
+                response_body,
+                "The USSD prompt could not be sent. Please try again in a few moments.")
+            logger.warning(
+                "[hubtel-momo] deposit init failed | http=%s | resp_code=%s | "
+                "msg=%s | body=%s | account=%s | channel=%s | msisdn=%s",
+                response_status, response_code, hubtel_msg, response_body,
+                account, channel, msisdn,
+            )
             raise HTTPException(status_code=502, detail={
                 "error": "hubtel_init_failed",
                 "code": response_code or None,
-                "message": _extract_hubtel_message(
-                    response_body,
-                    "The USSD prompt could not be sent. Please try again in a few moments."),
+                "http_status": response_status,
+                "message": (f"Hubtel [{response_code or response_status or '?'}]: "
+                            f"{hubtel_msg}"),
             })
         await _insert_audit(conn, user["user_id"], "hubtel_momo_deposit_initiated",
                             {"tx_id": tx_id, "channel": channel, "amount_ghs": fx["amount_ghs"]})
@@ -478,6 +502,14 @@ async def hubtel_momo_withdraw(req: WithdrawRequest, request: Request):
     }
     response_code = None
     response_body = None
+    response_status = None
+    # iter239a4b — log credentials/channel/msisdn before the call.
+    logger.info(
+        "[hubtel-momo] withdrawal request | account=%s | channel=%s | "
+        "amount_ghs=%s | msisdn=%s | client_ref=%s | auth_prefix=%s...",
+        account, channel, fx["amount_ghs"], msisdn, client_reference,
+        (auth or "")[:8],
+    )
     try:
         async with httpx.AsyncClient(timeout=HUBTEL_TIMEOUT,
                                       proxy=get_proxy_url()) as client:
@@ -489,27 +521,39 @@ async def hubtel_momo_withdraw(req: WithdrawRequest, request: Request):
                 },
                 json=payload,
             )
+        response_status = r.status_code
         try:
             response_body = r.json()
         except Exception:
             response_body = {"raw": r.text[:500]}
         response_code = str(response_body.get("ResponseCode") or response_body.get("responseCode") or "")
+        logger.info(
+            "[hubtel-momo] withdrawal response | http=%s | resp_code=%s | body=%s",
+            response_status, response_code, response_body,
+        )
     except Exception as e:  # noqa: BLE001
-        logger.warning("[hubtel-momo] withdrawal network error: %s", e)
+        logger.error("[hubtel-momo] withdrawal network error: %s | account=%s channel=%s msisdn=%s",
+                     e, account, channel, msisdn)
 
     if response_code != HUBTEL_RESPONSE_OK:
         # Atomic refund — Hubtel never accepted the order.
         await _refund_withdrawal(pool, tx_id, user["user_id"], amount_dec,
                                   reason=f"hubtel_init_failed_{response_code}")
-        # iter239a2 — Surface Hubtel's actual error.
-        logger.warning("[hubtel-momo] withdrawal init failed code=%s body=%s",
-                       response_code, response_body)
+        hubtel_msg = _extract_hubtel_message(
+            response_body,
+            "The withdrawal could not be initiated. Your balance has been refunded.")
+        logger.warning(
+            "[hubtel-momo] withdrawal init failed | http=%s | resp_code=%s | "
+            "msg=%s | body=%s | account=%s | channel=%s | msisdn=%s",
+            response_status, response_code, hubtel_msg, response_body,
+            account, channel, msisdn,
+        )
         raise HTTPException(status_code=502, detail={
             "error": "hubtel_init_failed",
             "code": response_code or None,
-            "message": _extract_hubtel_message(
-                response_body,
-                "The withdrawal could not be initiated. Your balance has been refunded."),
+            "http_status": response_status,
+            "message": (f"Hubtel [{response_code or response_status or '?'}]: "
+                        f"{hubtel_msg}"),
         })
 
     return {

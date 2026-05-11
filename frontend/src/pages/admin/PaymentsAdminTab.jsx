@@ -87,6 +87,12 @@ function TxList({ kind }) {
   const [loading, setLoading] = useState(false);
   const [rejectFor, setRejectFor] = useState(null);
   const [reason, setReason] = useState('');
+  // iter239c — Hubtel MoMo manual credit modal state (admin force-credit for
+  // pending deposits when the Hubtel callback never arrived).
+  const [momoCreditFor, setMomoCreditFor] = useState(null);
+  const [momoExtTxId, setMomoExtTxId] = useState('');
+  const [momoNote, setMomoNote] = useState('');
+  const [momoSubmitting, setMomoSubmitting] = useState(false);
 
   const isDeposit = kind === 'deposits';
 
@@ -156,6 +162,51 @@ function TxList({ kind }) {
       toast.error(e.response?.data?.detail || 'Erreur');
     }
   };
+
+  // iter239c — Open the manual-credit modal for a pending Hubtel MoMo deposit.
+  // Pre-fills the external_tx_id field if already present in notes (e.g.
+  // stored by the cron status check on a previous tick).
+  const openMomoCredit = (tx) => {
+    setMomoCreditFor(tx);
+    const m = String(tx.notes || '').match(/external_tx_id=([\w-]+)/);
+    setMomoExtTxId(m ? m[1] : '');
+    setMomoNote('');
+  };
+
+  const submitMomoCredit = async () => {
+    if (!momoCreditFor) return;
+    if (!momoExtTxId.trim()) {
+      toast.error('External Transaction ID requis (référence Hubtel/MTN).');
+      return;
+    }
+    if (momoNote.trim().length < 10) {
+      toast.error('Note admin requise (min. 10 caractères).');
+      return;
+    }
+    setMomoSubmitting(true);
+    try {
+      await axios.post(
+        `${API}/api/admin/hubtel/momo/credit-manual/${momoCreditFor.tx_id}`,
+        { external_tx_id: momoExtTxId.trim(), note: momoNote.trim() },
+        { withCredentials: true },
+      );
+      toast.success(`Dépôt crédité manuellement — ${momoCreditFor.amount} USD`);
+      setMomoCreditFor(null);
+      setMomoExtTxId('');
+      setMomoNote('');
+      load();
+    } catch (e) {
+      const d = e.response?.data?.detail;
+      toast.error(d?.message || d || 'Erreur crédit manuel');
+    } finally {
+      setMomoSubmitting(false);
+    }
+  };
+
+  const isHubtelMomo = (tx) => (
+    tx.provider === 'hubtel_momo'
+    || String(tx.notes || '').toLowerCase().includes('hubtel momo')
+  );
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
@@ -265,13 +316,27 @@ function TxList({ kind }) {
                   <td className="text-[10px] opacity-70">{new Date(tx.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</td>
                   <td className="text-right">
                     {isDeposit && (tx.status === 'pending' || tx.status === 'processing') && (
-                      <button onClick={() => reverify(tx.tx_id)}
-                        className="jp-btn jp-btn-sm text-xs"
-                        style={{ background: 'rgba(15,5,107,0.1)', color: 'var(--jp-primary)' }}
-                        data-testid={`deposit-reverify-${tx.tx_id}`}
-                        title={t('payments_admin.re_interroger_le_provider_ne_credit')}>
-                        ↻ Re-vérifier provider
-                      </button>
+                      <div className="flex gap-1 justify-end flex-wrap">
+                        <button onClick={() => reverify(tx.tx_id)}
+                          className="jp-btn jp-btn-sm text-xs"
+                          style={{ background: 'rgba(15,5,107,0.1)', color: 'var(--jp-primary)' }}
+                          data-testid={`deposit-reverify-${tx.tx_id}`}
+                          title={t('payments_admin.re_interroger_le_provider_ne_credit')}>
+                          ↻ Re-vérifier provider
+                        </button>
+                        {/* iter239c — Force-credit for Hubtel MoMo pending TX
+                            where the callback never arrived but the admin has
+                            confirmed payment on the Hubtel dashboard. */}
+                        {isHubtelMomo(tx) && (
+                          <button onClick={() => openMomoCredit(tx)}
+                            className="jp-btn jp-btn-sm text-xs"
+                            style={{ background: '#10B981', color: 'white' }}
+                            data-testid={`hubtel-momo-credit-${tx.tx_id}`}
+                            title="Créditer manuellement (callback non reçu)">
+                            ✅ Créditer manuellement
+                          </button>
+                        )}
+                      </div>
                     )}
                     {!isDeposit && (tx.status === 'pending' || tx.status === 'processing') && (
                       <div className="flex gap-1 justify-end">
@@ -331,6 +396,67 @@ function TxList({ kind }) {
                 onClick={submitReject}
                 data-testid={`${kind}-reject-submit`}>
                 Confirmer le refus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* iter239c — Hubtel MoMo manual credit modal. */}
+      {momoCreditFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="jp-card-elevated max-w-md w-full p-5 jp-animate-scaleIn" data-testid="hubtel-momo-credit-modal">
+            <h4 className="font-['Outfit'] text-lg font-bold mb-2">
+              ✅ Créditer manuellement — Hubtel Mobile Money
+            </h4>
+            <div className="text-xs mb-3 space-y-1 p-3 rounded-lg" style={{ background: 'var(--jp-surface-secondary)' }}>
+              <div><strong>Montant :</strong> ${parseFloat(momoCreditFor.amount).toFixed(2)} USD</div>
+              <div><strong>Client Reference Japap :</strong> <code className="text-[10px]">{momoCreditFor.reference || '—'}</code></div>
+              <div><strong>Utilisateur :</strong> {momoCreditFor.first_name} {momoCreditFor.last_name} ({momoCreditFor.email})</div>
+              <div><strong>Créée le :</strong> {new Date(momoCreditFor.created_at).toLocaleString('fr-FR')}</div>
+            </div>
+            <div className="py-1.5">
+              <label className="jp-label text-xs">External Transaction ID (référence Hubtel/MTN)</label>
+              <input
+                value={momoExtTxId}
+                onChange={e => setMomoExtTxId(e.target.value)}
+                placeholder="Ex: 81045690055"
+                className="jp-input text-sm font-mono w-full"
+                data-testid="hubtel-momo-credit-ext-tx-id"
+              />
+            </div>
+            <div className="py-1.5">
+              <label className="jp-label text-xs">Note admin (min. 10 caractères, obligatoire)</label>
+              <textarea
+                rows={3}
+                value={momoNote}
+                onChange={e => setMomoNote(e.target.value)}
+                placeholder="Ex: Paiement confirmé sur dashboard Hubtel à 18h42, callback non reçu"
+                className="jp-input text-sm w-full"
+                data-testid="hubtel-momo-credit-note"
+              />
+              <div className="text-[10px] mt-0.5" style={{ color: momoNote.length < 10 ? '#EF4444' : 'var(--jp-text-muted)' }}>
+                {momoNote.length} / 500 caractères {momoNote.length < 10 ? '— minimum 10' : '✓'}
+              </div>
+            </div>
+            <div className="mt-3 p-3 rounded-xl text-[11px]" style={{ background: '#FEF3C7', color: '#92400E' }}>
+              ⚠️ <strong>Action irréversible.</strong> Le wallet de l'utilisateur sera crédité immédiatement et l'opération sera tracée dans <code>audit_logs</code> avec votre identifiant admin.
+            </div>
+            <div className="flex gap-2 justify-end mt-3">
+              <button className="jp-btn jp-btn-ghost" onClick={() => setMomoCreditFor(null)}
+                disabled={momoSubmitting}
+                data-testid="hubtel-momo-credit-cancel">
+                Annuler
+              </button>
+              <button className="jp-btn"
+                style={{
+                  background: '#10B981', color: 'white',
+                  opacity: (momoSubmitting || momoNote.trim().length < 10 || !momoExtTxId.trim()) ? 0.5 : 1,
+                }}
+                disabled={momoSubmitting || momoNote.trim().length < 10 || !momoExtTxId.trim()}
+                onClick={submitMomoCredit}
+                data-testid="hubtel-momo-credit-submit">
+                {momoSubmitting ? 'Crédit en cours…' : '✅ Confirmer le crédit'}
               </button>
             </div>
           </div>

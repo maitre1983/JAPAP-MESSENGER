@@ -21,10 +21,13 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import uuid
+from datetime import datetime, timezone
+from decimal import Decimal
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from database import get_pool
 from routes.auth import require_admin
@@ -274,4 +277,102 @@ async def admin_hubtel_test_credentials(req: HubtelTestRequest, request: Request
 
 
 admin_hubtel_router = router
+
+
+# ─────────────────── iter239c — admin manual credit ─────────────────────
+class ManualCreditRequest(BaseModel):
+    external_tx_id: str = Field(..., min_length=1, max_length=120)
+    note:           str = Field(..., min_length=10, max_length=500)
+
+
+@router.post("/momo/credit-manual/{tx_id}")
+async def admin_hubtel_momo_credit_manual(
+    tx_id: str, req: ManualCreditRequest, request: Request,
+):
+    """iter239c — Admin force-credits a pending Hubtel MoMo deposit.
+    Used when Hubtel never sent the callback but the admin has confirmed
+    the payment on the Hubtel dashboard. Stores the Hubtel
+    ExternalTransactionId + admin note in `transactions.notes`, writes an
+    audit log row, and notifies the user.
+
+    SAFETY: only operates on `provider='hubtel_momo' AND type='deposit'
+    AND status='pending'` rows. Refuses to touch a completed/failed tx
+    (idempotent, returns 409)."""
+    admin = await require_admin(request)
+    pool = await get_pool()
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            tx = await conn.fetchrow(
+                """SELECT tx_id, to_user_id, amount, status, reference, notes, provider, type
+                     FROM transactions WHERE tx_id = $1 FOR UPDATE""",
+                tx_id,
+            )
+            if not tx:
+                raise HTTPException(status_code=404, detail="Transaction introuvable")
+            if tx["provider"] != "hubtel_momo" or tx["type"] != "deposit":
+                raise HTTPException(status_code=400, detail={
+                    "error": "wrong_kind",
+                    "message": "This endpoint only handles Hubtel MoMo deposits.",
+                })
+            if tx["status"] != "pending":
+                raise HTTPException(status_code=409, detail={
+                    "error": "not_pending",
+                    "current_status": tx["status"],
+                    "message": f"Transaction is already in status `{tx['status']}` — refusing to credit again.",
+                })
+
+            # Atomic credit + audit + notify.
+            await conn.execute(
+                "UPDATE wallets SET balance = balance + $1, updated_at = $2 WHERE user_id = $3",
+                Decimal(str(tx["amount"])), datetime.now(timezone.utc), tx["to_user_id"],
+            )
+            new_notes = (tx["notes"] or "")
+            tag = (f"manual_credit_by_admin={admin['user_id']} | "
+                   f"external_tx_id={req.external_tx_id.strip()} | "
+                   f"note={req.note.strip()[:300]}")
+            new_notes = (new_notes + " | " + tag).strip(" |") if new_notes else tag
+            await conn.execute(
+                "UPDATE transactions SET status='completed', notes=$2 WHERE tx_id=$1",
+                tx_id, new_notes,
+            )
+            await conn.execute(
+                """INSERT INTO audit_logs (user_id, action, resource, details)
+                   VALUES ($1, 'hubtel_momo_manual_credit', 'wallet', $2)""",
+                admin["user_id"],
+                json.dumps({
+                    "tx_id": tx_id,
+                    "credited_user_id": tx["to_user_id"],
+                    "amount_usd": float(tx["amount"]),
+                    "reference": tx["reference"],
+                    "external_tx_id": req.external_tx_id.strip(),
+                    "note": req.note.strip()[:300],
+                }),
+            )
+            notif_id = f"notif_{uuid.uuid4().hex[:12]}"
+            await conn.execute(
+                """INSERT INTO notifications (notif_id, user_id, type, title, message, data)
+                   VALUES ($1, $2, 'deposit_completed', 'Mobile Money deposit credited',
+                           $3, $4)""",
+                notif_id, tx["to_user_id"],
+                f"Your Mobile Money deposit of {tx['amount']} USD has been credited.",
+                json.dumps({"tx_id": tx_id, "provider": "hubtel_momo",
+                            "via": "admin_manual",
+                            "external_tx_id": req.external_tx_id.strip()}),
+            )
+
+    logger.info(
+        "[admin-hubtel] manual credit | tx_id=%s | user=%s | amount=%s USD | "
+        "external_tx_id=%s | by_admin=%s",
+        tx_id, tx["to_user_id"], tx["amount"],
+        req.external_tx_id.strip(), admin["user_id"],
+    )
+    return {
+        "status": "credited",
+        "tx_id": tx_id,
+        "amount_usd": float(tx["amount"]),
+        "external_tx_id": req.external_tx_id.strip(),
+    }
+
+
 __all__ = ["router", "admin_hubtel_router"]

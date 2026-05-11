@@ -334,6 +334,148 @@ async def hubtel_momo_deposit(req: DepositRequest, request: Request):
     }
 
 
+@router.get("/hubtel/callback/receive/ping")
+async def hubtel_callback_receive_ping():
+    """iter239c — Public reachability check for the Hubtel webhook URL.
+    Hubtel-side support can curl this from their dashboard to confirm the
+    callback endpoint is publicly accessible (NOT 404 from CDN, NOT
+    blocked by a WAF rule, etc.). NO auth — must be reachable from any IP."""
+    return {
+        "status": "ok",
+        "endpoint": "/api/hubtel/callback/receive",
+        "expects": "POST application/json with Hubtel transaction payload",
+        "message": "Hubtel callback endpoint is reachable.",
+    }
+
+
+@router.post("/wallet/hubtel-momo/verify/{tx_id}")
+async def hubtel_momo_verify(tx_id: str, request: Request):
+    """iter239c — Owner-or-admin re-verify endpoint for a pending Hubtel
+    MoMo deposit. Polls the Hubtel `api-txnstatus.hubtel.com` endpoint
+    and, if Hubtel reports the payment as Paid, credits the wallet
+    atomically (SELECT FOR UPDATE) and stores the Hubtel
+    ExternalTransactionId in `notes` for admin traceability.
+
+    Idempotent: if the tx is already completed, returns `already_completed`."""
+    user = await get_current_user(request)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        tx = await conn.fetchrow(
+            """SELECT tx_id, to_user_id, amount, status, reference, notes, provider, type
+                 FROM transactions WHERE tx_id = $1""",
+            tx_id,
+        )
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction introuvable")
+    if tx["provider"] != "hubtel_momo" or tx["type"] != "deposit":
+        raise HTTPException(status_code=400, detail="Not a Hubtel MoMo deposit")
+    if tx["to_user_id"] != user["user_id"] and user.get("role") not in ("admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    if tx["status"] == "completed":
+        return {"status": "already_completed", "tx_id": tx_id, "amount": float(tx["amount"])}
+    if tx["status"] != "pending":
+        return {"status": tx["status"], "tx_id": tx_id, "message": f"Transaction is {tx['status']}, cannot verify."}
+
+    auth = await get_hubtel_auth()
+    account = await get_collection_account()
+    if not auth or not account:
+        raise HTTPException(status_code=503, detail={
+            "error": "hubtel_misconfigured",
+            "message": "Hubtel credentials are not configured. Please contact support.",
+        })
+
+    # Call Hubtel status API via Fixie.
+    url = (f"https://api-txnstatus.hubtel.com/transactions/{account}/status"
+           f"?clientReference={tx['reference']}")
+    http_status = None
+    body = None
+    try:
+        async with httpx.AsyncClient(timeout=HUBTEL_TIMEOUT,
+                                      proxy=get_proxy_url()) as client:
+            r = await client.get(
+                url, headers={"Authorization": f"Basic {auth}"},
+            )
+        http_status = r.status_code
+        try:
+            body = r.json()
+        except Exception:
+            body = {"raw": r.text[:500]}
+    except Exception as e:  # noqa: BLE001
+        logger.error("[hubtel-momo-verify] tx=%s network error: %s", tx_id, e)
+        return {"status": "check_failed", "tx_id": tx_id,
+                "message": f"Network error contacting Hubtel: {e}"}
+
+    logger.info("[hubtel-momo-verify] tx=%s ref=%s http=%s body=%s",
+                tx_id, tx["reference"], http_status, body)
+
+    data = (body or {}).get("data") or (body or {}).get("Data") or {}
+    hubtel_status = str(data.get("status") or data.get("Status") or "").lower()
+    external_tx_id = (
+        data.get("externalTransactionId")
+        or data.get("ExternalTransactionId")
+        or data.get("transactionId")
+        or ""
+    )
+
+    if hubtel_status == "paid":
+        # Atomic credit — re-check status under FOR UPDATE for idempotence.
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                locked = await conn.fetchrow(
+                    "SELECT status, notes FROM transactions WHERE tx_id=$1 FOR UPDATE",
+                    tx_id,
+                )
+                if not locked or locked["status"] != "pending":
+                    return {"status": "already_completed", "tx_id": tx_id}
+                await conn.execute(
+                    "UPDATE wallets SET balance = balance + $1, updated_at = $2 WHERE user_id = $3",
+                    tx["amount"], datetime.now(timezone.utc), tx["to_user_id"],
+                )
+                new_notes = locked["notes"] or ""
+                if external_tx_id and f"external_tx_id={external_tx_id}" not in new_notes:
+                    new_notes = (f"{new_notes} | external_tx_id={external_tx_id} | "
+                                 f"source=manual_verify").strip(" |")
+                await conn.execute(
+                    "UPDATE transactions SET status='completed', notes=$2 WHERE tx_id=$1",
+                    tx_id, new_notes,
+                )
+                await _insert_audit(conn, tx["to_user_id"],
+                                    "hubtel_momo_deposit_verified_manually",
+                                    {"tx_id": tx_id, "reference": tx["reference"],
+                                     "external_tx_id": external_tx_id,
+                                     "by_user": user["user_id"]})
+                await _insert_notification(
+                    conn, tx["to_user_id"], "deposit_completed",
+                    "Mobile Money deposit confirmed",
+                    f"Your Mobile Money deposit of {tx['amount']} USD has been confirmed and credited.",
+                    {"tx_id": tx_id, "provider": "hubtel_momo",
+                     "via": "manual_verify", "external_tx_id": external_tx_id},
+                )
+        return {
+            "status": "credited",
+            "tx_id": tx_id,
+            "amount": float(tx["amount"]),
+            "external_tx_id": external_tx_id,
+        }
+
+    if hubtel_status == "unpaid":
+        return {
+            "status": "unpaid",
+            "tx_id": tx_id,
+            "hubtel_status": hubtel_status,
+            "message": "Hubtel has not confirmed the payment yet. Try again in a few minutes.",
+        }
+
+    return {
+        "status": "pending",
+        "tx_id": tx_id,
+        "hubtel_status": hubtel_status or None,
+        "http_status": http_status,
+        "message": "Status still pending on Hubtel. The cron will retry in 5 minutes.",
+        "raw": body,
+    }
+
+
 @router.post("/hubtel/callback/receive")
 async def hubtel_callback_receive(request: Request):
     """Public webhook from Hubtel — no auth, idempotent."""

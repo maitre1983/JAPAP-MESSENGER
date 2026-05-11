@@ -1,10 +1,60 @@
-# JAPAP — PRD (mise à jour 11/05/2026 — iter239b)
+# JAPAP — PRD (mise à jour 11/05/2026 — iter239c)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter239c — Hubtel MoMo : callback ping + verify endpoint + admin manual credit (11/05/2026)
+
+**Contexte prod** : un dépôt Hubtel MoMo USSD a été validé côté téléphone (ExternalTransactionId `81045690055`) mais le callback Hubtel n'a jamais été reçu → wallet non crédité. Le bouton "Verify my payment" côté user pointait vers `/api/wallet/hubtel/verify/{tx_id}` (endpoint **CARTE**, pas MoMo), donc ne créditait pas non plus.
+
+### Backend (additif uniquement)
+- `routes/hubtel_momo.py` :
+  - **GET `/api/hubtel/callback/receive/ping`** — public, no-auth → permet à Hubtel/support de vérifier que l'URL callback est accessible (anti-WAF / DNS / CDN 404).
+  - **POST `/api/wallet/hubtel-momo/verify/{tx_id}`** — owner-or-admin → appelle `https://api-txnstatus.hubtel.com/transactions/{collection}/status?clientReference=…` via Fixie, et :
+    - Si Hubtel renvoie `Paid` → crédit atomique (`SELECT FOR UPDATE`), stocke `external_tx_id` dans `notes`, notification + audit log `hubtel_momo_deposit_verified_manually`.
+    - Si Hubtel renvoie `Unpaid` → message clair, pas de crédit.
+    - Idempotent : `already_completed` retourné si tx déjà créditée.
+- `routes/admin_hubtel.py` :
+  - **POST `/api/admin/hubtel/momo/credit-manual/{tx_id}`** (admin-only) → force-crédit pour les dépôts pending dont le callback n'arrive pas. Pydantic : `external_tx_id` (1-120 chars) + `note` (min 10, max 500 chars). Refuse les TX non-pending (409) ou non-hubtel_momo (400).
+- `services/hubtel_momo_status_check.py` (cron 5min) :
+  - Log enrichi : `pending_count`, `external_tx_id` extrait à chaque tick, log par TX (`hubtel_status / external_tx_id / age`).
+  - `external_tx_id` désormais persisté dans `notes` lors du crédit auto cron.
+
+### Frontend (additif + 1 suppression chirurgicale)
+- `pages/WalletPage.js` :
+  - `depositProvider(tx)` retourne désormais `null` pour `tx.provider==='hubtel_momo'` → masque le bouton "Verify my payment" pour cette méthode.
+  - Helper `isHubtelMomoPending(tx)` → affiche à la place un chip info `⏳ Crédit automatique en cours… Contactez depot@japapmessenger.com si non crédité après 10 min.` (i18n 5 langues : FR/EN/ES/AR/RU).
+- `pages/admin/PaymentsAdminTab.jsx` (`TxList`) :
+  - Bouton supplémentaire **"✅ Créditer manuellement"** à côté de "↻ Re-vérifier provider" sur chaque dépôt `hubtel_momo` pending.
+  - Modal complet : montant, ClientReference Japap, utilisateur, date, champ `External Transaction ID` (pré-rempli si déjà dans notes), `Note admin` (validation min 10 chars + compteur live), banner irréversibilité + audit log mention.
+- Locales : nouvelle clé `wallet.hubtel_momo_auto_credit_info` ajoutée dans `fr/en/es/ar/ru.json`.
+
+### Validation E2E (curl + screenshot)
+- ✅ `GET /api/hubtel/callback/receive/ping` → 200 sans auth.
+- ✅ `POST /api/wallet/hubtel-momo/verify/{tx_id}` → 401 sans auth, 404 si tx inconnu, fonctionne pour propriétaire et admin.
+- ✅ `POST /api/admin/hubtel/momo/credit-manual/{tx_id}` → 403 non-admin, 404 tx inconnu, 422 note < 10 chars, 200 OK pour tx pending valide.
+- ✅ **End-to-end credit test** : Bob $48538.10 → $48540.10 (+$2 crédité), TX status `pending → completed`, notes enrichies (`manual_credit_by_admin / external_tx_id=81045690055 / note=...`), audit log inséré, idempotence 409 sur 2e tentative.
+- ✅ Smoke screenshot UI : bouton "✅ Créditer manuellement" visible dans la ligne Bob (Hubtel MoMo / $2.00 / En attente), modal complet rendu avec tous les champs, validation fonctionne (Submit disabled si form vide → enabled après remplissage).
+- ✅ Lint Python + JS propres.
+
+### SQL utile pour la PROD (après redéploiement)
+```sql
+-- Lister les dépôts Hubtel MoMo récents
+SELECT tx_id, to_user_id, type, status, provider, reference, amount, notes, created_at
+FROM transactions
+WHERE provider = 'hubtel_momo' AND type = 'deposit'
+ORDER BY created_at DESC LIMIT 10;
+
+-- Retrouver une transaction par ExternalTransactionId (Hubtel/MTN)
+SELECT tx_id, to_user_id, status, amount, reference, notes
+FROM transactions
+WHERE provider = 'hubtel_momo'
+  AND notes LIKE '%81045690055%';
+```
 
 
 ## iter239b — Hubtel credentials dynamiques via dashboard admin (11/05/2026)

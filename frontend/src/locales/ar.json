@@ -205,6 +205,7 @@
     "la_photo_semble_trop_petite_30_kb_r": "تبدو الصورة صغيرة جداً (< 30 كيلوبايت). التقطها بدقة أفضل.",
     "verif": "جارٍ التحقق...",
     "verifier_mon_paiement": "التحقق من دفعي",
+    "hubtel_momo_auto_credit_info": "جارٍ الإيداع التلقائي… تواصل مع depot@japapmessenger.com إذا لم يُضف بعد 10 دقائق.",
     "soumettre_pour_verification": "إرسال للتحقق",
     "deposit_currency": {
       "local_currency": "العملة المحلية",

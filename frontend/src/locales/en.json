@@ -211,6 +211,7 @@
     "la_photo_semble_trop_petite_30_kb_r": "Photo seems too small (< 30 KB). Please retake it with a better resolution.",
     "verif": "Verifying...",
     "verifier_mon_paiement": "Verify my payment",
+    "hubtel_momo_auto_credit_info": "Auto-credit in progress… Contact depot@japapmessenger.com if not credited after 10 min.",
     "soumettre_pour_verification": "Submit for verification",
     "deposit_currency": {
       "local_currency": "Local currency",

@@ -413,12 +413,24 @@ export default function WalletPage() {
   );
 
   // Détermine le provider (Hubtel vs NowPayments) à partir du libellé de la transaction.
+  // iter239c — hubtel_momo (Mobile Money Ghana) est traité séparément : aucun
+  // bouton de vérification côté user, le crédit est 100% automatique (cron 5min
+  // + webhook). Pour ces TX on retourne null pour masquer le bouton.
   const depositProvider = (tx) => {
+    if (tx.provider === 'hubtel_momo') return null;
     const notes = String(tx.notes || '').toLowerCase();
+    if (notes.includes('hubtel momo')) return null;  // belt-and-suspenders for legacy rows
     if (notes.includes('hubtel')) return 'hubtel';
     if (notes.includes('nowpayments')) return 'nowpayments';
     return null;
   };
+
+  // iter239c — for hubtel_momo deposits we show an info banner instead of a button.
+  const isHubtelMomoPending = (tx) => (
+    tx.type === 'deposit' && tx.status === 'pending'
+    && (tx.provider === 'hubtel_momo'
+        || String(tx.notes || '').toLowerCase().includes('hubtel momo'))
+  );
 
   const [verifyingTx, setVerifyingTx] = useState(null);
 
@@ -1283,6 +1295,20 @@ export default function WalletPage() {
                   style={{ opacity: verifyingTx === tx.tx_id ? 0.6 : 1 }}>
                   {verifyingTx === tx.tx_id ? t('wallet.verif') : t('wallet.verifier_mon_paiement')}
                 </button>
+              )}
+              {/* iter239c — Hubtel MoMo: no manual verify button. Show a clear
+                  info chip so the user knows the credit is auto-only and how
+                  to escalate if it takes too long. */}
+              {isHubtelMomoPending(tx) && (
+                <span
+                  className="text-[10px] px-2 py-1 rounded-full font-medium"
+                  data-testid={`hubtel-momo-auto-credit-info-${tx.tx_id}`}
+                  style={{ background: '#EFF6FF', color: '#1E40AF',
+                           border: '1px solid #BFDBFE', maxWidth: 280 }}
+                  title={t('wallet.hubtel_momo_auto_credit_info')}
+                >
+                  ⏳ {t('wallet.hubtel_momo_auto_credit_info')}
+                </span>
               )}
               {/* iter237ab — Late hash submission CTA for pending manual
                   USDT deposits where the user hasn't pasted a hash yet

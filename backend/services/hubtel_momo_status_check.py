@@ -112,24 +112,39 @@ async def _check_pending_deposits() -> None:
         logger.info("[hubtel-status] deposits: misconfigured, skip")
         return
 
+    # iter239c — surface how many pending tx the cron is sweeping so we can
+    # diagnose silent stuckness in prod (no log = cron not running).
+    logger.info("[hubtel-status] deposits sweep | pending_count=%s | account=%s",
+                len(rows), account)
     for row in rows:
         body = await _hubtel_status(HUBTEL_TXN_STATUS_RECEIVE, account, auth, row["reference"])
         if not body:
+            logger.info("[hubtel-status] tx=%s ref=%s -> no body from Hubtel",
+                        row["tx_id"], row["reference"])
             continue
         # Hubtel response shape: {"data": {"status": "Paid"|"Unpaid"|...}}
         data = body.get("data") or body.get("Data") or {}
         status = str(data.get("status") or data.get("Status") or "").lower()
+        external_tx_id = (
+            data.get("externalTransactionId")
+            or data.get("ExternalTransactionId")
+            or data.get("transactionId")
+            or ""
+        )
+        logger.info("[hubtel-status] tx=%s ref=%s -> hubtel_status=%s external_tx_id=%s age=%ss",
+                    row["tx_id"], row["reference"], status, external_tx_id,
+                    int(row["age_seconds"] or 0))
         if status == "paid":
-            await _finalize_deposit_paid(pool, row)
+            await _finalize_deposit_paid(pool, row, external_tx_id=external_tx_id)
         elif status == "unpaid" and float(row["age_seconds"] or 0) > DEPOSIT_FAIL_AGE_SECONDS:
             await _finalize_deposit_failed(pool, row)
 
 
-async def _finalize_deposit_paid(pool, row) -> None:
+async def _finalize_deposit_paid(pool, row, external_tx_id: str = "") -> None:
     async with pool.acquire() as conn:
         async with conn.transaction():
             tx = await conn.fetchrow(
-                "SELECT status FROM transactions WHERE tx_id=$1 FOR UPDATE",
+                "SELECT status, notes FROM transactions WHERE tx_id=$1 FOR UPDATE",
                 row["tx_id"],
             )
             if not tx or tx["status"] != "pending":
@@ -138,18 +153,25 @@ async def _finalize_deposit_paid(pool, row) -> None:
                 "UPDATE wallets SET balance = balance + $1, updated_at = $2 WHERE user_id = $3",
                 row["amount"], datetime.now(timezone.utc), row["to_user_id"],
             )
+            # iter239c — append the Hubtel ExternalTransactionId to the notes
+            # so admins can cross-reference with the Hubtel dashboard later.
+            new_notes = (tx["notes"] or "")
+            if external_tx_id and f"external_tx_id={external_tx_id}" not in new_notes:
+                new_notes = f"{new_notes} | external_tx_id={external_tx_id} | source=cron".strip(" |")
             await conn.execute(
-                "UPDATE transactions SET status='completed' WHERE tx_id=$1",
-                row["tx_id"],
+                "UPDATE transactions SET status='completed', notes=$2 WHERE tx_id=$1",
+                row["tx_id"], new_notes,
             )
             await _insert_audit(conn, row["to_user_id"],
                                 "hubtel_momo_deposit_completed_via_cron",
-                                {"tx_id": row["tx_id"], "reference": row["reference"]})
+                                {"tx_id": row["tx_id"], "reference": row["reference"],
+                                 "external_tx_id": external_tx_id})
             await _insert_notification(
                 conn, row["to_user_id"], "deposit_completed",
                 "Mobile Money deposit confirmed",
                 f"Your Mobile Money deposit of {row['amount']} USD has been confirmed and credited.",
-                {"tx_id": row["tx_id"], "provider": "hubtel_momo", "via": "cron"},
+                {"tx_id": row["tx_id"], "provider": "hubtel_momo", "via": "cron",
+                 "external_tx_id": external_tx_id},
             )
 
 

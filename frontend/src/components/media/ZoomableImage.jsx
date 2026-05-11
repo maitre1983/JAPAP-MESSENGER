@@ -161,6 +161,7 @@ export default function ZoomableImage({
         alt={alt}
         draggable={false}
         loading="lazy"
+        decoding="async"
         onError={onError}
         className="w-full h-full object-contain pointer-events-none"
         style={{

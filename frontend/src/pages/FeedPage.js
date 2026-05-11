@@ -20,6 +20,8 @@ import MediaPreviewGrid from '@/components/feed/MediaPreviewGrid';
 import RichTextEditor from '@/components/feed/RichTextEditor';
 import { compressFiles } from '@/utils/imageCompression';
 import ImageCropper from '@/components/ImageCropper';
+// iter239d — Pro video player (lazy autoplay, scrubbable, fullscreen).
+import VideoPlayer from '@/components/VideoPlayer';
 import MediaFilterEditor from '@/components/media/MediaFilterEditor';
 import ZoomableImage from '@/components/media/ZoomableImage';
 import PostContent from '@/components/PostContent';
@@ -756,8 +758,16 @@ export default function FeedPage() {
                     return (
                       <div key={i}>
                         {effectiveType === 'video' ? (
-                          <video src={src} controls className="w-full object-contain"
-                            style={{ maxHeight: '80vh', background: '#000' }} />
+                          <VideoPlayer
+                            videoUrl={src}
+                            thumbnailUrl={m?.thumbnail_url || m?.thumbnailUrl || post.thumbnail_url}
+                            autoplay
+                            muted
+                            loop={false}
+                            aspectRatio="16/9"
+                            className="w-full"
+                            testId={`feed-video-${post.post_id}-${i}`}
+                          />
                         ) : effectiveType === 'youtube' ? (
                           <div className="relative w-full aspect-video">
                             <iframe src={`https://www.youtube.com/embed/${url.replace(/.*(?:v=|youtu\.be\/)([^&]+).*/, '$1')}`}
@@ -1192,7 +1202,9 @@ function StoryViewer({ group, index, onChangeIndex, onClose }) {
 
       <div className="w-full h-full flex items-center justify-center p-8" style={{ background: story.background_color }}>
         {story.image_url ? (
-          <img src={story.image_url} alt="" className="max-w-full max-h-full object-contain" />
+          <img src={story.image_url} alt=""
+            loading="lazy" decoding="async"
+            className="max-w-full max-h-full object-contain" />
         ) : (
           <p className="text-white text-center font-['Outfit'] text-3xl font-bold">{story.text}</p>
         )}

@@ -13,6 +13,8 @@ import axios from 'axios';
 import { ArrowLeft, Heart, ChatCircle, ShareNetwork, User as UserIcon } from '@phosphor-icons/react';
 import { useAuth } from '@/context/AuthContext';
 import CommentSection from '@/components/feed/CommentSection';
+// iter239d — Pro video player (replaces native <video controls />).
+import VideoPlayer from '@/components/VideoPlayer';
 import FollowSuggestions from '@/components/social/FollowSuggestions';
 import { SharePostModal } from '@/components/PostMenu';
 
@@ -135,8 +137,13 @@ export default function PostDetailPage() {
               const isVideo = type === 'video' || /\.(mp4|mov|webm)$/i.test(url);
               const src = url.startsWith('http') ? url : `${API}${url.startsWith('/') ? '' : '/'}${url}`;
               return isVideo
-                ? <video key={i} src={src} controls className="w-full max-h-96 object-cover" />
-                : <img key={i} src={src} alt="" className="w-full max-h-96 object-cover"
+                ? <VideoPlayer key={i} videoUrl={src}
+                    thumbnailUrl={typeof m === 'object' ? (m?.thumbnail_url || m?.thumbnailUrl) : undefined}
+                    autoplay={false} muted loop={false}
+                    aspectRatio="16/9" testId={`post-video-${i}`} />
+                : <img key={i} src={src} alt=""
+                    loading="lazy" decoding="async"
+                    className="w-full max-h-96 object-cover"
                     onError={(e) => { e.currentTarget.style.display = 'none'; }} />;
             })}
           </div>

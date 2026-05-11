@@ -20,6 +20,8 @@ import CallSummaryMessageBubble from '@/components/chat/CallSummaryMessageBubble
 import SmartProductCard, { extractProductLink } from '@/components/chat/SmartProductCard';
 import MediaFilterEditor from '@/components/media/MediaFilterEditor';
 import ZoomableImage from '@/components/media/ZoomableImage';
+// iter239d — Pro video player for inline chat videos.
+import VideoPlayer from '@/components/VideoPlayer';
 // iter237m — Live USD→local equivalent preview in send-money modal.
 import WalletDepositCurrencySelector from '@/components/wallet/WalletDepositCurrencySelector';
 // iter237u — "Vu hier à 14h32" presence label when peer is offline.
@@ -1055,8 +1057,13 @@ export default function ChatPage() {
                         return (
                           <div className="mb-2 -mx-2 sm:-mx-3 rounded-xl overflow-hidden" data-testid={`chat-inline-media-${msg.msg_id}`}>
                             {inline.isVideo ? (
-                              <video src={inline.url} controls className="w-full"
-                                style={{ maxHeight: '60vh', background: '#000' }} />
+                              <VideoPlayer
+                                videoUrl={inline.url}
+                                thumbnailUrl={inline.thumbnail_url || inline.thumbnailUrl}
+                                autoplay={false} muted loop={false}
+                                aspectRatio="16/9" className="w-full"
+                                testId={`chat-video-${msg.msg_id}`}
+                              />
                             ) : (
                               <ZoomableImage src={inline.url} alt="" maxHeight="60vh"
                                 testId={`chat-image-${msg.msg_id}`} />

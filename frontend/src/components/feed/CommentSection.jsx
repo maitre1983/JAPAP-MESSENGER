@@ -111,7 +111,9 @@ export default function CommentSection({ postId, autoFocus = false, onCountChang
               <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
                 style={{ background: 'var(--jp-surface-secondary)' }}>
                 {c.avatar ? (
-                  <img src={c.avatar} alt="" className="w-full h-full object-cover" />
+                  <img src={c.avatar} alt=""
+                    loading="lazy" decoding="async"
+                    className="w-full h-full object-cover" />
                 ) : (
                   <UserIcon size={14} style={{ color: 'var(--jp-text-muted)' }} />
                 )}

@@ -134,6 +134,7 @@ function Thumbnail({ url, isVideo }) {
       alt=""
       className="w-full h-full object-cover"
       loading="lazy"
+      decoding="async"
     />
   );
 }

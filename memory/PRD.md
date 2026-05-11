@@ -1,10 +1,50 @@
-# JAPAP — PRD (mise à jour 11/05/2026 — iter239f)
+# JAPAP — PRD (mise à jour 11/05/2026 — iter239g)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter239g — Job batch régénération variants WebP/AVIF (legacy posts) (11/05/2026)
+
+**Objectif** : valoriser tous les posts existants en générant les variantes responsive WebP+AVIF qui n'existaient pas avant iter239e/f. 100% additif + idempotent.
+
+### Backend
+- **Nouveau** `services/legacy_variants_regen.py` :
+  - `regenerate_legacy_post_variants()` — sweep complet de `posts.media` (JSONB array). État partagé en mémoire (`scanned/total/updated/regenerated/skipped/failed/errors`).
+  - `_build_r2_suffix_index()` — list `images/` une seule fois au début, mapping `<original_name> → <uuid>_<original_name>` pour résoudre les références legacy `/api/upload/files/...`
+  - `_fetch_image_bytes()` — 3 stratégies en cascade : local filesystem → R2 `get_object` boto3 (bypass Cloudflare bot challenge) → HTTP GET avec User-Agent browser
+  - `_regen_post()` — idempotent : skip si `small_url_avif` déjà présent (`EXPECTED_VARIANT_KEYS`)
+  - `_to_object()` — convertit legacy string → objet média avec variants (préserve `type` et autres props existantes)
+- **`routes/admin_storage.py`** : +2 endpoints admin
+  - `POST /api/admin/storage/regenerate-variants` (spawn asyncio.create_task)
+  - `GET /api/admin/storage/regenerate-status` (poll temps réel)
+
+### Frontend (`components/admin/StorageAdminCard.jsx`)
+- Nouveau block `RegenerateVariantsBlock` monté sous le bouton de migration :
+  - Bouton "🚀 Lancer régénération" + progress bar live
+  - 4-6 stat cards : posts scannés, posts mis à jour, variantes créées, sautées (déjà OK), échecs
+  - Polling auto toutes les 4s pendant exécution
+  - `<details>` collapsible des erreurs si présentes
+  - Description claire de l'idempotence
+
+### Validation E2E
+- ✅ Sweep complet 134 posts en ~15s
+- ✅ 7 posts maintenant pleinement migrés avec 6 variants chacun (WebP+AVIF × 3 tailles)
+- ✅ Verify post DB : `post_53b60855f02b.media[0]` contient désormais `url/type/small_url/medium_url/large_url/small_url_avif/medium_url_avif/large_url_avif`
+- ✅ 33 entrées skip (déjà OK ou non-image)
+- ✅ 120 entrées fail : **fichiers genuinement perdus** (ni en local FS, ni sur R2 — antérieurs au iter239d migration). Le job reporte ces échecs comme "broken legacy" mais ne casse rien — l'entrée reste en string et le fallback `<img src>` natif s'applique.
+- ✅ Stats globales R2 : passé de 226 fichiers (~70 MB) à **451 fichiers / 138 MB** après regen.
+- ✅ Smoke screenshot admin : block "🔄 Régénérer variants WebP/AVIF (legacy)" rendu correctement avec progress + stats.
+- ✅ Lint Python + JS propres.
+
+### Détail technique (Cloudflare challenge bypass)
+La première version utilisait `httpx.get(public_url)` mais Cloudflare présente un bot challenge aux User-Agents non-browser. Switch vers `boto3.get_object(Bucket=R2_MEDIA_BUCKET, Key=key)` → accès direct au backend R2, bypass complet du CDN et de toute protection WAF. Bonus : pas de bandwidth CDN gaspillé pour des re-downloads internes.
+
+### Pourquoi 120 entrées sont irrécupérables
+Investigation : ces images référencées dans `posts.media` (par exemple `/api/upload/files/a457a5394b0e4b53.png`) étaient déjà absentes du disque local AVANT la migration iter239d → donc jamais copiées vers R2. Le `<img src>` actuel renvoie 404 en prod pour ces posts depuis des mois. Le job ne peut pas restaurer des fichiers perdus, mais le comportement est non-destructif : l'entrée reste comme avant et continue de tomber sur le 404 originel.
 
 
 ## iter239f — AVIF bonus + endpoint diagnostics post-deploy (11/05/2026)

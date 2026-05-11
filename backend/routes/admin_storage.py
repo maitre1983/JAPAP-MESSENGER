@@ -105,6 +105,34 @@ async def admin_storage_migration_status(request: Request):
     return _public_migration_view()
 
 
+# ─────────────── iter239g — Legacy variants regeneration ────────────────
+@router.post("/regenerate-variants")
+async def admin_storage_regenerate_variants(request: Request):
+    """Spawn a one-shot background sweep that produces WebP+AVIF variants
+    for every legacy `posts.media` image entry. Idempotent: posts that
+    already have all 6 variants are skipped. Safe to retrigger after
+    failures (only failed entries are retried)."""
+    admin = await require_admin(request)
+    from services.legacy_variants_regen import (
+        get_state as _regen_state,
+        regenerate_legacy_post_variants,
+    )
+    if _regen_state()["running"]:
+        return {"status": "already_running", "state": _regen_state()}
+    # Stash who started it in the state for the audit trail.
+    from services.legacy_variants_regen import _state as _s
+    _s["started_by"] = admin.get("user_id")
+    asyncio.create_task(regenerate_legacy_post_variants())
+    return {"status": "started", "state": _regen_state()}
+
+
+@router.get("/regenerate-status")
+async def admin_storage_regenerate_status(request: Request):
+    await require_admin(request)
+    from services.legacy_variants_regen import get_state as _regen_state
+    return _regen_state()
+
+
 @router.get("/diagnostics")
 async def admin_storage_diagnostics(request: Request):
     """iter239f — Post-deploy verification endpoint. Reports the runtime

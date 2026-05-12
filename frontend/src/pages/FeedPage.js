@@ -24,6 +24,9 @@ import ImageCropper from '@/components/ImageCropper';
 import VideoPlayer from '@/components/VideoPlayer';
 import MediaFilterEditor from '@/components/media/MediaFilterEditor';
 import ZoomableImage from '@/components/media/ZoomableImage';
+// iter239o — SmartImage: orientation-aware feed thumbnail (portrait→3/4,
+// landscape→16/9, square→1/1). ZoomableImage stays for fullscreen zoom.
+import SmartImage from '@/components/media/SmartImage';
 import PostContent from '@/components/PostContent';
 import useKeyboardOffset from '@/hooks/useKeyboardOffset';
 import { uploadAvatar, uploadCover } from '@/utils/imageUpload';
@@ -800,13 +803,14 @@ export default function FeedPage() {
                               className="w-full h-full" allowFullScreen title="YouTube" />
                           </div>
                         ) : effectiveType === 'image' ? (
-                          <ZoomableImage src={src} alt="" maxHeight="80vh"
+                          <SmartImage src={src} alt=""
                             smallSrc={typeof m === 'object' ? m?.small_url : undefined}
                             mediumSrc={typeof m === 'object' ? m?.medium_url : undefined}
                             largeSrc={typeof m === 'object' ? m?.large_url : undefined}
                             smallSrcAvif={typeof m === 'object' ? m?.small_url_avif : undefined}
                             mediumSrcAvif={typeof m === 'object' ? m?.medium_url_avif : undefined}
                             largeSrcAvif={typeof m === 'object' ? m?.large_url_avif : undefined}
+                            testId={`feed-image-${post.post_id}-${i}`}
                             onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                         ) : (
                           <a href={src} target="_blank" rel="noreferrer"

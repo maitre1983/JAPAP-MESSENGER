@@ -1296,5 +1296,12 @@
   },
   "pwa": {
     "update_available": "Une nouvelle version de JAPAP est disponible. Elle sera appliquée automatiquement."
+  },
+  "image": {
+    "portrait": "Portrait",
+    "landscape": "Paysage",
+    "square": "Carré",
+    "loading": "Chargement de l'image...",
+    "error": "Image non disponible"
   }
 }

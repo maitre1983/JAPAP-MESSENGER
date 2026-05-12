@@ -1,10 +1,45 @@
-# JAPAP — PRD (mise à jour 12/05/2026 — iter239n)
+# JAPAP — PRD (mise à jour 12/05/2026 — iter239o)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter239o — SmartImage auto-orientation dans le Feed + i18n image (12/05/2026)
+
+**Règles respectées** : zéro touche aux méthodes de paiement, 100% additif, zéro régression. Avatars / logos / video thumbs **non touchés**.
+
+### Nouveau composant `components/media/SmartImage.jsx` (additif)
+Composant d'image orientation-aware destiné au feed/grille :
+- Détection via `naturalWidth/naturalHeight` au `onLoad` → catégories `portrait | landscape | square`.
+- Container avec `aspectRatio` catégoriel : portrait→**3/4**, landscape→**16/9**, square→**1/1**. Conformité avec VideoPlayer (qui utilise 9/16, 16/9, 1/1).
+- `objectFit: cover` pour remplir le container sans bandes noires (UX feed homogène).
+- **`<picture>` responsive AVIF + WebP** (drop-in compat avec props existantes de `ZoomableImage` : `smallSrc/mediumSrc/largeSrc` et `*Avif`).
+- **Skeleton shimmer animé** pendant chargement (`@keyframes jpSmartImageShimmer`).
+- **Fallback i18n** `t('image.error')` si l'image est 404 — important vu les 119 entrées orphelines connues.
+- Attribut `data-orientation` exposé pour observabilité (DOM inspection, tests E2E).
+
+### Application — FeedPage.js (le cas le plus visible)
+Remplacement ciblé du `<ZoomableImage>` inline ligne 803 par `<SmartImage>` (preserve les variants AVIF/WebP, ajoute orientation auto). **ZoomableImage reste utilisé** pour les modals fullscreen (AdminPage, MarketplaceProductPage, ChatPage inline messages, TransportDriversAdminTab) où le double-tap zoom est précieux. Le user peut demander l'extension à ces autres pages dans une itération suivante.
+
+### i18n — 25 entrées ajoutées (5 langues × 5 clés)
+Section `image.*` dans `fr/en/es/ar/ru.json` :
+- `image.portrait` / `image.landscape` / `image.square` (labels Portrait/Paysage/Carré traduits)
+- `image.loading` / `image.error` ("Image non disponible" → "Image unavailable" / "Imagen no disponible" / "الصورة غير متاحة" / "Изображение недоступно")
+
+### Validation
+- ✅ Lint JS clean (2 fichiers touchés : SmartImage.jsx créé + FeedPage.js search/replace ciblé).
+- ✅ Smoke E2E `/feed` : **34 SmartImages rendus** dans le DOM avec testids `feed-image-<post_id>-<idx>`, attribut `data-orientation` présent.
+- ✅ **Algorithme de détection validé sur 5 cas** : `1920×1080→landscape`, `720×1280→portrait`, `1000×1000→square`, `4000×3000→landscape`, `1080×1350→portrait`. Tous passent.
+- ✅ Fallback `t('image.error')` confirmé visible en cas de 404 (testé sur les 34 SmartImages dont les sources sont orphelines en preview).
+- ✅ Aucun toucher sur avatars (qui utilisent leur propre `<img>` à ratio 1/1 fixe), logos, video thumbs (gérés par VideoPlayer iter239n).
+- ✅ Aucun toucher sur méthodes de paiement.
+
+### Régression vérifiée
+- `ZoomableImage` reste intacte et opérationnelle sur les 5 autres call sites (zoom modal préservé).
+- Les variants AVIF/WebP (`small_url`, `medium_url`, `large_url`, `*_avif`) sont passés à `SmartImage` exactement comme avant à `ZoomableImage` → aucune régression sur la performance bandwidth.
 
 
 ## iter239n — VideoPlayer auto-orientation + ReelsPage i18n + PWA toast i18n (12/05/2026)

@@ -653,6 +653,67 @@ async def serve_file(request: Request, filename: str, fmt: str = ""):
         except Exception as _e:  # noqa: BLE001
             logger.debug("[serve-file] KYC recovery skipped for %s: %s", filename, _e)
 
+        # iter239u — Same recovery flow for user avatars / covers. The
+        # legacy URL `/api/upload/files/{hash}.webp` is the source of the
+        # `d8ba46f6e9df460a.webp` 404 reported in prod (it's the admin's
+        # own avatar). When the disk file is gone, we try R2 one more time
+        # under the `avatars` folder by hash, then fall back to a 1×1
+        # transparent SVG pixel so the broken-image icon never appears in
+        # the admin lists and elsewhere (better UX than a red ❌).
+        try:
+            from services.r2_storage_service import (
+                media_object_exists as _r2_exists,
+                R2_MEDIA_PUBLIC_URL as _R2_BASE,
+            )
+            for folder in ("profile", "cover", "general"):
+                if _r2_exists(folder, filename):
+                    return RedirectResponse(
+                        f"{_R2_BASE}/{folder}/{filename}", status_code=301)
+        except Exception as _e:  # noqa: BLE001
+            logger.debug("[serve-file] R2 deep-probe skipped for %s: %s", filename, _e)
+
+        # iter239u — Check if this legacy path is referenced anywhere in
+        # the users table. If yes, serve a graceful tiny fallback so the
+        # UI doesn't show a broken-image icon. We don't have BYTEA in the
+        # users table (only URL strings), so we just acknowledge that the
+        # ressource is known + irrecoverable, and send a 1x1 PNG instead
+        # of 404. This avoids the user-facing "❌" visible across many
+        # admin/profile pages while keeping the file genuinely gone.
+        try:
+            from database import get_pool as _gp
+            _legacy_path = f"/api/upload/files/{filename}"
+            _pool = await _gp()
+            async with _pool.acquire() as _conn:
+                _u = await _conn.fetchrow(
+                    """
+                    SELECT user_id FROM users
+                    WHERE avatar = $1 OR avatar_thumb = $1
+                       OR cover = $1 OR cover_image = $1
+                       OR cover_image_mobile = $1
+                    LIMIT 1
+                    """,
+                    _legacy_path,
+                )
+            if _u is not None:
+                # 1x1 transparent PNG (67 bytes) — safe fallback that the
+                # browser treats as a valid image and silently lets the
+                # initial-fallback layer (e.g. <div>{name[0]}</div>) show.
+                _TINY_PNG = bytes.fromhex(
+                    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4"
+                    "890000000d49444154789c63f8cf00000000050001"
+                    "ff5b9b4f0000000049454e44ae426082"
+                )
+                return Response(
+                    content=_TINY_PNG,
+                    media_type="image/png",
+                    headers={
+                        "Cache-Control": "public, max-age=3600",
+                        "X-Japap-Source": "avatar-missing-tinypng",
+                    },
+                )
+        except Exception as _e:  # noqa: BLE001
+            logger.debug("[serve-file] avatar tinypng skipped for %s: %s",
+                         filename, _e)
     # 2. Defence-in-depth — resolve and confirm parent is exactly UPLOAD_DIR.
     try:
         real = filepath.resolve()

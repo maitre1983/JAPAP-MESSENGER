@@ -1,4 +1,4 @@
-# JAPAP — PRD (mise à jour 12/05/2026 — iter239t)
+# JAPAP — PRD (mise à jour 12/05/2026 — iter239u)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
@@ -7,7 +7,42 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
-## iter239t — KYC legacy URL recovery (serve from DB) + SW v15 (12/05/2026)
+## iter239u — Avatar legacy URL graceful fallback + SW v16 (12/05/2026)
+
+**Règles respectées** : zéro touche aux méthodes de paiement, 100% additif, zéro régression.
+
+### Diagnostic définitif
+Investigation forensique : le hash `d8ba46f6e9df460a.webp` rapporté en 404 par l'user est **l'avatar du compte `admin_3e4573bfe1a3`** lui-même, stocké en `users.avatar = '/api/upload/files/d8ba46f6e9df460a.webp'`. Le fichier disque est disparu après rotation pod K8s. R2 ne contient pas cet objet (avatars pré-iter239d).
+
+`AdminPage.js::ImgThumb` (KYC) est **innocent** comme prouvé en iter239r/s — c'est un autre `<img>` quelque part dans l'UI admin qui charge l'avatar admin.
+
+### Fix livré — fallback en cascade dans `routes/upload.py::serve_file`
+Chaîne complète après échec disque :
+1. **R2 fallback iter239d** (folder par extension)
+2. **R2 deep-probe iter239u** sur `profile/`, `cover/`, `general/` (avatars potentiellement migrés)
+3. **KYC BYTEA recovery iter239t** (matche les 6 colonnes URL)
+4. **Avatar tinypng iter239u** : si `filename` matche `users.avatar` / `avatar_thumb` / `cover` / `cover_image` / `cover_image_mobile`, retourner un **PNG 1×1 transparent (69 bytes)** au lieu d'un 404. Le browser le traite comme valide → aucun ❌ broken icon → le fallback CSS (initiale) reste visible naturellement.
+5. **404 honnête** sinon.
+
+Header `X-Japap-Source` distingue les 4 sources pour observabilité :
+- *(absent)* = disk
+- `r2-redirect` (301) = R2
+- `kyc-legacy-recovery` = KYC BYTEA
+- `avatar-missing-tinypng` = avatar gracefully degraded
+
+### Validation E2E (régression tests 4/4 ✅)
+| Cas | Status | Header |
+|---|---|---|
+| Fichier disque présent | 200 image/webp | — |
+| Legacy KYC (kyc_id_80d8448553494583.jpg) | 200 + 5KB | `kyc-legacy-recovery` |
+| Avatar manquant (d8ba46f6e9df460a.webp) | **200 + 69 bytes PNG 1×1** | `avatar-missing-tinypng` |
+| Fichier inexistant (totally_inexistent_xyz.jpg) | 404 | — |
+
+### SW bump
+`v15-iter239t` → **`v16-iter239u`**.
+
+
+## iter239t — KYC legacy URL recovery + SW v15 (12/05/2026)
 
 **Cause racine identifiée par user** : un certain nombre de browser caches / Service Workers prod tiennent encore des URLs legacy KYC du type `/api/upload/files/d8ba46f6e9df460a.webp` (provenant de l'ancien code pré-iter214 qui exposait les fichiers locaux). Quand le pod K8s a été rotaté, ces fichiers sont disparus du disque → 404. L'utilisateur voit alors "Image indisponible".
 

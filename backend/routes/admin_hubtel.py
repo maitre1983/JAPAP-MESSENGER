@@ -31,7 +31,7 @@ from pydantic import BaseModel, Field
 
 from database import get_pool
 from routes.auth import require_admin
-from services.proxy_config import get_proxy_url
+from services.proxy_config import get_hubtel_proxy
 from services.settings_service import get_setting, set_setting
 
 logger = logging.getLogger(__name__)
@@ -197,7 +197,7 @@ async def admin_hubtel_test_credentials(req: HubtelTestRequest, request: Request
     network_error: str | None = None
     try:
         async with httpx.AsyncClient(timeout=HUBTEL_TEST_TIMEOUT,
-                                      proxy=get_proxy_url()) as client:
+                                      proxy=get_hubtel_proxy()) as client:
             r = await client.post(
                 url,
                 headers={

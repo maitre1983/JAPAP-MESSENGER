@@ -1,10 +1,62 @@
-# JAPAP — PRD (mise à jour 11/05/2026 — iter239j)
+# JAPAP — PRD (mise à jour 12/05/2026 — iter239k)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter239k — Force IP Fixie `52.5.155.132` pour tous les appels Hubtel (12/05/2026)
+
+**Objectif** : éliminer l'alternance erratique 401↔403 sur `rmp.hubtel.com` due à Fixie qui routait aléatoirement vers une IP non-whitelistée par Hubtel.
+
+### Diagnostic
+Fixie expose 2 IPs sortantes derrière `criterium.usefixie.com` :
+- `52.5.155.132` → whitelistée chez Hubtel sur `rmp.hubtel.com` (ALB) ET `smp.hubtel.com`
+- `52.87.82.133` → whitelistée sur `smp.hubtel.com` UNIQUEMENT — `rmp.hubtel.com` répond **HTTP 403 + `server: awselb/2.0`** (HTML "Forbidden") avant même d'atteindre l'application Hubtel.
+
+Le DNS de `criterium.usefixie.com` load-balance entre les 2 IPs → ~50% des dépôts cassaient avec un 403 awselb non-parseable, et l'autre moitié remontait un vrai 401 + JSON `ResponseCode 4101` de l'app .NET.
+
+### Fix (strictement additif, isolé aux call sites Hubtel)
+**`services/proxy_config.py`** — nouvelle fonction `get_hubtel_proxy()` :
+```python
+def get_hubtel_proxy() -> str | None:
+    forced = os.environ.get("FIXIE_URL_HUBTEL")
+    if forced:
+        return forced
+    return os.environ.get("FIXIE_URL") or None
+```
+Lit la nouvelle env var `FIXIE_URL_HUBTEL` qui pointe directement sur l'IP whitelistée. Fallback sur `FIXIE_URL` si absente (rétro-compat dev/test).
+
+**`/app/backend/.env`** :
+```
+FIXIE_URL_HUBTEL=http://fixie:eYNfPeo0IplrX2d@52.5.155.132:80
+```
+
+**3 fichiers Hubtel** : import passe de `get_proxy_url` à `get_hubtel_proxy` + tous les `proxy=get_proxy_url()` → `proxy=get_hubtel_proxy()` :
+- `routes/hubtel_momo.py` (3 sites : deposit, verify, withdraw)
+- `routes/admin_hubtel.py` (1 site : test-credentials)
+- `services/hubtel_momo_status_check.py` (1 site : cron status check)
+
+**Paystack / FX / Vendor Health / Stripe etc. INCHANGÉS** — ils continuent d'utiliser `get_proxy_url()` (hostname générique, IP aléatoire), car ils n'ont pas de contrainte de whitelist.
+
+### Validation E2E
+- ✅ Helper Python : `get_proxy_url() = http://...@criterium.usefixie.com:80` vs `get_hubtel_proxy() = http://...@52.5.155.132:80` (isolé).
+- ✅ Curl direct `https://rmp.hubtel.com/` via `52.5.155.132:80` → **`HTTP 401 server: Kestrel`** (atteint l'app), comparé à `52.87.82.133` qui retourne `403 server: awselb/2.0`.
+- ✅ `POST /api/admin/hubtel/test-credentials` retourne désormais **systématiquement** : `http_status=401, code=4101, message="The business you're trying to pay isn't fully set up to receive payments at the moment"` (réponse applicative cohérente, plus jamais 403 awselb).
+- ✅ Egress IP via `52.5.155.132:80` confirmé stable 3/3 (`api.ipify.org`).
+- ✅ Vendor Health : Tronscan/BSC/Fixie/FX/Paystack toujours OK avec `get_proxy_url()` non-modifié.
+
+### Action restante côté Hubtel (hors code)
+Le 4101 "business not fully set up" est désormais le seul blocage et il vient de l'app Hubtel : le business `2021772` doit finaliser son activation côté dashboard Hubtel pour pouvoir recevoir des Mobile Money. Contact à prendre avec le support Hubtel.
+
+### Action critique prod
+Avant le prochain redéploiement, ajouter dans Emergent Secrets :
+```
+FIXIE_URL_HUBTEL=http://fixie:eYNfPeo0IplrX2d@52.5.155.132:80
+```
+(Sinon le fallback `FIXIE_URL` reprendra l'IP aléatoire et le bug réapparaîtra en prod.)
 
 
 ## iter239j — Hubtel credentials swap + Paystack i18n international (11/05/2026)

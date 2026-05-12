@@ -111,7 +111,19 @@
     "search_country": "Search a country…",
     "otp_resent_ok": "تم إرسال رمز جديد.",
     "turnstile_required": "استغرقت عملية التحقق وقتًا طويلاً. حاول مرة أخرى.",
-    "generic_error": "حدث خطأ. حاول مرة أخرى."
+    "generic_error": "حدث خطأ. حاول مرة أخرى.",
+    "remember_me": "تذكرني",
+    "remember_me_hint": "— ابقَ مسجلاً على هذا الجهاز",
+    "tos_link": "شروط الخدمة",
+    "privacy_link": "سياسة الخصوصية",
+    "legal_prefix": "بتسجيل الدخول، فإنك توافق على",
+    "legal_middle": "و",
+    "legal_suffix": ".",
+    "captcha_label": "تحقق سريع",
+    "captcha_helper": "أجب على المسألة الحسابية للمتابعة",
+    "captcha_new": "سؤال جديد",
+    "captcha_preparing": "جارٍ التحضير…",
+    "captcha_trusted": "تم التعرف على الجهاز — تحقق سريع"
   },
   "feed": {
     "title": "التغذية",

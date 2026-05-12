@@ -28,5 +28,37 @@
   },
   "wallet": {
     "hubtel_momo_auto_credit_info": "Автозачисление в процессе… Напишите depot@japapmessenger.com если не зачислено через 10 мин."
+  },
+  "auth": {
+    "login_title": "Оставайтесь на связи!",
+    "login_subtitle": "Делитесь захватывающими моментами и повседневной жизнью с друзьями.",
+    "username_placeholder": "Имя пользователя или email",
+    "password_placeholder": "Пароль",
+    "remember_me": "Запомнить меня",
+    "remember_me_hint": "— оставаться в системе на этом устройстве",
+    "forgot_password_cta": "Забыли пароль ?",
+    "signup_cta": "Зарегистрироваться",
+    "loading_login": "Подключение…",
+    "login_cta": "Войти",
+    "scan_download_1": "Сканируйте и скачайте",
+    "scan_download_2": "приложение в Play Store",
+    "footer_copyright": "Japap Messenger",
+    "footer_policy": "Условия",
+    "footer_contact": "Контакты",
+    "footer_about": "О нас",
+    "footer_market": "Маркет",
+    "generic_error": "Произошла ошибка.",
+    "tos_link": "Условия использования",
+    "privacy_link": "Политика конфиденциальности",
+    "email": "Email",
+    "password": "Пароль",
+    "legal_prefix": "Входя, вы принимаете наши",
+    "legal_middle": "и нашу",
+    "legal_suffix": ".",
+    "captcha_label": "Быстрая проверка",
+    "captcha_helper": "Решите пример, чтобы продолжить",
+    "captcha_new": "Новый вопрос",
+    "captcha_preparing": "Подготовка…",
+    "captcha_trusted": "Устройство распознано — ускоренная проверка"
   }
 }

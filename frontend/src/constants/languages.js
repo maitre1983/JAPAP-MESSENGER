@@ -29,6 +29,7 @@ export const SUPPORTED_LANGUAGES = [
   { code: "hi", flag: "🇮🇳", label: "हिन्दी",      native: "हिन्दी"              },
   { code: "bn", flag: "🇧🇩", label: "বাংলা",      native: "বাংলা"              },
   { code: "ta", flag: "🇮🇳", label: "தமிழ்",      native: "தமிழ்"              },
+  { code: "ru", flag: "🇷🇺", label: "Русский",    native: "Русский"            },
 ];
 
 /** RTL languages — used to flip layout direction when active. */

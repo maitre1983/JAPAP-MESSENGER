@@ -116,7 +116,17 @@
     "turnstile_required": "Anti-bot verification took too long. Please try again.",
     "generic_error": "Something went wrong. Please try again.",
     "remember_me": "Remember me",
-    "remember_me_hint": "— stay signed in on this device"
+    "remember_me_hint": "— stay signed in on this device",
+    "tos_link": "Terms of Service",
+    "privacy_link": "Privacy Policy",
+    "legal_prefix": "By signing in, you accept our",
+    "legal_middle": "and our",
+    "legal_suffix": ".",
+    "captcha_label": "Quick check",
+    "captcha_helper": "Solve the puzzle to continue",
+    "captcha_new": "New puzzle",
+    "captcha_preparing": "Preparing…",
+    "captcha_trusted": "Device recognized — fast-track verified"
   },
   "feed": {
     "title": "Feed",

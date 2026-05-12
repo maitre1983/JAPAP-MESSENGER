@@ -17,14 +17,20 @@
  */
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { ArrowsClockwise } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
 const MathCaptcha = forwardRef(function MathCaptcha(
-  { onChange, autoFocus = false, label = 'Vérification rapide', helper = 'Réponds au calcul pour continuer', theme = 'dark' },
+  { onChange, autoFocus = false, label, helper, theme = 'dark' },
   ref,
 ) {
+  const { t } = useTranslation();
+  // iter239m — labels are now i18n'd. Callers can still override via props
+  // for context-specific copy ("Confirmer votre identité" etc.).
+  const resolvedLabel  = label  || t('auth.captcha_label',  { defaultValue: 'Vérification rapide' });
+  const resolvedHelper = helper || t('auth.captcha_helper', { defaultValue: 'Réponds au calcul pour continuer' });
   const [captchaId, setCaptchaId] = useState('');
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
@@ -112,7 +118,7 @@ const MathCaptcha = forwardRef(function MathCaptcha(
              }}>
           <span style={{ fontSize: 14 }}>✅</span>
           <span className={`text-[11px] font-['Manrope'] ${isLight ? 'text-emerald-700' : 'text-emerald-200'}`}>
-            Appareil reconnu — vérification accélérée
+            {t('auth.captcha_trusted', { defaultValue: 'Appareil reconnu — vérification accélérée' })}
           </span>
         </div>
       ) : unreachable ? (
@@ -126,21 +132,21 @@ const MathCaptcha = forwardRef(function MathCaptcha(
       ) : (
         <>
           <div className="flex items-center justify-between mb-1">
-            <span className={`text-[11px] font-['Manrope'] ${labelColor}`}>{label}</span>
+            <span className={`text-[11px] font-['Manrope'] ${labelColor}`}>{resolvedLabel}</span>
             <button type="button"
                     onClick={fetchCaptcha}
                     disabled={loading}
                     data-testid="math-captcha-refresh"
                     className={`text-[11px] flex items-center gap-1 disabled:opacity-50 ${refreshColor}`}>
               <ArrowsClockwise size={12} weight="bold" />
-              Nouvelle question
+              {t('auth.captcha_new', { defaultValue: 'Nouvelle question' })}
             </button>
           </div>
           <div className="flex items-center gap-2 rounded-full px-4 py-3" style={boxBg}>
             <div className={`flex-1 font-['Outfit'] text-base font-bold ${questionColor}`}
                  data-testid="math-captcha-question"
                  aria-label="Question">
-              {loading ? '…' : (question ? `${question} =` : 'Préparation…')}
+              {loading ? '…' : (question ? `${question} =` : t('auth.captcha_preparing', { defaultValue: 'Préparation…' }))}
             </div>
             <input ref={inputRef}
                    data-testid="math-captcha-answer"
@@ -157,7 +163,7 @@ const MathCaptcha = forwardRef(function MathCaptcha(
                    className="w-16 px-2 py-1 rounded-md text-center font-['Outfit'] text-base font-bold text-[#0F056B] outline-none"
                    style={{ background: '#FFD700' }} />
           </div>
-          <p className={`text-[10px] mt-1 ml-1 ${helperColor}`}>{helper}</p>
+          <p className={`text-[10px] mt-1 ml-1 ${helperColor}`}>{resolvedHelper}</p>
         </>
       )}
     </div>

@@ -360,18 +360,18 @@ export default function LoginPage() {
             <p className="mt-3 text-[11px] text-center leading-relaxed"
                style={{ color: 'rgba(255,255,255,0.65)' }}
                data-testid="login-legal-blurb">
-              En te connectant, tu acceptes nos{' '}
+              {t('auth.legal_prefix')}{' '}
               <Link to="/legal/cgu" className="underline font-bold"
                     style={{ color: 'rgba(255,255,255,0.9)' }}
                     data-testid="login-legal-cgu">
-                Conditions Générales d'Utilisation
+                {t('auth.tos_link')}
               </Link>{' '}
-              et notre{' '}
+              {t('auth.legal_middle')}{' '}
               <Link to="/legal/confidentialite" className="underline font-bold"
                     style={{ color: 'rgba(255,255,255,0.9)' }}
                     data-testid="login-legal-privacy">
-                Politique de confidentialité
-              </Link>.
+                {t('auth.privacy_link')}
+              </Link>{t('auth.legal_suffix')}
             </p>
           </form>
 

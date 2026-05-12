@@ -111,7 +111,19 @@
     "search_country": "Search a country…",
     "otp_resent_ok": "Se ha enviado un nuevo código.",
     "turnstile_required": "La verificación antibots tardó demasiado. Inténtalo de nuevo.",
-    "generic_error": "Ha ocurrido un error. Inténtalo de nuevo."
+    "generic_error": "Ha ocurrido un error. Inténtalo de nuevo.",
+    "remember_me": "Recordarme",
+    "remember_me_hint": "— mantener sesión iniciada en este dispositivo",
+    "tos_link": "Términos de Servicio",
+    "privacy_link": "Política de Privacidad",
+    "legal_prefix": "Al iniciar sesión, aceptas nuestros",
+    "legal_middle": "y nuestra",
+    "legal_suffix": ".",
+    "captcha_label": "Verificación rápida",
+    "captcha_helper": "Resuelve el cálculo para continuar",
+    "captcha_new": "Nueva pregunta",
+    "captcha_preparing": "Preparando…",
+    "captcha_trusted": "Dispositivo reconocido — verificación acelerada"
   },
   "feed": {
     "title": "Feed",

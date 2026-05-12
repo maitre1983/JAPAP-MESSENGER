@@ -1,10 +1,59 @@
-# JAPAP — PRD (mise à jour 12/05/2026 — iter239l)
+# JAPAP — PRD (mise à jour 12/05/2026 — iter239m)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter239m — LoginPage i18n complet 5 langues + RTL + RU activé (12/05/2026)
+
+**Demande user** : suite à iter239l (captcha silencieux), s'assurer que **TOUS** les textes de la page login s'affichent dans les 5 langues FR/EN/ES/AR/RU et que l'arabe passe en RTL.
+
+### Findings
+- `ru.json` était présent et registré dans `i18n.js` mais **pas dans `SUPPORTED_LANGUAGES`** (`constants/languages.js`) → `supportedLngs` filtrait `ru` et fallback systématique sur FR.
+- 18 clés `auth.*` manquantes en RU (login_title, login_cta, captcha_*, footer_*, etc.).
+- 4 clés manquantes en ES/AR (remember_me_hint, captcha_*, tos_link, privacy_link).
+- 2 clés `tos_link` / `privacy_link` manquantes en FR/EN.
+- Composant `MathCaptcha.jsx` hardcodait les labels FR (`'Vérification rapide'`, `'Réponds au calcul pour continuer'`, `'Nouvelle question'`, `'Préparation…'`, `'Appareil reconnu — vérification accélérée'`).
+- `LoginPage.js` hardcodait `"En te connectant, tu acceptes nos Conditions Générales d'Utilisation et notre Politique de confidentialité."` (lignes 363-374).
+
+### Fix livré
+**1. `constants/languages.js`** — ajout RU dans `SUPPORTED_LANGUAGES` (1 ligne) :
+```js
+{ code: "ru", flag: "🇷🇺", label: "Русский", native: "Русский" },
+```
+→ Le LanguageSwitcher l'affiche désormais, et `supportedLngs` accepte `ru`.
+
+**2. `components/MathCaptcha.jsx`** — import `useTranslation`, props `label`/`helper` deviennent optionnelles avec fallback i18n. 4 chaînes hardcodées remplacées par `t('auth.captcha_label|helper|new|preparing|trusted')` avec `defaultValue` FR.
+
+**3. `pages/LoginPage.js`** — phrase légale i18n via 3 sous-clés (`legal_prefix`, `legal_middle`, `legal_suffix`) entrelacées avec `tos_link` et `privacy_link` :
+```jsx
+{t('auth.legal_prefix')} <Link>{t('auth.tos_link')}</Link>
+{t('auth.legal_middle')} <Link>{t('auth.privacy_link')}</Link>{t('auth.legal_suffix')}
+```
+
+**4. Locales** — 30 clés ajoutées au total :
+- FR : +2 (`tos_link`, `privacy_link`)
+- EN : +2 (`tos_link`, `privacy_link`)
+- ES : +4 (`remember_me`, `remember_me_hint`, `tos_link`, `privacy_link`)
+- AR : +4 (idem)
+- RU : +22 (couverture complète auth login + captcha + legal + footer)
+- Tous : +3 legal blurb (`legal_prefix`, `legal_middle`, `legal_suffix`) + 5 captcha (`captcha_label/helper/new/preparing/trusted`)
+
+### Validation E2E Playwright (5 langues)
+| Langue | html_lang | dir | CTA submit | Legal blurb | Captcha |
+|---|---|---|---|---|---|
+| FR | fr | ltr | "Connexion" | "En te connectant, tu acceptes nos CGU et notre Politique de confidentialité." | "Vérification rapide / Nouvelle question / Réponds au calcul…" |
+| EN | en | ltr | "Sign in" | "By signing in, you accept our Terms of Service and our Privacy Policy." | "Quick check / New puzzle / Solve the puzzle…" |
+| ES | es | ltr | "Iniciar sesión" | "Al iniciar sesión, aceptas nuestros Términos de Servicio y nuestra Política de Privacidad." | "Verificación rápida / Nueva pregunta / Resuelve el cálculo…" |
+| AR | ar | **rtl** ✅ | "تسجيل الدخول" | "بتسجيل الدخول، فإنك توافق على شروط الخدمة و سياسة الخصوصية." | "تحقق سريع / سؤال جديد / أجب على المسألة…" |
+| RU | ru | ltr | "Войти" | "Входя, вы принимаете наши Условия использования и нашу Политика конфиденциальности." | "Быстрая проверка / Новый вопрос / Решите пример…" |
+
+### Régression vérifiée
+- Aucun autre call site de `MathCaptcha` cassé : Register/Forgot continuent de passer `label="Vérification rapide"` en prop, l'override prop est toujours respecté (fallback i18n uniquement si prop absente).
+- Aucune autre langue (PT/SW/LN/YO/HI/BN/TA) touchée — non demandée et hors scope. Elles bénéficient désormais des nouvelles clés `captcha_*` via `defaultValue` FR (fallback gracieux).
 
 
 ## iter239l — MathCaptcha fallback silencieux (12/05/2026)

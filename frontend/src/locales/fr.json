@@ -116,7 +116,17 @@
     "search_country": "Rechercher un pays…",
     "otp_resent_ok": "Un nouveau code a été envoyé.",
     "remember_me": "Se souvenir de moi",
-    "remember_me_hint": "— reste connecté(e) sur cet appareil"
+    "remember_me_hint": "— reste connecté(e) sur cet appareil",
+    "tos_link": "Conditions Générales d'Utilisation",
+    "privacy_link": "Politique de confidentialité",
+    "legal_prefix": "En te connectant, tu acceptes nos",
+    "legal_middle": "et notre",
+    "legal_suffix": ".",
+    "captcha_label": "Vérification rapide",
+    "captcha_helper": "Réponds au calcul pour continuer",
+    "captcha_new": "Nouvelle question",
+    "captcha_preparing": "Préparation…",
+    "captcha_trusted": "Appareil reconnu — vérification accélérée"
   },
   "feed": {
     "title": "Accueil",

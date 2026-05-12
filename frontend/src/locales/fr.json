@@ -507,7 +507,22 @@
     "enregistrer_tous_les_parametres": "Enregistrer tous les paramètres",
     "bloque": "Bloqué",
     "resolution": "Résolution…",
-    "confirmer_la_decision": "Confirmer la décision"
+    "confirmer_la_decision": "Confirmer la décision",
+    "kyc": {
+      "image_unavailable": "Image indisponible",
+      "image_unavailable_hint": "Fichier absent du stockage",
+      "tap_to_zoom": "cliquer pour zoomer",
+      "photo_recto": "Recto",
+      "photo_verso": "Verso",
+      "photo_selfie": "Selfie",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "reject_reason": "Motif de rejet (obligatoire)",
+      "ai_alerts": "Alertes IA",
+      "low_risk": "Faible risque",
+      "medium_risk": "À vérifier",
+      "high_risk": "Risque élevé"
+    }
   },
   "kyc": {
     "title": "Vérification d'identité",

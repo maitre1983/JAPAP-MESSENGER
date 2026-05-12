@@ -738,8 +738,8 @@ function KycTab({ onAction, setMessage }) {
       return (
         <div data-testid={testid} className="w-full aspect-[3/4] rounded-lg border flex flex-col items-center justify-center text-xs text-center p-2"
           style={{ borderColor: 'var(--jp-border)', background: 'var(--jp-bg-2, #f3f4f6)', color: 'var(--jp-text-muted)' }}>
-          <div className="font-semibold">Image indisponible</div>
-          <div className="text-[10px] opacity-70 mt-1">Fichier absent du stockage</div>
+          <div className="font-semibold">{t('admin.kyc.image_unavailable')}</div>
+          <div className="text-[10px] opacity-70 mt-1">{t('admin.kyc.image_unavailable_hint')}</div>
         </div>
       );
     }
@@ -752,7 +752,7 @@ function KycTab({ onAction, setMessage }) {
           style={{ borderColor: 'var(--jp-border)' }} />
         <div className="absolute bottom-1 left-1 right-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-white text-center"
           style={{ background: 'rgba(0,0,0,0.6)' }}>
-          {label} · cliquer pour zoomer
+          {label} · {t('admin.kyc.tap_to_zoom')}
         </div>
       </button>
     );

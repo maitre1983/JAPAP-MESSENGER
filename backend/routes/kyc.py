@@ -473,6 +473,39 @@ async def admin_kyc_image(
         raise HTTPException(status_code=404, detail="KYC introuvable")
     blob = row["bytes"]
     if not blob:
+        # iter239q — Last-chance fallback before declaring the file lost:
+        # try the legacy disk path stored in `*_url` columns. These point
+        # to `/api/upload/files/<name>` which maps to the local
+        # `backend/uploads/` directory. If the pod still has the file (or
+        # it was migrated to R2), serve it directly.
+        legacy_col = {
+            "id":      "id_photo_url",
+            "id_back": "id_back_photo_url",
+            "selfie":  "selfie_url",
+        }[variant]
+        async with pool.acquire() as conn:
+            legacy_row = await conn.fetchrow(
+                f"SELECT {legacy_col} AS u FROM kyc_verifications WHERE kyc_id = $1",
+                kyc_id,
+            )
+        legacy_url = (legacy_row or {}).get("u") if legacy_row else None
+        if legacy_url and legacy_url.startswith("/api/upload/files/"):
+            filename = legacy_url.rsplit("/", 1)[-1]
+            local_path = _UPLOAD_DIR / filename
+            if local_path.exists() and local_path.is_file():
+                try:
+                    return FResponse(
+                        content=local_path.read_bytes(),
+                        media_type="image/jpeg",
+                        headers={
+                            "Cache-Control": "private, max-age=3600",
+                            "X-Content-Type-Options": "nosniff",
+                            "X-Japap-Source": "legacy-disk",
+                        },
+                    )
+                except Exception as _e:  # noqa: BLE001
+                    logger.warning("[kyc-legacy-disk] read failed %s: %s",
+                                   local_path, _e)
         # Legacy records submitted before iter214 have no DB bytes.
         # Local disk files for these usually vanished with pod rotation
         # so returning 410 Gone is the honest answer — the frontend

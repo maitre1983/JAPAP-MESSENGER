@@ -479,7 +479,22 @@
     "enregistrer_tous_les_parametres": "حفظ جميع الإعدادات",
     "bloque": "محظور",
     "resolution": "جاري الحل…",
-    "confirmer_la_decision": "تأكيد القرار"
+    "confirmer_la_decision": "تأكيد القرار",
+    "kyc": {
+      "image_unavailable": "الصورة غير متاحة",
+      "image_unavailable_hint": "الملف غير موجود في وحدة التخزين",
+      "tap_to_zoom": "اضغط للتكبير",
+      "photo_recto": "الوجه الأمامي",
+      "photo_verso": "الوجه الخلفي",
+      "photo_selfie": "صورة شخصية",
+      "approve": "موافقة",
+      "reject": "رفض",
+      "reject_reason": "سبب الرفض (إلزامي)",
+      "ai_alerts": "تنبيهات الذكاء الاصطناعي",
+      "low_risk": "مخاطر منخفضة",
+      "medium_risk": "للتحقق",
+      "high_risk": "مخاطر عالية"
+    }
   },
   "kyc": {
     "title": "التحقق من الهوية",

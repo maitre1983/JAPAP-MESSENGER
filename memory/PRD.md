@@ -1,10 +1,63 @@
-# JAPAP — PRD (mise à jour 12/05/2026 — iter239p)
+# JAPAP — PRD (mise à jour 12/05/2026 — iter239q)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter239q — KYC images : fallback legacy disk + i18n admin + SW bump (12/05/2026)
+
+**Règles respectées** : zéro touche aux méthodes de paiement (Hubtel/Paystack/USDT/OM/Wave), 100% additif, zéro régression.
+
+### Diagnostic
+L'endpoint `GET /api/kyc/admin/{id}/image/{variant}` existait déjà (iter214) et fonctionne pour les soumissions récentes. Cas d'échec identifié : **dossiers archivés pré-iter214** où `*_photo_bytes` est NULL en DB → 410 Gone même si le fichier local existait encore sur disque.
+
+Validation curl avec admin cookie/Bearer :
+- KYC pending iter214 : **9/9 images 200 + image/jpeg** (3 dossiers × 3 variantes).
+- KYC archives : 8/9 200 + 1/9 = `kyc_baaeb5b6ce864377/id_back` retourne 410 légitime (bytes NULL ET legacy_url NULL en DB).
+
+### Fix backend (`routes/kyc.py` — additif)
+Avant de retourner 410, on essaie maintenant de servir le fichier legacy depuis `backend/uploads/` :
+```python
+legacy_col = {"id":"id_photo_url","id_back":"id_back_photo_url","selfie":"selfie_url"}[variant]
+legacy_url = (await conn.fetchrow(f"SELECT {legacy_col} FROM ..."))["u"]
+if legacy_url and legacy_url.startswith("/api/upload/files/"):
+    local_path = _UPLOAD_DIR / legacy_url.rsplit("/", 1)[-1]
+    if local_path.exists() and local_path.is_file():
+        return FResponse(content=local_path.read_bytes(), media_type="image/jpeg",
+                         headers={"X-Japap-Source": "legacy-disk", ...})
+# else → original 410 honest answer
+```
+Le header `X-Japap-Source: legacy-disk` permet l'observabilité (combien de récupérations via legacy fallback).
+
+### Fix frontend (`pages/AdminPage.js::ImgThumb` — additif)
+Textes hardcodés FR remplacés par i18n :
+- `"Image indisponible"` → `t('admin.kyc.image_unavailable')`
+- `"Fichier absent du stockage"` → `t('admin.kyc.image_unavailable_hint')`
+- `"cliquer pour zoomer"` → `t('admin.kyc.tap_to_zoom')`
+
+`t` était déjà importé dans `KycTab` (ligne 637).
+
+### Locales — 65 entrées ajoutées (5 langues × 13 clés `admin.kyc.*`)
+```
+image_unavailable, image_unavailable_hint, tap_to_zoom,
+photo_recto, photo_verso, photo_selfie,
+approve, reject, reject_reason,
+ai_alerts, low_risk, medium_risk, high_risk
+```
+
+### PWA
+`SW_VERSION` `v11-iter239p` → **`v12-iter239q`** (déclenchera toast PWA i18n au prochain reload).
+
+### Validation E2E
+- ✅ Lint Python + JS clean.
+- ✅ Backend redémarré et `/api/health` 200.
+- ✅ `GET /api/kyc/admin/{id}/image/{v}` re-testé : 9/9 OK sur pending, 8/9 OK sur archives (1 410 honnête = legacy_url NULL en DB).
+- ✅ Screenshot E2E admin modal KYC : **3/3 images chargées** (Recto + Verso + Selfie de "GORA DANIEL"), "tap to zoom" en EN car browser locale détecté, alertes IA affichées.
+- ✅ `fetch('/sw.js')` retourne bien `SW_VERSION = "v12-iter239q"`.
+- ✅ Aucun fichier paiement modifié (`git diff backend/routes/hubtel* backend/routes/paystack*` = vide).
 
 
 ## iter239p — SmartImage étendu à ChatPage + MarketplaceProductPage + StoryViewer + SW bump (12/05/2026)

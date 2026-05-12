@@ -507,7 +507,22 @@
     "enregistrer_tous_les_parametres": "Save all settings",
     "bloque": "Blocked",
     "resolution": "Resolving…",
-    "confirmer_la_decision": "Confirm decision"
+    "confirmer_la_decision": "Confirm decision",
+    "kyc": {
+      "image_unavailable": "Image unavailable",
+      "image_unavailable_hint": "File missing from storage",
+      "tap_to_zoom": "tap to zoom",
+      "photo_recto": "Front",
+      "photo_verso": "Back",
+      "photo_selfie": "Selfie",
+      "approve": "Approve",
+      "reject": "Reject",
+      "reject_reason": "Rejection reason (required)",
+      "ai_alerts": "AI Alerts",
+      "low_risk": "Low risk",
+      "medium_risk": "To verify",
+      "high_risk": "High risk"
+    }
   },
   "kyc": {
     "title": "Identity verification",

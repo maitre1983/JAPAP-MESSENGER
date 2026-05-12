@@ -63,14 +63,17 @@ const MathCaptcha = forwardRef(function MathCaptcha(
         setTimeout(() => { fetchCaptcha(attempt + 1); }, 1500 * (attempt + 1));
         return;
       }
-      // iter237b — After 3 attempts, render a friendly placeholder AND tell
-      // the parent form to allow submission (server will reject if it really
-      // needs a captcha; but the backend kill switch + cookie path will pass).
+      // iter237b — After 3 attempts, mark as unreachable + tell the parent
+      // to allow submission (backend kill switch + cookie path will pass).
+      // iter239l — UI is now silent (the unreachable branch renders nothing),
+      // but we keep auto-retrying in the background every 15s so the captcha
+      // re-appears as soon as the endpoint recovers.
       setCaptchaId('');
       setQuestion('');
       setSilent(false);
       setUnreachable(true);
       onChange?.({ captcha_id: '', captcha_answer: 'unreachable' });
+      setTimeout(() => { fetchCaptcha(0); }, 15000);
     } finally { setLoading(false); }
   };
 
@@ -113,28 +116,13 @@ const MathCaptcha = forwardRef(function MathCaptcha(
           </span>
         </div>
       ) : unreachable ? (
-        // iter237 — Friendly fallback when /api/auth/captcha is unreachable
-        // (transient 5xx, network blip…). NOT a hard error — the user can
-        // try again with the refresh button below.
-        <div className="w-full" data-testid="math-captcha-unreachable">
-          <div className="flex items-center justify-between mb-1">
-            <span className={`text-[11px] font-['Manrope'] ${labelColor}`}>{label}</span>
-            <button type="button"
-                    onClick={() => fetchCaptcha(0)}
-                    disabled={loading}
-                    data-testid="math-captcha-retry"
-                    className={`text-[11px] flex items-center gap-1 disabled:opacity-50 ${refreshColor}`}>
-              <ArrowsClockwise size={12} weight="bold" />
-              Réessayer
-            </button>
-          </div>
-          <div className="rounded-2xl px-4 py-3 text-xs font-['Manrope']"
-               style={{ background: isLight ? 'rgba(245, 158, 11, 0.08)' : 'rgba(245, 158, 11, 0.15)',
-                        border: `1px solid ${isLight ? 'rgba(245, 158, 11, 0.30)' : 'rgba(245, 158, 11, 0.40)'}`,
-                        color: isLight ? '#92400E' : '#FCD34D' }}>
-            Vérification temporairement indisponible. Réessaie dans quelques secondes ou utilise le bouton « Réessayer » ci-dessus.
-          </div>
-        </div>
+        // iter239l — Silent fallback when /api/auth/captcha is unreachable.
+        // No visible error, no retry button. The form remains usable; the
+        // backend still receives `captcha_answer='unreachable'` (sent from
+        // the catch branch of fetchCaptcha) and can decide whether to
+        // accept or reject the submission based on its own policy.
+        // Background auto-retry continues in case the endpoint comes back.
+        <span data-testid="math-captcha-unreachable" hidden aria-hidden="true" />
       ) : (
         <>
           <div className="flex items-center justify-between mb-1">

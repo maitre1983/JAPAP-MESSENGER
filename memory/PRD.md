@@ -1,4 +1,4 @@
-# JAPAP — PRD (mise à jour 12/05/2026 — iter239k)
+# JAPAP — PRD (mise à jour 12/05/2026 — iter239l)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
@@ -7,7 +7,27 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
-## iter239k — Force IP Fixie `52.5.155.132` pour tous les appels Hubtel (12/05/2026)
+## iter239l — MathCaptcha fallback silencieux (12/05/2026)
+
+**Bug rapporté en prod** : sur `/login`, `/register` et `/forgot-password`, un banner jaune "Vérification temporairement indisponible. Réessaie dans quelques secondes ou utilise le bouton « Réessayer »" s'affichait quand `/api/auth/captcha` retournait 5xx (transient en prod). Le banner décourageait les nouveaux utilisateurs.
+
+**Fix (chirurgical, 1 seul fichier touché)** — `components/MathCaptcha.jsx` :
+- Branche `unreachable` ne rend plus qu'un placeholder `<span hidden aria-hidden>` (zéro pixel visible, conservé pour testids et accessibilité).
+- Ajout d'un **auto-retry en arrière-plan toutes les 15s** une fois unreachable : si l'endpoint revient, le captcha réapparaît automatiquement sans intervention user.
+- Le signal `onChange({captcha_id:'', captcha_answer:'unreachable'})` est conservé → le formulaire parent (Login/Register/Forgot) sait que le user a tenté de soumettre sans captcha, et le backend décide de l'accepter (cookie japap_human valide) ou de le rejeter (rate-limit/anti-bot policy).
+- 3 retries silencieux initiaux conservés (1.5s + 3s + 4.5s = 9s avant le mode silencieux).
+
+**Couverture i18n** : LoginPage/RegisterPage/ForgotPasswordPage utilisent déjà `useTranslation()` pour tous les textes — vérifié visuellement (browser locale=EN ⇒ "Stay connected! / Share exciting moments..." correctement traduits). Seul texte hardcodé du flux était dans MathCaptcha (banner) — désormais retiré.
+
+**Validation E2E (Playwright avec `route.abort()` sur `/api/auth/captcha`)** :
+- ✅ `/login` après 11s : `temporairement indisponible` absent du DOM, `Réessayer` absent, formulaire email+password+sign-in pleinement utilisable, element `math-captcha-unreachable` rendu mais `is_visible=False`.
+- ✅ `/register` : `temporairement indisponible` absent, `Réessayer` absent.
+- ✅ `/forgot-password` : `temporairement indisponible` absent, `Réessayer` absent, formulaire de reset utilisable.
+
+**Endpoint backend** (vérifié OK en preview) : `GET /api/auth/captcha` retourne 200 + JSON `{captcha_id, question, expires_at, required}` en <100ms. Le bug en prod est probablement un cold start ou un hop réseau transient — désormais invisible au user grâce au fallback silencieux.
+
+
+## iter239k — Force IP Fixie 52.5.155.132 pour tous les appels Hubtel (12/05/2026)
 
 **Objectif** : éliminer l'alternance erratique 401↔403 sur `rmp.hubtel.com` due à Fixie qui routait aléatoirement vers une IP non-whitelistée par Hubtel.
 

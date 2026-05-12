@@ -1,10 +1,60 @@
-# JAPAP — PRD (mise à jour 12/05/2026 — iter239s)
+# JAPAP — PRD (mise à jour 12/05/2026 — iter239t)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter239t — KYC legacy URL recovery (serve from DB) + SW v15 (12/05/2026)
+
+**Cause racine identifiée par user** : un certain nombre de browser caches / Service Workers prod tiennent encore des URLs legacy KYC du type `/api/upload/files/d8ba46f6e9df460a.webp` (provenant de l'ancien code pré-iter214 qui exposait les fichiers locaux). Quand le pod K8s a été rotaté, ces fichiers sont disparus du disque → 404. L'utilisateur voit alors "Image indisponible".
+
+### Fix livré — fallback DB recovery dans `serve_file` (additif)
+Dans `routes/upload.py::serve_file`, après l'échec disque ET l'échec R2 fallback (iter239d), on essaie maintenant un 3ème fallback :
+1. Construire `legacy_path = /api/upload/files/{filename}`.
+2. Requêter `kyc_verifications` sur les 6 colonnes URL (`id_photo_url`, `id_back_photo_url`, `selfie_url`, `preview_id_url`, `preview_id_back_url`, `preview_selfie_url`).
+3. Si match trouvé, retourner le BYTEA correspondant en `image/jpeg` avec header `X-Japap-Source: kyc-legacy-recovery` pour observabilité.
+
+```python
+async with pool.acquire() as conn:
+    kyc_row = await conn.fetchrow("""
+        SELECT id_photo_bytes, id_photo_url, id_back_photo_bytes, id_back_photo_url,
+               selfie_bytes, selfie_url, preview_id_bytes, preview_id_url,
+               preview_id_back_bytes, preview_id_back_url,
+               preview_selfie_bytes, preview_selfie_url
+        FROM kyc_verifications
+        WHERE id_photo_url = $1 OR id_back_photo_url = $1 OR selfie_url = $1
+           OR preview_id_url = $1 OR preview_id_back_url = $1 OR preview_selfie_url = $1
+        LIMIT 1
+    """, legacy_path)
+```
+
+### Validation E2E
+| Cas testé | URL | Avant iter239t | Après iter239t |
+|---|---|---|---|
+| Legacy KYC en DB, fichier disparu disque | `kyc_id_80d8448553494583.jpg` | 404 | **200 image/jpeg 5KB** ✅ |
+| Legacy KYC verso en DB | `kyc_id_0947608626204a60.jpg` | 404 | **200 image/jpeg 84KB** ✅ |
+| Legacy KYC archived | `kyc_id_086032e49b214421.jpg` | 404 | **200 image/jpeg 199KB** ✅ |
+| Arbitrary .webp non-KYC | `d8ba46f6e9df460a.webp` | 404 | **404 (correct, pas de match DB)** ✅ |
+| Header observabilité | tous les 3 | n/a | `X-Japap-Source: kyc-legacy-recovery` ✅ |
+
+### Couverture
+- ✅ Toutes les URLs legacy KYC stockées en DB sont désormais résolvables, même si le fichier disque a disparu.
+- ✅ Aucun false positive (les .webp non-KYC retournent toujours 404 correct).
+- ✅ Le fallback s'active uniquement après échec disque ET R2 (priorité disque > R2 > DB).
+
+### SW bump
+`v14-iter239s` → **`v15-iter239t`** (force cleanup cache + toast PWA i18n au prochain reload).
+
+### Note observabilité
+Le header `X-Japap-Source` permet désormais de mesurer 3 catégories de fetch :
+- (header absent) = served from local disk
+- `r2-redirect` (iter239d) = served via 301 vers R2
+- `kyc-legacy-recovery` (iter239t) = served from PostgreSQL BYTEA
+
+Un dashboard ops futur peut compter ces 3 sources pour mesurer la qualité du stockage R2.
 
 
 ## iter239s — KYC defensive guard + SW bump v14 (12/05/2026)

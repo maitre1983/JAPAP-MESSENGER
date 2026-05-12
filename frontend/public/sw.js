@@ -19,7 +19,7 @@
  *   • Runtime: stale-while-revalidate for STATIC_API_WHITELIST (24h TTL).
  *   • Bypass entirely for every other /api/* and socket.io (live data).
  */
-const SW_VERSION = "v14-iter239s";
+const SW_VERSION = "v15-iter239t";
 const APP_SHELL_CACHE = `japap-shell-${SW_VERSION}`;
 const RUNTIME_CACHE   = `japap-runtime-${SW_VERSION}`;
 const STATIC_API_CACHE = `japap-static-api-${SW_VERSION}`;

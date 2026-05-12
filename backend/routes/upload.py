@@ -599,6 +599,60 @@ async def serve_file(request: Request, filename: str, fmt: str = ""):
         except Exception as _e:  # noqa: BLE001
             logger.debug("[serve-file] R2 fallback skipped for %s: %s", filename, _e)
 
+        # iter239t — Last-chance fallback for KYC legacy URLs that leaked into
+        # browser caches / stale Service Workers. If the missing filename
+        # matches a row in `kyc_verifications` (any of id_photo_url /
+        # id_back_photo_url / selfie_url / *_preview), serve the bytes
+        # directly from the corresponding BYTEA column. This rescues the
+        # `/api/upload/files/d8ba46f6e9df460a.webp` 404s reported in prod.
+        try:
+            from database import get_pool
+            legacy_path = f"/api/upload/files/{filename}"
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                kyc_row = await conn.fetchrow(
+                    """
+                    SELECT
+                      id_photo_bytes,      id_photo_url,
+                      id_back_photo_bytes, id_back_photo_url,
+                      selfie_bytes,        selfie_url,
+                      preview_id_bytes,      preview_id_url,
+                      preview_id_back_bytes, preview_id_back_url,
+                      preview_selfie_bytes,  preview_selfie_url
+                    FROM kyc_verifications
+                    WHERE id_photo_url       = $1
+                       OR id_back_photo_url  = $1
+                       OR selfie_url         = $1
+                       OR preview_id_url     = $1
+                       OR preview_id_back_url= $1
+                       OR preview_selfie_url = $1
+                    LIMIT 1
+                    """,
+                    legacy_path,
+                )
+            if kyc_row is not None:
+                # Find the column that matches this URL and serve its bytes.
+                pairs = [
+                    ("id_photo_url",       "id_photo_bytes"),
+                    ("id_back_photo_url",  "id_back_photo_bytes"),
+                    ("selfie_url",         "selfie_bytes"),
+                    ("preview_id_url",     "preview_id_bytes"),
+                    ("preview_id_back_url","preview_id_back_bytes"),
+                    ("preview_selfie_url", "preview_selfie_bytes"),
+                ]
+                for url_col, bytes_col in pairs:
+                    if kyc_row[url_col] == legacy_path and kyc_row[bytes_col]:
+                        return Response(
+                            content=kyc_row[bytes_col],
+                            media_type="image/jpeg",
+                            headers={
+                                "Cache-Control": "private, max-age=3600",
+                                "X-Japap-Source": "kyc-legacy-recovery",
+                            },
+                        )
+        except Exception as _e:  # noqa: BLE001
+            logger.debug("[serve-file] KYC recovery skipped for %s: %s", filename, _e)
+
     # 2. Defence-in-depth — resolve and confirm parent is exactly UPLOAD_DIR.
     try:
         real = filepath.resolve()

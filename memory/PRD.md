@@ -1,10 +1,53 @@
-# JAPAP — PRD (mise à jour 12/05/2026 — iter239m)
+# JAPAP — PRD (mise à jour 12/05/2026 — iter239n)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter239n — VideoPlayer auto-orientation + ReelsPage i18n + PWA toast i18n (12/05/2026)
+
+**Règles absolues respectées** : zéro modification des méthodes de paiement (Hubtel/Paystack/USDT/OM/Wave intactes), 100% additif, zéro régression.
+
+### TÂCHE 1 — VideoPlayer auto-orientation
+**Comportement** : `aspectRatio="auto"` sur le `VideoPlayer.jsx` :
+- Default `9/16` avant chargement (placeholder portrait sensé pour Reels).
+- `onLoadedMetadata` → `setAutoRatio(\`${videoWidth}/${videoHeight}\`)` qui devient le ratio réel : `16/9` paysage, `9/16` portrait, `1/1` carré.
+- `objectFit: 'contain'` (au lieu de `cover`) en mode auto pour préserver le frame complet — letterbox/pillarbox noir si le ratio container différait (rare car le container suit le ratio détecté).
+- Mode caller-explicit (e.g. `aspectRatio="16/9"`) continue d'utiliser `objectFit: 'cover'` (compat existante).
+
+**ReelsPage** : `<VideoPlayer aspectRatio="auto" muted={muted} … />`. Le state `muted` du parent est désormais propagé (avant : prop hardcodé `muted` ignorait le toggle global SpeakerHigh/Slash).
+
+### TÂCHE 1 bis — ReelsPage i18n (5 langues)
+Hardcodes FR remplacés par `t('reels.*')` :
+- "Reels" → `t('reels.title')` (intentionnellement identique en FR/EN, traduit en ES/AR/RU : "Рилс", "ريلز")
+- "Créer" → `t('reels.create_btn')`
+- "Aucun reel pour le moment." → `t('reels.empty')`
+- "Créer le premier" → `t('reels.create_first')`
+- "Tip" → `t('reels.tip')` (traduit "Propina", "إكرامية", "Чаевые")
+- aria-labels mute/unmute, comment, share, create
+
+### TÂCHE 2 — PWA auto-update (déjà actif) + toast i18n
+**Infrastructure existante validée** (iter146 + iter163 + iter237w) :
+- `public/sw.js` : install→skipWaiting, activate→clients.claim() + éviction caches anciens (`japap-*` filtré par version)
+- `src/index.js` : registration + `updatefound` listener + `controllerchange` → auto-reload
+- `components/PwaUpdateBanner.jsx` : auto-apply via `postMessage({type:'SKIP_WAITING'})` + toast Sonner discrète (snooze 24h)
+
+**Ajout iter239n** :
+- `SW_VERSION` bumpé `v8-iter237w` → `v9-iter239n` (force cache cleanup au prochain deploy).
+- Toast PWA i18n via `t('pwa.update_available')` avec defaultValue FR → 5 langues couvertes (FR/EN/ES/AR/RU).
+
+### Locales — 11 nouvelles clés × 5 langues = 55 entrées ajoutées
+- `reels.title|create_btn|create_btn_aria|empty|create_first|tip|mute|unmute|comment_aria|share_aria` (10)
+- `pwa.update_available` (1)
+
+### Validation
+- ✅ Lint JS clean sur les 3 fichiers touchés.
+- ✅ Smoke test E2E /reels avec bob@japap.com (preferred_lang=fr override systématique localStorage = comportement attendu iter203). Rendu : header "Reels", bouton "Créer" (FR), VideoPlayer monté avec testid, default aspect 9/16 = `getComputedStyle.aspectRatio == "9 / 16"`. Like/Comment/Tip/Share présents avec testids.
+- ✅ Locales : toutes les clés `reels.*` et `pwa.*` présentes dans FR/EN/ES/AR/RU (vérifié par `python3 -c json.load`).
+- ✅ Aucune méthode de paiement touchée (`git diff` sur dossier `/app/backend/routes/hubtel*`, `paystack*`, `usdt*`, `orange*`, `wave*` = vide).
 
 
 ## iter239m — LoginPage i18n complet 5 langues + RTL + RU activé (12/05/2026)

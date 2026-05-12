@@ -22,6 +22,7 @@
  */
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 const SNOOZE_KEY = "japap_pwa_update_toasted_at";
 const SNOOZE_MS = 24 * 60 * 60 * 1000;
@@ -44,6 +45,7 @@ function markToastShown() {
 }
 
 export default function PwaUpdateBanner() {
+  const { t } = useTranslation();
   const appliedRef = useRef(false);
 
   useEffect(() => {
@@ -67,7 +69,9 @@ export default function PwaUpdateBanner() {
       // "Apply now" would invite them to think something is blocking.
       if (canShowToast()) {
         toast.info(
-          "Une nouvelle version de JAPAP est disponible. Elle sera appliquée automatiquement.",
+          t('pwa.update_available', {
+            defaultValue: 'Une nouvelle version de JAPAP est disponible. Elle sera appliquée automatiquement.',
+          }),
           {
             id: "pwa-update-notice",
             duration: 5000,
@@ -80,7 +84,7 @@ export default function PwaUpdateBanner() {
     window.addEventListener("japap:sw-update-available", onUpdate);
     return () =>
       window.removeEventListener("japap:sw-update-available", onUpdate);
-  }, []);
+  }, [t]);
 
   // Render nothing — all feedback flows through the sonner toaster.
   return null;

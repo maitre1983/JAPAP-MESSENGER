@@ -859,7 +859,17 @@
     "generation": "Generating..."
   },
   "reels": {
-    "decrivez_votre_reel": "Describe your Reel..."
+    "decrivez_votre_reel": "Describe your Reel...",
+    "title": "Reels",
+    "create_btn": "Create",
+    "create_btn_aria": "Create a Reel",
+    "empty": "No reels available yet.",
+    "create_first": "Create the first",
+    "tip": "Tip",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "comment_aria": "View comments",
+    "share_aria": "Share"
   },
   "quiz_j_a_p_a_p": {
     "bonne_reponse": "Good answer!",
@@ -1283,5 +1293,8 @@
       "generic": "Something went wrong. Please try again."
     },
     "method_subtitle": "Paystack — Visa · Mastercard · MoMo · International"
+  },
+  "pwa": {
+    "update_available": "A new version of JAPAP is available. It will be applied automatically."
   }
 }

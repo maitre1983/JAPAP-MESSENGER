@@ -831,7 +831,17 @@
     "generation": "جاري الإنشاء…"
   },
   "reels": {
-    "decrivez_votre_reel": "صف مقطعك..."
+    "decrivez_votre_reel": "صف مقطعك...",
+    "title": "ريلز",
+    "create_btn": "إنشاء",
+    "create_btn_aria": "إنشاء ريل",
+    "empty": "لا توجد ريلز حتى الآن.",
+    "create_first": "أنشئ الأول",
+    "tip": "إكرامية",
+    "mute": "كتم الصوت",
+    "unmute": "تفعيل الصوت",
+    "comment_aria": "عرض التعليقات",
+    "share_aria": "مشاركة"
   },
   "quiz_j_a_p_a_p": {
     "bonne_reponse": "إجابة صحيحة!",
@@ -1225,5 +1235,8 @@
       "generic": "حدث خطأ. يرجى المحاولة مرة أخرى."
     },
     "method_subtitle": "Paystack — Visa · Mastercard · MoMo · دولي"
+  },
+  "pwa": {
+    "update_available": "إصدار جديد من JAPAP متاح. سيتم تطبيقه تلقائياً."
   }
 }

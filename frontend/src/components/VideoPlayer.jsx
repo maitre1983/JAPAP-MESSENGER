@@ -41,6 +41,16 @@ export default function VideoPlayer({
   const [videoDuration, setVideoDuration] = useState(initialDuration || 0);
   const [showControls, setShowControls] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // iter239n — auto-detected aspect ratio of the loaded video. When
+  // caller passes aspectRatio="auto", we let the video element flag us
+  // its natural width/height once metadata is parsed and apply the real
+  // ratio (portrait, landscape, square) instead of forcing a layout.
+  // Caller's explicit aspectRatio always wins until metadata arrives.
+  const [autoRatio, setAutoRatio] = useState(null);
+
+  const effectiveRatio = aspectRatio === 'auto'
+    ? (autoRatio || '9/16')   // sensible default while metadata loads
+    : aspectRatio;
 
   // IntersectionObserver — autoplay when scrolled into view.
   useEffect(() => {
@@ -127,7 +137,7 @@ export default function VideoPlayer({
       data-playing={isPlaying ? 'true' : 'false'}
       style={{
         position: 'relative', borderRadius: 12, overflow: 'hidden',
-        background: '#000', aspectRatio, cursor: 'pointer',
+        background: '#000', aspectRatio: effectiveRatio, cursor: 'pointer',
         userSelect: 'none',
       }}
       onMouseMove={onMouseMove}
@@ -179,7 +189,23 @@ export default function VideoPlayer({
         playsInline
         preload="metadata"
         data-testid={`${testId}-video`}
-        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        style={{
+          width: '100%', height: '100%',
+          // iter239n — `contain` instead of `cover` so portrait videos
+          // keep their full frame (no top/bottom crop) and landscape
+          // videos sit in a letterboxed black band — the orientation
+          // detection above already sized the container to the natural
+          // ratio so there's typically no visible bar at all.
+          objectFit: aspectRatio === 'auto' ? 'contain' : 'cover',
+          display: 'block',
+        }}
+        onLoadedMetadata={() => {
+          const v = videoRef.current;
+          if (!v) return;
+          if (aspectRatio === 'auto' && v.videoWidth && v.videoHeight) {
+            setAutoRatio(`${v.videoWidth}/${v.videoHeight}`);
+          }
+        }}
         onLoadedData={() => {
           setIsLoaded(true);
           setIsBuffering(false);

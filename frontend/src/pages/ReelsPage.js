@@ -418,22 +418,24 @@ export default function ReelsPage() {
         <button onClick={() => navigate('/feed')} className="text-white" data-testid="reels-back">
           <CaretLeft size={24} weight="bold" />
         </button>
-        <span className="text-white font-['Outfit'] text-lg font-bold">Reels</span>
+        <span className="text-white font-['Outfit'] text-lg font-bold">{t('reels.title')}</span>
         <div className="flex gap-2">
-          <button onClick={() => setMuted(m => !m)} className="text-white" data-testid="reels-mute">
+          <button onClick={() => setMuted(m => !m)} className="text-white"
+                  aria-label={t(muted ? 'reels.unmute' : 'reels.mute')}
+                  data-testid="reels-mute">
             {muted ? <SpeakerSlash size={22} weight="bold" /> : <SpeakerHigh size={22} weight="bold" />}
           </button>
           <button
             onClick={() => setShowCreate(true)}
             data-testid="reels-create-btn"
-            aria-label="Créer un Reel"
+            aria-label={t('reels.create_btn_aria')}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white font-['Outfit'] font-bold text-xs shadow-lg active:scale-95 transition-transform"
             style={{
               background: 'linear-gradient(135deg, #E01C2E 0%, #F59E0B 50%, #9333EA 100%)',
             }}
           >
             <Plus size={16} weight="bold" />
-            <span>Créer</span>
+            <span>{t('reels.create_btn')}</span>
           </button>
         </div>
       </div>
@@ -446,9 +448,9 @@ export default function ReelsPage() {
           <div className="h-full flex items-center justify-center text-white text-center px-8">
             <div>
               <VideoCamera size={48} className="mx-auto mb-3 opacity-60" />
-              <p className="font-['Manrope']">Aucun reel pour le moment.</p>
+              <p className="font-['Manrope']">{t('reels.empty')}</p>
               <button onClick={() => setShowCreate(true)} className="jp-btn jp-btn-primary mt-4">
-                <Plus size={16} /> Créer le premier
+                <Plus size={16} /> {t('reels.create_first')}
               </button>
             </div>
           </div>
@@ -470,9 +472,9 @@ export default function ReelsPage() {
               videoUrl={r.video_url.startsWith('http') ? r.video_url : `${API}${r.video_url}`}
               thumbnailUrl={r.thumbnail_url || undefined}
               autoplay
-              muted
+              muted={muted}
               loop
-              aspectRatio="9/16"
+              aspectRatio="auto"
               className="w-full h-full"
               testId={`reel-video-${r.reel_id}`}
             />
@@ -506,7 +508,7 @@ export default function ReelsPage() {
                 onClick={() => openComments(r)}
                 className="flex flex-col items-center text-white"
                 data-testid={`reel-comment-${r.reel_id}`}
-                aria-label="Voir les commentaires"
+                aria-label={t('reels.comment_aria')}
               >
                 <ChatCircle size={32} weight="regular" />
                 <span className="text-[10px] font-['Manrope'] font-bold mt-0.5">{r.comments_count}</span>
@@ -515,14 +517,14 @@ export default function ReelsPage() {
                 <button onClick={() => { setTipTarget(r); setTipAmount(''); setTipError(''); }}
                   className="flex flex-col items-center text-white" data-testid={`reel-tip-${r.reel_id}`}>
                   <HandCoins size={32} weight="fill" style={{ color: '#F59E0B' }} />
-                  <span className="text-[10px] font-['Manrope'] font-bold mt-0.5">Tip</span>
+                  <span className="text-[10px] font-['Manrope'] font-bold mt-0.5">{t('reels.tip')}</span>
                 </button>
               )}
               <button
                 onClick={() => shareReel(r)}
                 className="flex flex-col items-center text-white"
                 data-testid={`reel-share-${r.reel_id}`}
-                aria-label="Partager"
+                aria-label={t('reels.share_aria')}
               >
                 <ShareNetwork size={32} weight="regular" />
                 <span className="text-[10px] font-['Manrope'] font-bold mt-0.5">{r.shares_count || 0}</span>

@@ -732,8 +732,26 @@ function KycTab({ onAction, setMessage }) {
     );
   };
 
+  // iter239s — DEFENSIVE: KYC images MUST hit the API endpoint directly.
+  // NEVER pass them through SmartImage / ZoomableImage / R2 variants. The
+  // `previewUrl` or `url` here is always shaped as
+  // `/api/kyc/admin/{kyc_id}/image/{id|id_back|selfie}` and the backend
+  // returns image/jpeg from PostgreSQL BYTEA + optional legacy-disk fallback.
+  // Any attempt to compose responsive variants (.webp / .avif / R2 hash)
+  // for KYC would break privacy + return 404 — do not do it.
   const ImgThumb = ({ url, previewUrl, alt, testid, label }) => {
     const [broken, setBroken] = useState(false);
+    // Runtime assertion (DEV-only) so accidental regressions surface fast:
+    // if a future contributor wraps this with SmartImage or sticks a
+    // `.webp` suffix, the assertion below logs a loud warning.
+    if (process.env.NODE_ENV !== 'production' && url) {
+      const ok = url.startsWith('/api/kyc/admin/') && url.includes('/image/');
+      if (!ok) {
+        // eslint-disable-next-line no-console
+        console.warn('[KYC ImgThumb] url must be /api/kyc/admin/{id}/image/{v}',
+                     'got:', url);
+      }
+    }
     if (!url || broken) {
       return (
         <div data-testid={testid} className="w-full aspect-[3/4] rounded-lg border flex flex-col items-center justify-center text-xs text-center p-2"

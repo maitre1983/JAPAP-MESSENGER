@@ -1,10 +1,45 @@
-# JAPAP — PRD (mise à jour 12/05/2026 — iter239q)
+# JAPAP — PRD (mise à jour 12/05/2026 — iter239s)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter239s — KYC defensive guard + SW bump v14 (12/05/2026)
+
+**Règles respectées** : zéro touche aux méthodes de paiement, 100% additif, zéro régression.
+
+### Diagnostic exhaustif PREVIEW (3ème escalade sur le sujet)
+L'user signale un 404 sur `d8ba46f6e9df460a.webp` en KYC admin. **Vérification définitive prouve aucune régression en preview** :
+- `grep "<img" pages/AdminPage.js` → **1 seul match** (ligne 749, `ImgThumb`).
+- `ImgThumb` rend `<img src={\`${API}${previewUrl || url}\`}>` directement, sans wrapper. URLs systématiquement `/api/kyc/admin/{id}/image/{v}?preview=true`.
+- `grep "SmartImage\|\\.webp" pages/AdminPage.js` → **0 match** sur KYC.
+- ZoomableImage (ligne 986) utilisé uniquement dans le modal overlay zoom, sans srcset → aucun fetch `.webp`.
+- SW `isLiveApi` bypass tous les `/api/kyc/admin/*` → SW n'intercepte jamais ces requêtes.
+- Playwright Network capture E2E : 3/3 KYC images → HTTP 200 + image/jpeg, dimensions natives 480×480 / 480×480 / 480×613, complete=true. **Zéro requête `.webp` captée**.
+
+### Fix livré — garde-fou défensif (+18 lignes additives)
+Vu la récurrence (3 escalades), ajout dans `ImgThumb` :
+1. **Commentaire bloc explicite** "KYC images MUST hit the API endpoint directly. NEVER pass through SmartImage/ZoomableImage/R2 variants."
+2. **Assertion runtime dev-only** : si `url` ne matche pas `/api/kyc/admin/.../image/`, `console.warn` loud → un futur changement régressif sera détecté immédiatement.
+
+### SW bump
+`v13-iter239r` → **`v14-iter239s`** (force cleanup cache + toast PWA i18n au prochain deploy).
+
+### Screenshot livrable (preview)
+Modal admin GORA DANIEL : Recto carte d'identité togolaise (NADJUNDI 10-12-2000), Verso MRZ visible, Selfie visage clair → **3 photos visibles**, alerte IA "carte tenue à l'envers", boutons Approuver/Rejeter.
+
+### Conclusion sur le bug PROD
+**Pas reproductible en preview**. Hypothèses prod :
+1. Build prod stale — iter239o..s pas encore déployés (redéployer depuis Emergent UI).
+2. SW prod cached un ancien bundle erroné — bump v14 forcera l'éviction au prochain reload.
+3. Différence de variables d'env (JWT_SECRET_KEY rotated → sessions admin 401 → `<img>` echec).
+
+
+## iter239r — Diagnostic KYC 4 vérifications + SW bump v13 (12/05/2026)
+Voir : screenshots, curl tests, diagnostic 4 cases A/B/C/D.
 
 
 ## iter239q — KYC images : fallback legacy disk + i18n admin + SW bump (12/05/2026)

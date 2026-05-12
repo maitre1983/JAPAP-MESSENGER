@@ -1,10 +1,56 @@
-# JAPAP — PRD (mise à jour 12/05/2026 — iter239o)
+# JAPAP — PRD (mise à jour 12/05/2026 — iter239p)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter239p — SmartImage étendu à ChatPage + MarketplaceProductPage + StoryViewer + SW bump (12/05/2026)
+
+**Règles respectées** : zéro touche aux méthodes de paiement (Hubtel/Paystack/USDT/OM/Wave), 100% additif, zéro régression. Avatars / logos / vignettes fixes / video thumbs intacts.
+
+### Audit chirurgical des 5 call sites listés
+Avant d'appliquer SmartImage, audit du DOM réel pour chaque page :
+
+| Call site | Décision | Raison |
+|---|---|---|
+| `ChatPage.js:1068` — `<ZoomableImage>` inline message image | ✅ **SmartImage** | Image conversationnelle pleine taille, orientation utile |
+| `MarketplaceProductPage.js:87` — main product image carousel | ✅ **SmartImage** | Image produit principale (zoom modal séparé conservé) |
+| `MarketplaceProductPage.js:121` — `w-16 h-16` thumb strip | ❌ OUT-OF-SCOPE | Vignettes fixes 64×64, ratio 1/1 imposé par design |
+| `MarketplaceProductPage.js:134` — overlay fullscreen ZoomableImage | ❌ KEEP ZoomableImage | Zoom natif requis dans le modal |
+| `MarketplaceAdsPage.js:221` — `w-14 h-14` thumb dans card ad | ❌ OUT-OF-SCOPE | Vignettes fixes 56×56 |
+| `ProfilePage.js:166` — cover banner avec `objectPosition` drag | ❌ OUT-OF-SCOPE | Banner fixed-height avec position user-controlled (assimilable à avatar) |
+| `ProfilePage.js:199` — user.avatar | ❌ OUT-OF-SCOPE | Avatar (exclu explicitement par règles) |
+| `FeedPage.js:1241` — StoryViewer story.image_url | ✅ **SmartImage** | Image story plein écran, orientation utile |
+| `MessengerPage.js` | n/a | Fichier inexistant — c'est ChatPage qui gère les messages |
+
+### Changements livrés
+**1. ChatPage.js** — `<ZoomableImage src={inline.url}>` (line 1068) → `<SmartImage src={inline.url} testId={`chat-image-${msg.msg_id}`}>`. ZoomableImage reste importé pour les attaches dans la sidebar (pas remplacé là). Préserve les variants AVIF/WebP des messages futurs (ChatPage les passera automatiquement si présents dans le payload).
+
+**2. MarketplaceProductPage.js** — `<img class="max-w-full max-h-full object-contain">` (line 87) → `<SmartImage src={fullUrl(cur)} testId="mkt-image-main">` avec `onError` preservé pour fallback opacity. Le `<ZoomableImage>` du modal fullscreen (line 134) reste intact pour le zoom pinch + double-tap.
+
+**3. FeedPage.js StoryViewer** — `<img class="max-w-full max-h-full object-contain">` (line 1241) → `<SmartImage testId={`story-image-${story.story_id}`} style={{ maxWidth:'100%', maxHeight:'100%' }}>`. Les stories portrait gardent leur ratio 3/4, les landscape gardent 16/9.
+
+**4. PWA SW bump** — `SW_VERSION` `v9-iter239n` → **`v11-iter239p`** (force eviction des caches anciens au prochain deploy ; déclenchera le toast PWA via `PwaUpdateBanner.jsx`).
+
+### Validation
+- ✅ Lint JS clean sur les 3 fichiers édités.
+- ✅ Smoke E2E preview : login admin, `/feed`, `/marketplace`, `/marketplace-ads`, `/messages` → toutes pages chargent sans crash, `Console.log` aucun error.
+- ✅ `fetch('/sw.js')` retourne bien `SW_VERSION = "v11-iter239p"`.
+- ✅ Aucune méthode de paiement touchée (`git diff` sur `routes/hubtel*`, `paystack*`, `usdt*`, `orange*`, `wave*` = vide).
+- ✅ Avatars `<img>` dans ProfilePage.js et MarketplaceProductPage.js:841 intacts.
+- ✅ Vignettes `w-14`/`w-16` intactes.
+
+### Couverture cumulative SmartImage
+| Call site | Status |
+|---|---|
+| `FeedPage` (post images) | ✅ iter239o |
+| `FeedPage` StoryViewer | ✅ iter239p |
+| `ChatPage` (inline message) | ✅ iter239p |
+| `MarketplaceProductPage` (main image) | ✅ iter239p |
+| `MarketplaceAdsPage` thumbs / `ProfilePage` cover-avatar / `MarketplaceProductPage` modal | 🛑 N/A (hors scope par design) |
 
 
 ## iter239o — SmartImage auto-orientation dans le Feed + i18n image (12/05/2026)

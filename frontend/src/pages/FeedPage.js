@@ -1238,9 +1238,12 @@ function StoryViewer({ group, index, onChangeIndex, onClose }) {
 
       <div className="w-full h-full flex items-center justify-center p-8" style={{ background: story.background_color }}>
         {story.image_url ? (
-          <img src={story.image_url} alt=""
-            loading="lazy" decoding="async"
-            className="max-w-full max-h-full object-contain" />
+          // iter239p — story image is orientation-aware. Portrait/landscape
+          // get categorical aspect ratios; container caps to viewport via the
+          // outer flex layout's centering.
+          <SmartImage src={story.image_url} alt=""
+            testId={`story-image-${story.story_id || 'cur'}`}
+            style={{ maxWidth: '100%', maxHeight: '100%' }} />
         ) : (
           <p className="text-white text-center font-['Outfit'] text-3xl font-bold">{story.text}</p>
         )}

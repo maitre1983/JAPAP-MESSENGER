@@ -20,6 +20,9 @@ import CallSummaryMessageBubble from '@/components/chat/CallSummaryMessageBubble
 import SmartProductCard, { extractProductLink } from '@/components/chat/SmartProductCard';
 import MediaFilterEditor from '@/components/media/MediaFilterEditor';
 import ZoomableImage from '@/components/media/ZoomableImage';
+// iter239p — SmartImage for inline chat message images (orientation-aware).
+// ZoomableImage stays for the fullscreen zoom modal opened on tap.
+import SmartImage from '@/components/media/SmartImage';
 // iter239d — Pro video player for inline chat videos.
 import VideoPlayer from '@/components/VideoPlayer';
 // iter237m — Live USD→local equivalent preview in send-money modal.
@@ -1065,7 +1068,7 @@ export default function ChatPage() {
                                 testId={`chat-video-${msg.msg_id}`}
                               />
                             ) : (
-                              <ZoomableImage src={inline.url} alt="" maxHeight="60vh"
+                              <SmartImage src={inline.url} alt=""
                                 testId={`chat-image-${msg.msg_id}`} />
                             )}
                           </div>

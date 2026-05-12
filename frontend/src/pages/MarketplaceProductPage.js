@@ -23,6 +23,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import KycVerifiedBadge from '@/components/KycVerifiedBadge';
 import ZoomableImage from '@/components/media/ZoomableImage';
+import SmartImage from '@/components/media/SmartImage';
 import Seo from '@/components/Seo';
 import { useShareViralTracking, buildShareUrl } from '@/hooks/useShareViralTracking';
 import { useCurrency, formatMoney } from '@/utils/currency';
@@ -84,8 +85,11 @@ function ImageGallery({ images }) {
         <button type="button" onClick={() => setZoomed(true)}
           data-testid="mkt-image-zoom-btn"
           className="absolute inset-0 flex items-center justify-center cursor-zoom-in">
-          <img src={fullUrl(cur)} alt="" loading="lazy"
-            className="max-w-full max-h-full object-contain"
+          {/* iter239p — orientation-aware main product image. ZoomableImage
+              stays in the fullscreen overlay below for actual pinch zoom. */}
+          <SmartImage src={fullUrl(cur)} alt=""
+            testId="mkt-image-main"
+            style={{ width: '100%', height: '100%' }}
             onError={(e) => { e.currentTarget.style.opacity = '0.2'; }} />
         </button>
         {list.length > 1 && (

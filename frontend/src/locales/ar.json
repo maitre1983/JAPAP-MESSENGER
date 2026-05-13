@@ -627,6 +627,7 @@
     "jury_wins_count_other": "{{count}} انتصارات"
   },
   "pwa": {
+    "update_available": "إصدار جديد من JAPAP متاح. سيتم تطبيقه تلقائياً.",
     "refresh_btn": "تحديث",
     "refreshing": "جارٍ التحديث…",
     "refresh_tooltip": "مزامنة مع الخادم",
@@ -1316,9 +1317,6 @@
       "generic": "حدث خطأ. يرجى المحاولة مرة أخرى."
     },
     "method_subtitle": "Paystack — Visa · Mastercard · MoMo · دولي"
-  },
-  "pwa": {
-    "update_available": "إصدار جديد من JAPAP متاح. سيتم تطبيقه تلقائياً."
   },
   "image": {
     "portrait": "عمودي",

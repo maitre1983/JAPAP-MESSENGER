@@ -659,7 +659,8 @@
     "refreshing": "Actualisation…",
     "refresh_tooltip": "Synchroniser avec le serveur",
     "update_available_short": "Mise à jour disponible !",
-    "last_refresh": "il y a {{time}}"
+    "last_refresh": "il y a {{time}}",
+    "update_available": "Une nouvelle version de JAPAP est disponible. Elle sera appliquée automatiquement."
   },
   "settings": {
     "visibilite_du_compte": "Visibilité du compte",
@@ -1375,7 +1376,7 @@
     },
     "method_subtitle": "Paystack — Visa · Mastercard · MoMo · International"
   },
-  "pwa": {
+  "pwa_legacy_DUP_REMOVE_ME": {
     "update_available": "Une nouvelle version de JAPAP est disponible. Elle sera appliquée automatiquement."
   },
   "image": {

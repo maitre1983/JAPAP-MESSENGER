@@ -7,6 +7,53 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter239x — Vote login-required + PwaRefreshButton + Système Membre du Jury + SW v19 (13/05/2026)
+
+**Règles respectées** : zéro modification des paiements (Hubtel/Paystack/USDT/Orange Money/Wave), 100% additif, zéro hardcode (toutes les valeurs admin-controlled), zéro régression.
+
+### TÂCHE 1 — Vote = compte Japap actif (seule condition)
+- `POST /vote` sans auth → HTTP 401 avec `detail={code:"login_required", message:"Japap account required to vote"}`
+- Frontend ProjectCard : bouton bleu "🔐 Connectez-vous pour voter" si non loggué → redirige `/login?redirect=/crowdfunding/p/{slug}` au clic
+- onVote handler catch 401+code=login_required → redirect /login
+
+### TÂCHE 2 — PwaRefreshButton permanent (top-right floating)
+- Nouveau composant `/app/frontend/src/components/PwaRefreshButton.jsx`
+- Monté dans `App.js` en `position:fixed` top-right (z-9000, safe-area-inset-top)
+- Auto-check toutes les 5 min via `registration.update()`
+- Au clic : update SW + invalide caches `japap-api*`/`api-cache*` + émet `window.dispatchEvent(new CustomEvent('japap:refresh'))`
+- Si SW update dispo : `postMessage({type:'SKIP_WAITING'})` + `window.location.reload()`
+- Badge rouge si update dispo (`data-update-available="yes"`)
+- Animation `@keyframes japap-spin` dans `index.css`
+- CrowdfundingModule + autres pages peuvent écouter `japap:refresh` pour re-fetch
+
+### Système Membre du Jury (NOUVEAU)
+- **DB** : `crowdfunding_jury_members` (jury_id, user_id, awarded_cycle_id/number, total_wins_at_grant, granted_at, expires_at_cycle_number nullable, revoked_at/by/reason, certificate_url) + `crowdfunding_votes.vote_weight INT DEFAULT 1`
+- **Octroi auto** : `_grant_jury_membership()` appelé idempotent dans `close_cycle_and_determine_winner` quand un gagnant est désigné
+- **Vote pondéré** : `_compute_vote_weight()` retourne 1 pour non-jurés, lookup table `{nb_wins: weight}` pour jurés (échelle par victoires). Le `votes_count` du projet incrémente du `vote_weight`.
+- **Configurations admin** (settings) :
+  - `jury_vote_weight_by_wins` (dict) — défaut `{"1":50, "2":100, "3":200, "4":400, "5":800}`
+  - `jury_membership_duration_cycles` (int|null) — défaut `null` (permanent). `0` via API → null.
+- **Endpoints** :
+  - `GET /jury/me` — statut juré personnel + vote_weight + memberships history
+  - `GET /jury/members` — liste publique des jurés actifs (filtrée non-révoqués, non-expirés)
+  - `GET /admin/jury` — liste admin complète (include_revoked optionnel)
+  - `POST /admin/jury/grant` — octroi manuel (user_id + awarded_cycle_id optionnel)
+  - `POST /admin/jury/{user_id}/revoke` — révocation (reason obligatoire ≥5 chars)
+  - `GET /jury/certificate/{user_id}.png` — PNG 1200×900 généré on-the-fly avec Pillow (titre/sous-titre/nom/cycle/montant/date)
+- **Réponse vote** étendue : `vote_weight, is_jury_vote, minimum_votes_required` ajoutés. Toast frontend "🎖️ Ton vote de juré compte pour +{{weight}} !" si is_jury_vote=true.
+
+### i18n 5 langues (FR/EN/ES/AR/RU)
+~14 nouvelles clés : `crowdfunding.vote_btn`, `vote_login_required`, `vote_login_required_btn`, `vote_create_account`, `jury_vote_success`, `jury_badge`, `jury_certificate_download`, `jury_wins_count_*` + section `pwa.*` (refresh_btn, refreshing, refresh_tooltip, update_available_short, last_refresh, update_available conservé pour PwaUpdateBanner). JSON validés.
+
+### SW bump
+`v18-iter239w` → `v19-iter239x`
+
+### Tests validés (testing_agent_v3_fork iteration_252)
+- Backend : 11/12 (100% post-fix i18n) — login_required 401, vote weight 1/50, grant idempotent, revoke, certificat PNG 1200×900, settings jury_vote_weight_by_wins persisté, admin/jury liste, jury/me toggle
+- Frontend : PwaRefreshButton visible top-right, data-update-available, click émet japap:refresh
+
+---
+
 ## iter239w — Crowdfunding : refonte logique de victoire + admin total + Terms obligatoires + SW v18 (13/05/2026)
 
 **Règles respectées** : zéro modification des moyens de paiement (Hubtel/Paystack/USDT/Orange Money/Wave), 100% additif, zéro hardcode (tout configurable admin), zéro régression.

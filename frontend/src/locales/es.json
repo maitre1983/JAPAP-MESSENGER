@@ -627,6 +627,7 @@
     "jury_wins_count_other": "{{count}} victorias"
   },
   "pwa": {
+    "update_available": "Una nueva versión de JAPAP está disponible. Se aplicará automáticamente.",
     "refresh_btn": "Actualizar",
     "refreshing": "Actualizando…",
     "refresh_tooltip": "Sincronizar con el servidor",
@@ -1316,9 +1317,6 @@
       "generic": "Algo salió mal. Inténtalo de nuevo."
     },
     "method_subtitle": "Paystack — Visa · Mastercard · MoMo · Internacional"
-  },
-  "pwa": {
-    "update_available": "Una nueva versión de JAPAP está disponible. Se aplicará automáticamente."
   },
   "image": {
     "portrait": "Vertical",

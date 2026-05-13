@@ -440,13 +440,30 @@ function CreateProjectModal({ open, onClose, onCreated, eligibility, termsAccept
         {/* /scrollable body */}
 
         {/* iter239v — Sticky footer: button always reachable above iOS home
-            indicator (safe-area-inset-bottom) and Android nav bar. */}
+            indicator (safe-area-inset-bottom) and Android nav bar.
+            iter240a — onClick fallback uses requestSubmit() because some
+            iOS Safari versions ignore the HTML5 `form` attribute that
+            associates a button outside its <form>. */}
         <div
           className="flex-shrink-0 border-t border-slate-100 bg-white px-5 pt-3"
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}>
           <button
             type="submit"
             form="cf-create-form"
+            onClick={(e) => {
+              // Safari iOS fallback: trigger the form submission manually
+              // if the [form] attribute association did not fire.
+              const f = document.getElementById('cf-create-form');
+              if (f && e.currentTarget.form !== f) {
+                e.preventDefault();
+                if (typeof f.requestSubmit === 'function') {
+                  f.requestSubmit();
+                } else {
+                  // Last-resort: dispatch a synthetic submit event
+                  f.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                }
+              }
+            }}
             disabled={submitting || !eligible}
             data-testid="cf-create-submit"
             className="w-full bg-rose-600 text-white py-3 rounded-full font-bold hover:bg-rose-700 disabled:bg-slate-300 disabled:cursor-not-allowed shadow-lg">
@@ -1155,6 +1172,41 @@ function CrowdfundingTermsModal({ open, cycle, onAccept, onDecline }) {
 
   useEffect(() => {
     if (open) { setScrolledToBottom(false); setChecked(false); }
+  }, [open]);
+
+  // iter240a — When the T&C content fits entirely in the modal (desktop /
+  // large screen), `onScroll` never fires. Auto-enable the checkbox in that
+  // case by checking after layout whether the content is already fully
+  // visible. We also watch resize events to cover orientation changes.
+  useEffect(() => {
+    if (!open) return;
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const checkFits = () => {
+      // Already fully visible (no scrollbar) OR already scrolled to bottom
+      if (el.scrollHeight - el.scrollTop <= el.clientHeight + 12) {
+        setScrolledToBottom(true);
+      }
+    };
+
+    // Run after paint to ensure layout is settled.
+    const raf = requestAnimationFrame(checkFits);
+    // Also retry shortly after (fonts / images may shift the layout).
+    const t1 = setTimeout(checkFits, 150);
+    const t2 = setTimeout(checkFits, 600);
+
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(checkFits) : null;
+    if (ro) ro.observe(el);
+    window.addEventListener('resize', checkFits);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', checkFits);
+    };
   }, [open]);
 
   if (!open) return null;

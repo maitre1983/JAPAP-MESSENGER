@@ -1,0 +1,44 @@
+{
+  "summary": "iter240a frontend verification BLOCKED by a pre-existing P0 runtime crash in CrowdfundingModule.js. When the Participation Terms modal opens (or even just after CTA click triggers its render path), the component evaluates `new Intl.NumberFormat(i18n.language || 'fr-FR')` inside `fmtAmount` at line 1230. In this Playwright/preview environment, `i18n.language` resolves to the POSIX-style tag `en-US@posix` (likely auto-detected by i18next from the underlying Chromium ICU locale, which inherits the container's POSIX LC_ALL). Intl rejects `@posix` BCP-47 extensions, throws `RangeError: Invalid language tag: en-US@posix`, the React ErrorBoundary catches it and replaces the whole crowdfunding view with the 'Oups — quelque chose a planté' fallback. Result: cf-terms-modal never reaches DOM → cf-terms-checkbox / cf-terms-accept / cf-create-modal / cf-create-submit are all unreachable. Tried mitigations that did NOT work: (1) overriding navigator.language + navigator.languages to 'fr-FR' via context.add_init_script BEFORE app boot, (2) priming localStorage 'i18nextLng'='fr-FR'. Both still produce the crash because i18next falls back to Intl.DateTimeFormat().resolvedOptions().locale which the ICU returns as 'en-US@posix'. The iter240a code changes themselves (auto-enable terms checkbox when content fits + onClick requestSubmit fallback on submit button) ARE present in source and look correct — see RCA. SW_VERSION='v22-iter240a' confirmed via direct curl of /sw.js (PASS).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "CrowdfundingTermsModal (fmtAmount line 1230) — and any other component using i18n.language directly with Intl.* APIs",
+        "issue": "Unsafe `new Intl.NumberFormat(i18n.language || 'fr-FR')` throws RangeError: Invalid language tag: en-US@posix on systems where ICU resolves to POSIX locale. Crashes the entire Crowdfunding view via ErrorBoundary. Reproduces 100% in preview env. Also affects line 1225 toLocaleDateString(i18n.language, ...) which is wrapped in try/catch and silently returns ISO — but fmtAmount has NO try/catch.",
+        "selector": "[data-testid='cf-terms-modal'] (never reaches DOM because parent crashes)",
+        "priority": "CRITICAL / P0"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Crowdfunding 'Lancer mon projet' creation flow (BUG #1 and BUG #2 iter240a)",
+        "issue": "Cannot be functionally verified end-to-end in preview because the page crashes before the terms modal renders. Code-review of the fixes themselves looks correct (see action_items / RCA).",
+        "affected_selectors": ["[data-testid='cf-terms-modal']", "[data-testid='cf-terms-checkbox']", "[data-testid='cf-terms-accept']", "[data-testid='cf-create-modal']", "[data-testid='cf-create-submit']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "P0 — Make `fmtAmount` (CrowdfundingModule.js line 1230) robust against non-canonical BCP-47 tags. Quick fix: wrap in try/catch and fall back to 'fr-FR'; OR sanitize via `(i18n.language || 'fr-FR').split(/[@.]/)[0]` so 'en-US@posix' becomes 'en-US'. Same sanitization should be applied to line 1225 toLocaleDateString call for safety. Consider a shared `safeLocale()` helper used everywhere Intl.* is constructed.",
+    "P0 — After fixing the locale crash, re-run automated verification for BUG #1 (desktop terms auto-enable) and BUG #2 (mobile submit visibility + requestSubmit fallback). The iter240a source changes are in place (verified at lines 1181-1210 useEffect ResizeObserver/raf and lines 453-466 onClick fallback) so they will likely pass.",
+    "P1 — Audit other Intl.NumberFormat / Intl.DateTimeFormat usages that take `i18n.language` (search across codebase) — they share the same vulnerability when the browser/container exposes a POSIX locale."
+  ],
+  "critical_code_review_comments": [
+    "CrowdfundingModule.js is 1516 lines — exceeds 700-line guideline; should be split (CreateProjectModal, TermsModal, AdminPanel, MyProject card, etc. are independent modules).",
+    "fmtAmount uses i18n.language without sanitization → can throw and bring down the whole subtree. Should be defensive (try/catch or split('@')[0]) and ideally memoized with useMemo.",
+    "Mixed locale strategy: `fmt` at line 31 hard-codes 'fr-FR' while `fmtAmount` at line 1230 uses i18n.language — inconsistent. Pick one canonical helper.",
+    "iter240a fix at line 1188 `el.scrollHeight - el.scrollTop <= el.clientHeight + 12`: correct logic — covers both initially-fits and scrolled-to-bottom cases. ResizeObserver + raf + 150ms/600ms timeouts are a sound layered approach for late layout shifts (fonts/images).",
+    "iter240a submit fallback at lines 450-466: correct — uses requestSubmit() with synthetic-event last-resort, gated on `e.currentTarget.form !== f` so the path only fires when the [form] attribute association silently failed. Note: when [form] DOES work, the click handler short-circuits before preventDefault, so the native submission proceeds — good.",
+    "401 spam on initial page load (10+ requests) before cookies propagate suggests some API calls are kicked off before auth state hydrates. Not blocking but adds noise to logs."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "0% — all 4 functional checks BLOCKED by the locale crash; only SW_VERSION curl check passed"},
+  "test_credentials": "bob@japap.com / Test1234! with captcha_id=JAPAP_E2E_BYPASS_2026 captcha_answer=0 (login returned 200 OK, 4 cookies set including access_token/refresh_token)",
+  "seed_data_creation": "None — active cycle already present (cycle_96082b64d2df, cycle_number=4, status=active) via /api/crowdfunding/state.",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Once main agent patches fmtAmount (and ideally any other Intl.* using i18n.language) to sanitize/try-catch the locale tag, re-run the same 4 scenarios at viewports 1440x900 (BUG#1 desktop auto-enable), 390x844 portrait (BUG#2 submit visible + POST fires), 844x390 landscape (BUG#2 submit visible), and 320x500 (regression: still requires scroll when content overflows). Use the data-testid='cf-my-create-cta' button to open the flow (NOT a top-level 'Lancer mon projet' button — that one shares the project on mobile only). Expect Bob to be eligible to create (is_pro=true in his user record). Watch for POST /api/crowdfunding/projects in network log; capture withCredentials=true cookies via context.add_cookies as done here.",
+  "rca_of_the_issue": "Root cause: CrowdfundingTermsModal builds an Intl.NumberFormat with the raw `i18n.language` string. In this preview/Playwright environment, the underlying Chromium ICU reports its locale as 'en-US@posix' (inherited from container LC_ALL=POSIX). i18next's language-detector picks that up and exposes it via i18n.language. Intl spec rejects the legacy POSIX `@variant` extension as a non-canonical BCP-47 tag and throws RangeError, which propagates synchronously during the modal render and is caught by the global ErrorBoundary. Reproduction: navigate to /services?view=crowdfunding while logged in as Bob → click [data-testid='cf-my-create-cta'] → page replaced with 'Oups — quelque chose a planté'. Mitigation: sanitize the language tag before passing to Intl, e.g. `const loc = (i18n.language||'fr-FR').replace(/[@.].*$/,''); try { return new Intl.NumberFormat(loc).format(...) } catch { return new Intl.NumberFormat('fr-FR').format(...) }`. Apply same pattern to toLocaleDateString."
+}

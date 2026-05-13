@@ -317,7 +317,7 @@ function CreateProjectModal({ open, onClose, onCreated, eligibility, termsAccept
   const eligible = eligibility?.eligible !== false;
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-2" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center p-2" onClick={onClose}>
       {/*
         iter239v — Sticky-footer layout so the "Launch my project" button
         is ALWAYS reachable on small viewports (iPhone 13 Pro Max portrait
@@ -658,7 +658,7 @@ function AdminPanel({ open, onClose, onChanged, activeCycle }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-2" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center p-2" onClick={onClose}>
       <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto"
            onClick={(e) => e.stopPropagation()}
            data-testid="cf-admin-panel">
@@ -1143,7 +1143,7 @@ function EditProjectModal({ project, onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-2" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center p-2" onClick={onClose}>
       <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-5"
            onClick={(e) => e.stopPropagation()} data-testid="cf-edit-modal">
         <div className="flex items-center justify-between mb-3">
@@ -1261,7 +1261,7 @@ function CrowdfundingTermsModal({ open, cycle, onAccept, onDecline }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-2"
+    <div className="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center p-2"
          onClick={onDecline} data-testid="cf-terms-modal">
       <div
         className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg flex flex-col"

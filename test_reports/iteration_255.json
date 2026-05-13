@@ -1,0 +1,28 @@
+{
+  "summary": "iter240c FINAL RETEST — All 4 Crowdfunding scenarios PASS end-to-end. The z-[60] bump on all 4 modal backdrops (CrowdfundingModule.js L320/661/1146/1264) successfully lifts the modal action footer above the mobile bottom-nav (z-50). document.elementsFromPoint at the center of cf-terms-accept and cf-create-submit returns the BUTTON ITSELF as topmost element on both mobile portrait (390x844) and landscape (844x390) — the previous overlay/hijack-to-/wallet bug is fully resolved. POST /api/crowdfunding/projects returned 201 on desktop S1, mobile portrait S2, and mobile landscape S3. Narrow viewport S4 (320x500) confirms scroll-required regression: checkbox initially disabled=true, after programmatic scrollTop=scrollHeight + scroll event → disabled=false, Accept→Create modal opens correctly. SW_VERSION='v22-iter240c' confirmed via curl. 0 RangeError / 0 'Invalid language tag' across all 4 viewports — safeLocale() fix remains solid.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "All viewports — Crowdfunding loading", "issues": ["~10 background 401 errors still spam the console on initial page load (API calls fire before auth state hydrates). Pre-existing from earlier iterations — not a regression of iter240c but worth cleaning up."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_255.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "z-[60] fix on the 4 modal backdrops works as intended. Verified via document.elementsFromPoint(cx,cy) returning cf-terms-accept and cf-create-submit as topmost element on 390x844 and 844x390 — bottom-nav (z-50) is correctly underneath.",
+    "Recommendation: extract a single <Modal> primitive with consistent z-index, escape-key close, and scroll-lock — currently 4 near-identical fixed-overlay divs are duplicated in CrowdfundingModule.js (DRY violation). Same pattern likely exists in other modules (Wallet, Profile) and should also be raised to z-[60] to avoid the same regression elsewhere.",
+    "safeLocale() helper still inline at L33-48. Recommend extracting to /app/frontend/src/utils/locale.js and replacing every other new Intl.NumberFormat(i18n.language) / toLocaleDateString(i18n.language) across the codebase.",
+    "CrowdfundingModule.js remains 1539 lines — split into TermsModal, CreateProjectModal, EditProjectModal, AdminPanel, MyProjectCard files.",
+    "Pre-existing 401 spam on initial load (API calls before auth hydration) — not a regression but a polish item."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "4/4 scenarios PASS (S1 desktop POST 201, S2 mobile portrait POST 201, S3 mobile landscape POST 201, S4 narrow scroll-required regression PASS). Locale crash: 100% fixed (0 RangeError). Mobile overlay: 100% fixed (button is topmost element)."},
+  "test_credentials": "bob@japap.com / Test1234! with captcha_id=JAPAP_E2E_BYPASS_2026 captcha_answer=0; admin@japap.com / JapapAdmin2024! for cleanup.",
+  "seed_data_creation": "3 projects created and force-deleted via /api/crowdfunding/admin/projects/{slug}/force-delete with reason='E2E test cleanup iter240c'. Active cycle cycle_96082b64d2df (cycle_number=4) unchanged.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter240c bug fix verified working end-to-end across desktop, mobile portrait, mobile landscape, and narrow viewport. The 3 fixes layered correctly: (1) safeLocale() prevents RangeError on en-US@posix locales; (2) terms modal auto-enable useEffect (ResizeObserver+raf+timeouts) handles content-fits case; (3) z-[60] on modal backdrops keeps action buttons above the mobile bottom-nav (z-50). Notes for future testing: GET /api/crowdfunding/me (NOT /projects/me) returns the current user's project. Self-delete /api/crowdfunding/projects/{slug} returns 409 once the project is in any active state — admin force-delete with JSON body {reason:'...'} works (requires Content-Type:application/json header). Bob/Admin can be logged in via API with captcha bypass and cookies propagate to the page context automatically.",
+  "rca_of_the_issue": "Root cause was a CSS z-index stacking conflict on mobile: the bottom-nav (Layout.js, fixed bottom-0, z-50) sat at the same z-layer as the modal backdrops in CrowdfundingModule.js (also z-50). DOM order made bottom-nav win for the bottom strip of the viewport, so document.elementsFromPoint(buttonCx, buttonCy) returned bottom-nav-wallet for cf-terms-accept on 390x844 — taps were hijacked to /wallet, unmounting Crowdfunding. Fix in iter240c: raised all 4 modal backdrops to z-[60] (CrowdfundingModule.js L320, L661, L1146, L1264). Verified post-fix: elementsFromPoint returns the button as topmost on 390x844 (cx=254,cy=799) and 844x390 (cx=504,cy=337). POST /api/crowdfunding/projects returns 201 in all viewports. The iter240a auto-enable useEffect for terms checkbox and iter240b safeLocale() helper both remain effective and were re-verified in this iteration."
+}

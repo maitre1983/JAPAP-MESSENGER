@@ -7,6 +7,51 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240d — Modération Crowdfunding (Admin) — onglet Projets + badge pulsant (13/05/2026)
+
+**Règles respectées** : zéro paiement touché, 100% additif, zéro régression, SW bumpé, 5 langues.
+
+### Bug racine corrigé
+- Projets soumis (status=`pending_review`) **invisibles pour l'admin** : aucun endroit dans l'UI ne listait les projets en attente de modération → impossible de les approuver → ils restaient bloqués. Le backend exposait pourtant déjà `GET /admin/projects?status=...` (non utilisé côté front).
+
+### Implémenté
+- **Composant partagé** `frontend/src/components/crowdfunding/CrowdfundingAdminProjectsTab.jsx` :
+  - 8 pills filtres (Tous / En attente / Actifs / Suspendus / Disqualifiés / Expirés / Gagnants / Supprimés) avec compteur dynamique par statut (fetch parallèle).
+  - Pill "En attente" mise en avant (animate-pulse + bordure ambre) tant que la liste contient des projets.
+  - Cartes projet avec titre, auteur, date relative, votes, pays, catégorie, motif suspension/modération, badge statut coloré + `<AdminProjectActions>` injecté en prop (évite l'import circulaire).
+- **Onglet "Projets" dans `AdminPanel`** (`CrowdfundingModule.js`) : nouveau 4ᵉ onglet **par défaut** pour atterrir directement sur la queue de modération.
+- **Badge pulsant** sur le bouton `⚙️ Admin` (`AdminButtonWithBadge`) :
+  - Ambre (non-pulsant) si `pending_review` < 24 h.
+  - Rouge (`bg-rose-500 animate-pulse`) si au moins 1 `pending_review` âgé > 24 h.
+  - Hook `usePendingReviewBadge()` poll toutes les 60 s.
+- **Onglet "Crowdfunding" dans `/admin`** (`AdminPage.js`) : centralise la modération + lien retour vers le module complet.
+- **22 nouvelles clés i18n** ajoutées aux 5 langues (FR/EN/ES/AR/RU) + `common.reload`.
+- **SW_VERSION** : v22-iter240c → v22-iter240d.
+
+### Validation E2E (testing_agent_v3_fork iter256, 7/7 PASS)
+- ✅ AdminPanel : 4 onglets, défaut `projects`, projet pending listé
+- ✅ Badge `cf-admin-btn-pending-badge` count=1, classe `bg-amber-400` (< 24 h, comportement attendu)
+- ✅ `/admin` tab `crowdfunding` → même composant + lien retour
+- ✅ **Flow approbation E2E** : clic Approuver → POST 200 → projet quitte `pending` → apparaît sous `active` → Bob le voit publiquement → compteur passe de `0/15 · encore 15` à `1/15 · encore 14`
+- ✅ 8 pills filtres opérationnelles
+- ✅ i18n EN vérifiée (`Pending`, `Projects`, etc.)
+- ✅ SW_VERSION v22-iter240d confirmé
+
+### Fichiers
+- NEW : `frontend/src/components/crowdfunding/CrowdfundingAdminProjectsTab.jsx`
+- MOD : `frontend/src/pages/CrowdfundingModule.js` (+ AdminButtonWithBadge, +4ᵉ onglet, import)
+- MOD : `frontend/src/pages/AdminPage.js` (+onglet crowdfunding)
+- MOD : `frontend/src/locales/{fr,en,es,ar,ru}.json` (+22 clés)
+- MOD : `frontend/public/sw.js` (bump version)
+
+### Dette technique notée (non-bloquante)
+- Idéal : endpoint agrégé `GET /admin/projects/counts` qui renvoie `{pending_review: n, active: n, ...}` en 1 appel (vs 7 actuellement).
+- `usePendingReviewBadge` poll toutes les 60 s sans gate sur `document.visibilityState` → à améliorer.
+- `CrowdfundingModule.js` toujours à splitter (1561 lignes).
+- 401 spam initial (pré-existant) à investiguer.
+
+
+
 ## iter240c — Hotfix Crowdfunding submit + T&C + locale + z-index mobile (13/05/2026)
 
 **Règles respectées** : zéro paiement touché, 100% additif, zéro régression, SW bumpé.

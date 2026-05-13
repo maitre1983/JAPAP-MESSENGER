@@ -7,6 +7,37 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240c — Hotfix Crowdfunding submit + T&C + locale + z-index mobile (13/05/2026)
+
+**Règles respectées** : zéro paiement touché, 100% additif, zéro régression, SW bumpé.
+
+### Bugs corrigés
+1. **T&C checkbox bloquée sur desktop** (P0) — Quand le contenu T&C tenait entièrement dans le modal sans scroll, `onScroll` ne se déclenchait jamais et la checkbox restait `disabled`. Fix : nouvel `useEffect` avec `ResizeObserver` + `requestAnimationFrame` + timeouts qui auto-active la checkbox quand `scrollHeight <= clientHeight + 12`.
+2. **Bouton "Lancer mon projet" mobile invisible/non-cliquable** (P0) — Causes multiples :
+   - `Intl.NumberFormat('en-US@posix')` levait `RangeError: Invalid language tag` → ErrorBoundary remplaçait toute la vue par "Oups quelque chose a planté". Fix : nouveau helper `safeLocale()` qui sanitise les tags BCP-47 non-canoniques (strip `@variant` et `.codeset`) + `try/catch` autour de `fmtAmount`.
+   - La bottom-nav mobile (z-50) interceptait les clics sur les boutons d'action des modals (z-50 aussi, conflit DOM-order) → tap "Accept" naviguait vers `/wallet`. Fix : bump `z-50` → `z-[60]` sur les 4 backdrops modals Crowdfunding.
+   - Bouton `type="submit" form="cf-create-form"` parfois ignoré sur Safari iOS. Fix : `onClick` fallback qui appelle `form.requestSubmit()`.
+3. **SW_VERSION** : v21-iter239z → v22-iter240c (force MAJ du cache PWA).
+
+### Validation E2E (testing_agent_v3_fork iter255)
+- ✅ S1 Desktop 1440x900 : checkbox auto-activée, Accept → Create modal → POST /api/crowdfunding/projects → **201 Created**
+- ✅ S2 Mobile portrait 390x844 : `elementsFromPoint(button_center)` retourne le bouton (plus la nav) → flow complet → **201 Created**
+- ✅ S3 Mobile landscape 844x390 : flow complet → **201 Created**
+- ✅ S4 Narrow 320x500 régression : checkbox initialement disabled, activée après scroll-to-bottom
+- ✅ 0 RangeError / 0 "Invalid language tag" dans tous les flux
+
+### Fichiers modifiés
+- `/app/frontend/src/pages/CrowdfundingModule.js` (helper `safeLocale`, `useEffect` auto-enable, onClick fallback, z-[60] sur 4 modals, fmtAmount try/catch)
+- `/app/frontend/public/sw.js` (SW_VERSION bump)
+
+### Dette technique identifiée (non corrigée, backlog)
+- `CrowdfundingModule.js` 1539 lignes → à splitter (TermsModal, CreateProjectModal, EditProjectModal, AdminPanel, MyProjectCard).
+- `safeLocale()` à extraire vers `/utils/locale.js` et appliquer aux autres `Intl.*` avec `i18n.language` du codebase.
+- Créer un primitive `<Modal>` partagé avec z-[60] + escape + scroll-lock.
+- 401 spam sur initial load (API calls avant hydratation auth).
+
+
+
 ## iter239z — Push notifications jurés sur événements cycle + SW v21 (13/05/2026)
 
 **Règles respectées** : zéro paiement touché, 100% additif, zéro régression, 5 langues, zéro hardcode (templates dans constants module).

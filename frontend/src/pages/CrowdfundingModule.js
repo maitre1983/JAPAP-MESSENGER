@@ -30,6 +30,23 @@ const CAT_ICONS = {
 
 const fmt = (n) => new Intl.NumberFormat('fr-FR').format(Number(n || 0));
 
+// iter240a — Sanitize i18n.language before passing to Intl APIs. Some
+// environments (e.g. containers with LC_ALL=POSIX) expose locales like
+// 'en-US@posix' which Intl rejects with `RangeError: Invalid language tag`.
+// We strip POSIX `@variant` extensions and codeset suffixes, and fall back
+// to 'fr-FR' on any failure.
+const safeLocale = (lang) => {
+  const raw = (lang || 'fr-FR').replace(/[@.].*$/, '');
+  try {
+    // Intl.getCanonicalLocales throws on invalid tags; if it accepts the
+    // tag, it's safe to use with all Intl.* constructors.
+    Intl.getCanonicalLocales(raw);
+    return raw;
+  } catch {
+    return 'fr-FR';
+  }
+};
+
 // ─── Header — global cycle counter ───────────────────────────────────────
 function CycleHeader({ state, onAdmin, isAdmin }) {
   const { t } = useTranslation();
@@ -1222,12 +1239,18 @@ function CrowdfundingTermsModal({ open, cycle, onAccept, onDecline }) {
   const fmtDate = (iso) => {
     if (!iso) return '—';
     try {
-      return new Date(iso).toLocaleDateString(i18n.language || 'fr-FR', {
+      return new Date(iso).toLocaleDateString(safeLocale(i18n.language), {
         day: '2-digit', month: 'long', year: 'numeric',
       });
     } catch { return iso; }
   };
-  const fmtAmount = (n) => new Intl.NumberFormat(i18n.language || 'fr-FR').format(Number(n || 0));
+  const fmtAmount = (n) => {
+    try {
+      return new Intl.NumberFormat(safeLocale(i18n.language)).format(Number(n || 0));
+    } catch {
+      return new Intl.NumberFormat('fr-FR').format(Number(n || 0));
+    }
+  };
 
   const ctx = {
     minimum: cycle?.minimum_votes_required ?? cycle?.votes_to_win ?? 100,

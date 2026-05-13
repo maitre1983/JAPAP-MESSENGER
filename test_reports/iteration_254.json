@@ -1,0 +1,49 @@
+{
+  "summary": "iter240b retest of Crowdfunding bugs. CONFIRMED: locale crash (RangeError on en-US@posix) is FULLY FIXED by the new safeLocale() helper — no RangeError observed in any flow, Crowdfunding view no longer shows the ErrorBoundary fallback. Desktop terms auto-enable (S1) and narrow-viewport scroll-required regression (S4) both PASS. However, BUG #2 (mobile flow) is NOT fixed at root cause: on mobile portrait 390x844, the mobile bottom-nav (z-index:50, fixed bottom) overlays the bottom of the Terms modal — Playwright elementsFromPoint at the cf-terms-accept button center (cx=254, cy=799) returns `bottom-nav-wallet` anchor on top, NOT the accept button. Clicking the accept button thus hits the Wallet nav link → user navigates to /wallet, modal unmounts, create modal never opens, and the user cannot reach the project-creation form at all on mobile. The exact same z-index/overlay problem will affect cf-create-submit (which the iter240b sticky-footer/requestSubmit fallback was supposed to fix — the requestSubmit fallback won't help when the click never reaches the button). SW_VERSION='v22-iter240b' confirmed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "CrowdfundingTermsModal + CreateProjectModal (mobile)",
+        "issue": "P0 — Mobile bottom-nav (data-testid='bottom-nav', class 'md:hidden fixed bottom-0 left-0 right-0 z-50') overlays the modal's action buttons. cf-terms-accept (at viewport y=774-824 on 390x844) is covered by bottom-nav-wallet anchor. Result: clicking accept actually clicks the Wallet tab → navigates away → modal unmounts → create modal never opens. Same z-index issue will block cf-create-submit too. iter240b's requestSubmit() fallback cannot help because the click never reaches the submit button.",
+        "selector": "[data-testid='cf-terms-accept'] and [data-testid='cf-create-submit']",
+        "priority": "CRITICAL / P0"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "BUG #2 — Mobile project creation flow (390x844 portrait AND 844x390 landscape)",
+        "issue": "Cannot complete the Terms→Create→Submit flow on any mobile viewport because the bottom-nav overlay intercepts clicks on the accept button. User reaches the terms modal, can check the box, but the Accept button click is hijacked by the bottom nav.",
+        "affected_selectors": ["[data-testid='cf-terms-accept']", "[data-testid='cf-create-submit']"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "All bottom-anchored mobile modals",
+        "issues": ["Modal overlay z-index must exceed bottom-nav z-50 OR the modal container must reserve padding-bottom equal to the bottom-nav height (typically 64-72px) so action buttons sit above it. Currently modals appear to be z-auto and their action footer sits in the same screen real estate as the fixed bottom-nav.", "PWA 'Installer l'app' floating button also visible over the modal on mobile — adds further visual clutter near the action area."]
+    }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "P0 — Raise z-index of all bottom-anchored modal portals (CrowdfundingTermsModal, CreateProjectModal, possibly others) above the mobile bottom-nav. Either set the modal backdrop to z-[60] or higher, or add `bottom: env(safe-area-inset-bottom, 64px)` / `padding-bottom: 72px` so the sticky footer (with cf-terms-accept and cf-create-submit) sits ABOVE the bottom-nav. Verify with elementsFromPoint at the button center returns the button as the top element.",
+    "P0 — Re-run the 4 scenarios after the z-index/padding fix. Mobile portrait + landscape should both reach POST /api/crowdfunding/projects.",
+    "P1 — Hide the PWA 'Installer l'app' floating CTA when ANY modal is open (it currently overlaps modal content at the bottom-right of the viewport on mobile).",
+    "P1 — Audit other mobile fixed-bottom elements (bottom-nav z-50, PWA install banner, cookie banner, toast container) for similar overlay-on-modal issues across the app."
+  ],
+  "critical_code_review_comments": [
+    "safeLocale() helper (CrowdfundingModule.js L33-48) is correct and effective — verified 0 RangeError across 4 viewport flows. fmtAmount try/catch at L1248-1253 is also correct. Recommend extracting safeLocale to a shared utility (e.g. /app/frontend/src/utils/locale.js) and replacing every other `new Intl.NumberFormat(i18n.language)` / `toLocaleDateString(i18n.language)` in the codebase with it.",
+    "CrowdfundingTermsModal auto-enable useEffect (ResizeObserver + raf + 150/600ms timeouts, L1170-1208) works correctly — verified: desktop 1440x900 content fits → checkbox auto-enabled, narrow 320x500 content overflows → checkbox initially disabled then auto-enables after programmatic scrollTop=scrollHeight + scroll event dispatch.",
+    "Mobile overlay regression (P0): the modal action footer at L1330-1338 (the 'flex-shrink-0 border-t … px-5 pt-3' div containing cf-terms-decline and cf-terms-accept) has no margin/padding compensation for the mobile bottom-nav, and the modal wrapper has no z-index higher than z-50. Same issue almost certainly applies to CreateProjectModal's sticky footer (cf-create-submit). The iter240b onClick requestSubmit() fallback at L454-470 cannot save the flow because the click is hijacked before it ever reaches the button element.",
+    "CrowdfundingModule.js is still 1539 lines — strongly recommend splitting into separate files (TermsModal, CreateProjectModal, AdminPanel, MyProjectCard) for maintainability and to make focused bug fixes safer.",
+    "401 spam (10+ 401s on every page load) persists from earlier iterations — API calls fire before auth state hydrates. Not a regression of this iter but should be cleaned up."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "Desktop S1 PASS, narrow S4 regression PASS, mobile portrait S2 FAIL (overlay), mobile landscape S3 FAIL (overlay) — 2/4 functional scenarios pass. Locale crash fix: 100% verified working."},
+  "test_credentials": "bob@japap.com / Test1234! with captcha_id=JAPAP_E2E_BYPASS_2026 captcha_answer=0",
+  "seed_data_creation": "None — active cycle cycle_96082b64d2df (cycle_number=4) was already present.",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "iter240b safeLocale fix is verified solid — leave it alone. The remaining mobile issue is a z-index / overlay problem: modal action buttons (cf-terms-accept, cf-create-submit) sit at the bottom of the mobile viewport where the fixed bottom-nav (data-testid='bottom-nav', md:hidden fixed bottom-0 z-50) intercepts pointer events. Verify the fix by using page.evaluate to call document.elementsFromPoint(buttonCenterX, buttonCenterY) — the button itself must be the topmost element. Use the captcha bypass to log in Bob via api.post (page.context.request), then page.context.add_cookies is automatic. Bob does NOT currently have a project — m existing my-project should return 404/null, so cf-my-create-cta is present. After fix, expect cf-create-modal to open after cf-terms-accept click, the title+description fields filled, and POST /api/crowdfunding/projects to return 200/201.",
+  "rca_of_the_issue": "iter240b locale fix (safeLocale strips @posix / .codeset and validates via Intl.getCanonicalLocales): VERIFIED WORKING — 0 RangeError observed in 4 viewport flows. The page no longer shows the ErrorBoundary fallback 'Oups — quelque chose a planté'. However, the mobile half of BUG #2 (cf-create-submit non-functional) has a SECOND root cause that the iter240b changes did not address: the mobile bottom navigation bar (z-index:50, fixed at bottom) overlays the bottom of every modal on screens with the mobile layout (md:hidden). Concretely, at viewport 390x844, cf-terms-accept's bounding rect is x=146-362 y=774-824, while bottom-nav occupies y≈780-844 — they overlap. Playwright's document.elementsFromPoint(254, 799) returns the bottom-nav-wallet <a> as the topmost hit, NOT cf-terms-accept. Native browser clicks dispatch the event to the topmost element, so user taps on 'Accept' actually navigate to /wallet, unmounting the Crowdfunding tree (modal, terms accept handler, everything). The same overlap will happen with cf-create-submit (sticky footer at bottom of CreateProjectModal). Mitigation: either bump the modal's backdrop z-index to z-[60]+ (so it sits above bottom-nav z-50 and the bottom-nav becomes inert while the modal is open), OR add `padding-bottom: env(safe-area-inset-bottom, 72px)` plus a higher z-index on the modal action footer so the buttons render above the bottom-nav. Ideally do BOTH and also hide the PWA 'Installer l'app' floating button while a modal is open. Reproduction: log in Bob, navigate /services?view=crowdfunding on viewport 390x844, click cf-my-create-cta, in the terms modal scroll to bottom, check cf-terms-checkbox, click cf-terms-accept → user lands on /wallet instead of seeing cf-create-modal."
+}

@@ -7,6 +7,52 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter239w — Crowdfunding : refonte logique de victoire + admin total + Terms obligatoires + SW v18 (13/05/2026)
+
+**Règles respectées** : zéro modification des moyens de paiement (Hubtel/Paystack/USDT/Orange Money/Wave), 100% additif, zéro hardcode (tout configurable admin), zéro régression.
+
+### Partie 1 — Nouvelle logique de victoire
+- **Suppression** du bloc « premier à atteindre `votes_to_win` gagne immédiatement » dans `cast_vote` → les votes continuent jusqu'à `ended_at`.
+- **`close_cycle_and_determine_winner(cycle_id)`** (atomic transaction) : trouve le projet `active` avec le plus de votes ET ≥ `minimum_votes_required`. Si aucun → cycle `completed`, projets → `expired`, **aucun paiement**. Sinon → crédit wallet gagnant + notif in-app + autres projets → `expired`.
+- **Worker apscheduler** `/app/backend/services/crowdfunding_cycle_close_worker.py` : scan toutes les 60s (intervalle configurable via env `CROWDFUNDING_CYCLE_CLOSE_INTERVAL`) et clôture les cycles dont `ended_at < NOW()`. Enregistré dans `server.py::_branches`.
+- **Endpoint admin** `POST /admin/cycles/{cycle_id}/close` pour clôture forcée immédiate.
+
+### Partie 2 — Contrôle admin total
+- **Nouveaux endpoints** (5) :
+  - `POST /admin/projects/{slug}/approve` (pending_review → active)
+  - `POST /admin/projects/{slug}/suspend` (active → suspended, motif min 5 chars)
+  - `POST /admin/projects/{slug}/reactivate` (suspended → active)
+  - `DELETE /admin/projects/{slug}/force-delete` (tout statut sauf winner)
+  - `GET /admin/projects?status&cycle_id` (liste filtrée admin)
+- **Endpoints existants étendus** :
+  - `POST /admin/cycles` accepte `started_at`/`ended_at`/`minimum_votes_required`/`duration_days`
+  - `PUT /admin/cycles/active` accepte les mêmes (dates configurables à tout moment tant que pas de gagnant)
+  - `GET/PUT /admin/settings` expose `auto_approve_projects`, `default_cycle_duration_days`, `default_minimum_votes_required` (alias), `terms_current_version`
+- **Frontend** : `AdminProjectActions` (boutons par projet) + `CycleControlPanel` (date pickers + minimum votes + reward) intégrés dans `AdminPanel`.
+
+### Partie 3 — Conditions obligatoires
+- **`CrowdfundingTermsModal`** : modal qui s'ouvre AVANT le Create modal. Checkbox **désactivée** tant que l'utilisateur n'a pas scrollé jusqu'en bas. Bouton "Accepter" désactivé tant que la checkbox n'est pas cochée.
+- **Backend** : `CreateProjectRequest.terms_accepted: bool` (default False). Rejet 400 `TERMS_NOT_ACCEPTED` si false. Tracking en DB via colonnes `terms_accepted_at`/`terms_version` sur `crowdfunding_projects`.
+- Statut initial des projets : `pending_review` (sauf si admin a activé `auto_approve_projects=true`).
+
+### Migrations DB (additives, IF NOT EXISTS)
+- `crowdfunding_cycles.duration_days INT DEFAULT 30`
+- `crowdfunding_cycles.minimum_votes_required INT GENERATED ALWAYS AS (votes_to_win) STORED` — alias zéro régression (votes_to_win reste la source)
+- `crowdfunding_projects` : `terms_accepted_at`, `terms_version`, `suspended_at`, `suspended_by`, `suspension_reason`, `reviewed_at`, `reviewed_by`
+- 2 nouveaux index
+
+### i18n (5 langues : FR/EN/ES/AR/RU)
+~30 nouvelles clés `crowdfunding.*` ajoutées dans chaque locale : terms_*, admin_*, status_*, cycle_*, no_winner, winner_*, etc. JSON validés.
+
+### SW bump
+`v17-iter239v` → `v18-iter239w`
+
+### Tests validés
+- Backend curl : POST/PUT cycles avec dates, admin actions sur projets (approve/suspend/reactivate/force-delete), force-close cycle, settings auto_approve toggle, create avec/sans terms_accepted (400 vs 201)
+- Frontend DOM : Terms modal s'ouvre AVANT Create, checkbox disabled→enabled selon scroll, accept button disabled→enabled selon checkbox
+
+---
+
 ## iter239v — Crowdfunding modal sticky-footer + validation explicite + SW v17 (13/05/2026)
 
 **Règles respectées** : zéro touche aux paiements (Hubtel, Paystack, USDT, Orange Money, Wave), 100% additif, zéro régression.

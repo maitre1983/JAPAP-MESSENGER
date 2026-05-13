@@ -1066,6 +1066,37 @@ async def init_db():
                 UNIQUE (user_id, cycle_id, tier)
             )""",
             "CREATE INDEX IF NOT EXISTS idx_cf_recruiter_badges_user ON crowdfunding_recruiter_badges(user_id, awarded_at DESC)",
+            # ─────────────────────────────────────────────────────────
+            # iter239w — Crowdfunding refonte logique de victoire + admin
+            # ─────────────────────────────────────────────────────────
+            # Cycles : durée + alias minimum_votes_required (généré, lit
+            # automatiquement votes_to_win pour zéro régression).
+            "ALTER TABLE crowdfunding_cycles ADD COLUMN IF NOT EXISTS duration_days INT DEFAULT 30",
+            """DO $cf239w_cycles$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                     WHERE table_name='crowdfunding_cycles'
+                       AND column_name='minimum_votes_required'
+                ) THEN
+                    ALTER TABLE crowdfunding_cycles
+                      ADD COLUMN minimum_votes_required INT
+                      GENERATED ALWAYS AS (votes_to_win) STORED;
+                END IF;
+            END $cf239w_cycles$""",
+            # Projets : traçabilité acceptation conditions + suspension admin
+            "ALTER TABLE crowdfunding_projects ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ",
+            "ALTER TABLE crowdfunding_projects ADD COLUMN IF NOT EXISTS terms_version VARCHAR(10) DEFAULT 'v1'",
+            "ALTER TABLE crowdfunding_projects ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMPTZ",
+            "ALTER TABLE crowdfunding_projects ADD COLUMN IF NOT EXISTS suspended_by VARCHAR(64)",
+            "ALTER TABLE crowdfunding_projects ADD COLUMN IF NOT EXISTS suspension_reason TEXT",
+            "ALTER TABLE crowdfunding_projects ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ",
+            "ALTER TABLE crowdfunding_projects ADD COLUMN IF NOT EXISTS reviewed_by VARCHAR(64)",
+            # Index pour le worker de clôture automatique
+            "CREATE INDEX IF NOT EXISTS idx_cf_cycles_active_ends ON crowdfunding_cycles(status, ended_at) WHERE status='active'",
+            # iter239w — pour les listes admin filtrées par statut
+            "CREATE INDEX IF NOT EXISTS idx_cf_projects_status_cycle ON crowdfunding_projects(cycle_id, status, votes_count DESC)",
+
             # Iter 46 — Messenger Sprint A group support
             "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS description TEXT DEFAULT ''",
             "ALTER TABLE conversation_participants ADD COLUMN IF NOT EXISTS role VARCHAR(16) DEFAULT 'member'",

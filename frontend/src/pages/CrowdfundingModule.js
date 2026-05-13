@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
@@ -113,7 +113,7 @@ function CycleHeader({ state, onAdmin, isAdmin }) {
 }
 
 // ─── Project card ────────────────────────────────────────────────────────
-function ProjectCard({ project, votesOpen, votesToWin, currentUserId, voting, onVote, onShare }) {
+function ProjectCard({ project, votesOpen, votesToWin, currentUserId, voting, onVote, onShare, isAdmin, onAdminChanged }) {
   const { t } = useTranslation();
   const Icon = CAT_ICONS[project.category] || Users;
   const pct = Math.min(100, Math.round((project.votes_count / Math.max(1, votesToWin)) * 100));
@@ -200,12 +200,30 @@ function ProjectCard({ project, votesOpen, votesToWin, currentUserId, voting, on
           <ShareNetwork size={16} weight="bold" />
         </button>
       </div>
+
+      {/* iter239w — Bandeau d'état non-public + actions admin */}
+      {project.status && !['active', 'winner'].includes(project.status) && (
+        <div className={`mt-2 text-xs px-2 py-1 rounded-md inline-block font-semibold ${
+          project.status === 'pending_review' ? 'bg-amber-100 text-amber-700' :
+          project.status === 'suspended' ? 'bg-orange-100 text-orange-700' :
+          project.status === 'expired' ? 'bg-slate-100 text-slate-600' :
+          project.status === 'disqualified' ? 'bg-rose-100 text-rose-700' :
+          'bg-slate-100 text-slate-600'
+        }`} data-testid={`cf-project-status-${project.slug}`}>
+          {project.status === 'pending_review' ? '⏳ En attente de validation' :
+           project.status === 'suspended' ? '⏸️ Suspendu' :
+           project.status === 'expired' ? '⌛ Expiré' :
+           project.status === 'disqualified' ? '🚫 Disqualifié' :
+           project.status}
+        </div>
+      )}
+      {isAdmin && <AdminProjectActions project={project} onChanged={onAdminChanged} />}
     </div>
   );
 }
 
 // ─── Create-project modal ────────────────────────────────────────────────
-function CreateProjectModal({ open, onClose, onCreated, eligibility }) {
+function CreateProjectModal({ open, onClose, onCreated, eligibility, termsAccepted }) {
   const { t } = useTranslation();
   const [form, setForm] = useState({
     title: '', description: '', objective: '',
@@ -224,6 +242,16 @@ function CreateProjectModal({ open, onClose, onCreated, eligibility }) {
     if (submitting) return;
     setFormError('');
 
+    // iter239w — Garde-fou : conditions doivent avoir été acceptées (le flux
+    // parent garantit normalement le passage par TermsModal, mais on protège
+    // ici contre tout court-circuit).
+    if (!termsAccepted) {
+      setFormError(t('crowdfunding.terms_required', {
+        defaultValue: 'Tu dois accepter les conditions de participation.',
+      }));
+      return;
+    }
+
     // Explicit (non-silent) validation — mirrors required/minLength on inputs.
     const title = (form.title || '').trim();
     const description = (form.description || '').trim();
@@ -238,7 +266,8 @@ function CreateProjectModal({ open, onClose, onCreated, eligibility }) {
 
     setSubmitting(true);
     try {
-      const { data } = await axios.post(`${API}/api/crowdfunding/projects`, form, {
+      const payload = { ...form, terms_accepted: true, terms_version: 'v1' };
+      const { data } = await axios.post(`${API}/api/crowdfunding/projects`, payload, {
         withCredentials: true,
       });
       toast.success(t('crowdfunding.created_success', { defaultValue: 'Projet créé !' }));
@@ -518,7 +547,7 @@ function MyDashboard({ me, engagement, onCreate, onEdit, onDelete }) {
 }
 
 // ─── Admin panel ─────────────────────────────────────────────────────────
-function AdminPanel({ open, onClose, onChanged }) {
+function AdminPanel({ open, onClose, onChanged, activeCycle }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState('cycle');
   const [cycle, setCycle] = useState({ threshold_projects: 50, votes_to_win: 100, reward_amount: 50000, reward_currency: 'XAF', notes: '' });
@@ -634,7 +663,7 @@ function AdminPanel({ open, onClose, onChanged }) {
               </section>
 
               <section className="pt-3 border-t">
-                <h4 className="font-bold text-slate-900 mb-2">Modifier le cycle actif</h4>
+                <h4 className="font-bold text-slate-900 mb-2">Modifier le cycle actif (legacy)</h4>
                 <div className="grid grid-cols-2 gap-2">
                   <NumField label="Nouveau seuil" v={activeUpdate.threshold_projects ?? ''} onChange={(v) => setActiveUpdate({ ...activeUpdate, threshold_projects: v })} testid="cf-admin-update-threshold" />
                   <NumField label="Nouveau votes/win" v={activeUpdate.votes_to_win ?? ''} onChange={(v) => setActiveUpdate({ ...activeUpdate, votes_to_win: v })} testid="cf-admin-update-votes2win" />
@@ -647,6 +676,11 @@ function AdminPanel({ open, onClose, onChanged }) {
                   className="mt-2 w-full bg-indigo-600 text-white py-2 rounded-full font-bold disabled:bg-slate-300">
                   Mettre à jour le cycle actif
                 </button>
+              </section>
+
+              {/* iter239w — Panneau étendu avec dates configurables + minimum_votes_required */}
+              <section className="pt-3 border-t" data-testid="cf-admin-cycle-control-section">
+                <CycleControlPanel cycle={activeCycle} onChanged={() => { onChanged(); loadAll(); }} />
               </section>
             </>
           )}
@@ -733,6 +767,9 @@ export default function CrowdfundingModule({ onBack }) {
   const [sort, setSort] = useState('votes');
   const [showCreate, setShowCreate] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  // iter239w — Conditions de participation obligatoires avant création.
+  const [showTerms, setShowTerms] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [editing, setEditing] = useState(null);   // project being edited
   const [loading, setLoading] = useState(true);
   const [voting, setVoting] = useState(null);  // current slug being voted
@@ -864,7 +901,15 @@ export default function CrowdfundingModule({ onBack }) {
         {user && <MyDashboard
           me={me}
           engagement={engagement}
-          onCreate={() => setShowCreate(true)}
+          onCreate={() => {
+            // iter239w — Si conditions non acceptées dans cette session, on
+            // affiche le modal Terms d'abord. Sinon on ouvre directement Create.
+            if (termsAccepted) {
+              setShowCreate(true);
+            } else {
+              setShowTerms(true);
+            }
+          }}
           onEdit={(p) => setEditing(p)}
           onDelete={async (p) => {
             if (!window.confirm('Supprimer définitivement ton projet ?')) return;
@@ -922,11 +967,13 @@ export default function CrowdfundingModule({ onBack }) {
                 key={p.project_id}
                 project={p}
                 votesOpen={state?.cycle?.votes_open}
-                votesToWin={state?.cycle?.votes_to_win || 100}
+                votesToWin={state?.cycle?.minimum_votes_required || state?.cycle?.votes_to_win || 100}
                 currentUserId={user?.user_id}
                 voting={voting}
                 onVote={onVote}
-                onShare={onShare} />
+                onShare={onShare}
+                isAdmin={isAdmin}
+                onAdminChanged={reload} />
             ))}
           </div>
         )}
@@ -936,12 +983,25 @@ export default function CrowdfundingModule({ onBack }) {
         open={showCreate}
         onClose={() => setShowCreate(false)}
         onCreated={() => { setShowCreate(false); reload(); }}
-        eligibility={me?.eligibility} />
+        eligibility={me?.eligibility}
+        termsAccepted={termsAccepted} />
+
+      {/* iter239w — Modal Conditions obligatoires (scroll-to-bottom + checkbox) */}
+      <CrowdfundingTermsModal
+        open={showTerms}
+        cycle={state?.cycle}
+        onAccept={() => {
+          setTermsAccepted(true);
+          setShowTerms(false);
+          setShowCreate(true);
+        }}
+        onDecline={() => setShowTerms(false)} />
 
       <AdminPanel
         open={showAdmin}
         onClose={() => setShowAdmin(false)}
-        onChanged={reload} />
+        onChanged={reload}
+        activeCycle={state?.cycle} />
 
       {celebration && (
         <VoteCelebration
@@ -1042,3 +1102,320 @@ function EditProjectModal({ project, onClose, onSaved }) {
     </div>
   );
 }
+
+
+// ─── iter239w — Modal Conditions de participation (obligatoires) ─────────
+function CrowdfundingTermsModal({ open, cycle, onAccept, onDecline }) {
+  const { t, i18n } = useTranslation();
+  const [scrolledToBottom, setScrolledToBottom] = useState(false);
+  const [checked, setChecked] = useState(false);
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (open) { setScrolledToBottom(false); setChecked(false); }
+  }, [open]);
+
+  if (!open) return null;
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (el.scrollHeight - el.scrollTop <= el.clientHeight + 12) {
+      setScrolledToBottom(true);
+    }
+  };
+
+  const fmtDate = (iso) => {
+    if (!iso) return '—';
+    try {
+      return new Date(iso).toLocaleDateString(i18n.language || 'fr-FR', {
+        day: '2-digit', month: 'long', year: 'numeric',
+      });
+    } catch { return iso; }
+  };
+  const fmtAmount = (n) => new Intl.NumberFormat(i18n.language || 'fr-FR').format(Number(n || 0));
+
+  const ctx = {
+    minimum: cycle?.minimum_votes_required ?? cycle?.votes_to_win ?? 100,
+    duration_start: fmtDate(cycle?.started_at),
+    duration_end: fmtDate(cycle?.ended_at),
+    reward: fmtAmount(cycle?.reward_amount),
+    currency: cycle?.reward_currency || 'XAF',
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-2"
+         onClick={onDecline} data-testid="cf-terms-modal">
+      <div
+        className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg flex flex-col"
+        style={{ maxHeight: 'min(92vh, 92dvh)' }}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-slate-100 flex-shrink-0">
+          <h3 className="text-lg font-bold text-slate-900">
+            {t('crowdfunding.terms_title', { defaultValue: 'Conditions de participation' })}
+          </h3>
+          <button onClick={onDecline} aria-label={t('common.close', { defaultValue: 'Fermer' })}
+                  className="p-1.5 rounded-full hover:bg-slate-100"><X size={20} /></button>
+        </div>
+
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          data-testid="cf-terms-body"
+          className="flex-1 overflow-y-auto px-5 py-3 text-sm text-slate-700 space-y-3"
+          style={{ WebkitOverflowScrolling: 'touch' }}>
+          <p>{t('crowdfunding.terms_intro')}</p>
+
+          <div>
+            <h4 className="font-bold text-slate-900 mb-1">1. {t('crowdfunding.terms_section1_title')}</h4>
+            <p>{t('crowdfunding.terms_section1_body', ctx)}</p>
+          </div>
+          <div>
+            <h4 className="font-bold text-slate-900 mb-1">2. {t('crowdfunding.terms_section2_title')}</h4>
+            <p>{t('crowdfunding.terms_section2_body')}</p>
+          </div>
+          <div>
+            <h4 className="font-bold text-slate-900 mb-1">3. {t('crowdfunding.terms_section3_title')}</h4>
+            <p>{t('crowdfunding.terms_section3_body')}</p>
+          </div>
+          <div>
+            <h4 className="font-bold text-slate-900 mb-1">4. {t('crowdfunding.terms_section4_title')}</h4>
+            <p>{t('crowdfunding.terms_section4_body')}</p>
+          </div>
+          <div>
+            <h4 className="font-bold text-slate-900 mb-1">5. {t('crowdfunding.terms_section5_title')}</h4>
+            <p>{t('crowdfunding.terms_section5_body')}</p>
+          </div>
+          <div style={{ height: 6 }} />
+        </div>
+
+        <div className="flex-shrink-0 border-t border-slate-100 bg-white px-5 pt-3"
+             style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}>
+          {!scrolledToBottom && (
+            <p className="text-xs text-slate-500 text-center mb-2" data-testid="cf-terms-scroll-hint">
+              {t('crowdfunding.terms_scroll_to_read', { defaultValue: '⬇️ Faites défiler pour lire toutes les conditions' })}
+            </p>
+          )}
+          <label className={`flex items-start gap-2 mb-2 ${scrolledToBottom ? '' : 'opacity-40 cursor-not-allowed'}`}>
+            <input
+              type="checkbox"
+              checked={checked}
+              disabled={!scrolledToBottom}
+              onChange={(e) => setChecked(e.target.checked)}
+              data-testid="cf-terms-checkbox"
+              className="mt-1" />
+            <span className="text-sm text-slate-700">
+              {t('crowdfunding.terms_checkbox_label')}
+            </span>
+          </label>
+          <div className="flex gap-2">
+            <button onClick={onDecline}
+                    data-testid="cf-terms-decline"
+                    className="flex-1 py-3 rounded-full border border-slate-300 text-slate-700 font-semibold">
+              {t('crowdfunding.terms_decline', { defaultValue: 'Annuler' })}
+            </button>
+            <button onClick={onAccept}
+                    disabled={!checked}
+                    data-testid="cf-terms-accept"
+                    className={`flex-[2] py-3 rounded-full font-bold text-white ${checked ? 'bg-rose-600 hover:bg-rose-700' : 'bg-slate-300 cursor-not-allowed'}`}>
+              {t('crowdfunding.terms_accept', { defaultValue: 'J\'accepte et je continue' })}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── iter239w — Bloc d'actions admin sur un projet (approve / suspend / …)
+function AdminProjectActions({ project, onChanged }) {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+
+  const call = async (path, body = null, method = 'POST') => {
+    const reasonNeeded = ['suspend', 'force-delete', 'disqualify'].some(s => path.endsWith(s));
+    let reason = body?.reason;
+    if (reasonNeeded && !reason) {
+      reason = window.prompt(t('crowdfunding.admin_reason_prompt', {
+        defaultValue: 'Motif (min 5 caractères) :',
+      }));
+      if (!reason || reason.trim().length < 5) {
+        toast.error(t('crowdfunding.admin_reason_required', {
+          defaultValue: 'Motif requis (5 caractères minimum).',
+        }));
+        return;
+      }
+      body = { reason: reason.trim() };
+    }
+    setBusy(true);
+    try {
+      const url = `${API}/api/crowdfunding/admin/projects/${project.slug}/${path}`;
+      const cfg = { withCredentials: true };
+      if (method === 'DELETE') {
+        await axios.delete(url, { ...cfg, data: body || {} });
+      } else {
+        await axios.post(url, body || {}, cfg);
+      }
+      toast.success(t('crowdfunding.admin_action_ok', { defaultValue: 'Action effectuée.' }));
+      if (onChanged) onChanged();
+    } catch (e) {
+      toast.error(extractErrorMessage(e, t('crowdfunding.admin_action_failed', { defaultValue: 'Action refusée.' })));
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-2" data-testid={`cf-admin-actions-${project.slug}`}>
+      {project.status === 'pending_review' && (
+        <button onClick={() => call('approve')} disabled={busy}
+                data-testid={`cf-admin-approve-${project.slug}`}
+                className="px-2.5 py-1 rounded-md bg-emerald-600 text-white text-xs font-semibold disabled:opacity-50">
+          ✅ {t('crowdfunding.admin_approve', { defaultValue: 'Approuver' })}
+        </button>
+      )}
+      {project.status === 'active' && (
+        <button onClick={() => call('suspend')} disabled={busy}
+                data-testid={`cf-admin-suspend-${project.slug}`}
+                className="px-2.5 py-1 rounded-md bg-amber-500 text-white text-xs font-semibold disabled:opacity-50">
+          ⏸️ {t('crowdfunding.admin_suspend', { defaultValue: 'Suspendre' })}
+        </button>
+      )}
+      {project.status === 'suspended' && (
+        <button onClick={() => call('reactivate')} disabled={busy}
+                data-testid={`cf-admin-reactivate-${project.slug}`}
+                className="px-2.5 py-1 rounded-md bg-blue-600 text-white text-xs font-semibold disabled:opacity-50">
+          ▶️ {t('crowdfunding.admin_reactivate', { defaultValue: 'Réactiver' })}
+        </button>
+      )}
+      {project.status !== 'deleted' && project.status !== 'winner' && (
+        <button onClick={() => call('disqualify')} disabled={busy}
+                data-testid={`cf-admin-disqualify-${project.slug}`}
+                className="px-2.5 py-1 rounded-md bg-rose-600 text-white text-xs font-semibold disabled:opacity-50">
+          🚫 {t('crowdfunding.admin_disqualify', { defaultValue: 'Disqualifier' })}
+        </button>
+      )}
+      {project.status !== 'winner' && project.status !== 'deleted' && (
+        <button onClick={() => call('force-delete', null, 'DELETE')} disabled={busy}
+                data-testid={`cf-admin-delete-${project.slug}`}
+                className="px-2.5 py-1 rounded-md bg-slate-900 text-white text-xs font-semibold disabled:opacity-50">
+          🗑️ {t('crowdfunding.admin_delete', { defaultValue: 'Supprimer' })}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── iter239w — Panneau admin de contrôle du cycle actif ─────────────────
+function CycleControlPanel({ cycle, onChanged }) {
+  const { t } = useTranslation();
+  const [form, setForm] = useState({
+    started_at: '', ended_at: '',
+    minimum_votes_required: '', reward_amount: '',
+    threshold_projects: '', reward_currency: '',
+  });
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!cycle) return;
+    const toLocalDT = (iso) => {
+      if (!iso) return '';
+      try {
+        const d = new Date(iso);
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      } catch { return ''; }
+    };
+    setForm({
+      started_at: toLocalDT(cycle.started_at),
+      ended_at: toLocalDT(cycle.ended_at),
+      minimum_votes_required: String(cycle.minimum_votes_required ?? cycle.votes_to_win ?? ''),
+      reward_amount: String(cycle.reward_amount ?? ''),
+      threshold_projects: String(cycle.threshold_projects ?? ''),
+      reward_currency: cycle.reward_currency || 'XAF',
+    });
+  }, [cycle]);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const payload = {};
+      if (form.started_at) payload.started_at = new Date(form.started_at).toISOString();
+      if (form.ended_at) payload.ended_at = new Date(form.ended_at).toISOString();
+      if (form.minimum_votes_required) payload.minimum_votes_required = parseInt(form.minimum_votes_required, 10);
+      if (form.reward_amount) payload.reward_amount = parseFloat(form.reward_amount);
+      if (form.threshold_projects) payload.threshold_projects = parseInt(form.threshold_projects, 10);
+      if (form.reward_currency) payload.reward_currency = form.reward_currency;
+      await axios.put(`${API}/api/crowdfunding/admin/cycles/active`, payload, { withCredentials: true });
+      toast.success(t('crowdfunding.admin_action_ok', { defaultValue: 'Cycle mis à jour.' }));
+      if (onChanged) onChanged();
+    } catch (e) {
+      toast.error(extractErrorMessage(e, t('crowdfunding.admin_action_failed', { defaultValue: 'Mise à jour refusée.' })));
+    } finally { setBusy(false); }
+  };
+
+  if (!cycle) return (
+    <div className="text-sm text-slate-500" data-testid="cf-admin-cycle-empty">
+      {t('crowdfunding.admin_no_cycle', { defaultValue: 'Aucun cycle actif.' })}
+    </div>
+  );
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-4" data-testid="cf-admin-cycle-panel">
+      <h4 className="text-sm font-bold text-slate-900 mb-3">
+        {t('crowdfunding.admin_cycle_control', { defaultValue: 'Contrôle du cycle' })}
+      </h4>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div>
+          <label className="text-xs font-semibold text-slate-700">{t('crowdfunding.admin_start_date', { defaultValue: 'Date de début' })}</label>
+          <input type="datetime-local" value={form.started_at}
+                 onChange={(e) => setForm({ ...form, started_at: e.target.value })}
+                 data-testid="cf-admin-started-at"
+                 className="w-full mt-1 px-2 py-1.5 border border-slate-300 rounded-lg text-sm" />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-slate-700">{t('crowdfunding.admin_end_date', { defaultValue: 'Date de fin' })}</label>
+          <input type="datetime-local" value={form.ended_at}
+                 onChange={(e) => setForm({ ...form, ended_at: e.target.value })}
+                 data-testid="cf-admin-ended-at"
+                 className="w-full mt-1 px-2 py-1.5 border border-slate-300 rounded-lg text-sm" />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-slate-700">{t('crowdfunding.minimum_votes_required', { defaultValue: 'Minimum de votes pour gagner' })}</label>
+          <input type="number" min={2} value={form.minimum_votes_required}
+                 onChange={(e) => setForm({ ...form, minimum_votes_required: e.target.value })}
+                 data-testid="cf-admin-min-votes"
+                 className="w-full mt-1 px-2 py-1.5 border border-slate-300 rounded-lg text-sm" />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-slate-700">{t('crowdfunding.reward', { defaultValue: 'Prix à gagner' })}</label>
+          <input type="number" min={0} value={form.reward_amount}
+                 onChange={(e) => setForm({ ...form, reward_amount: e.target.value })}
+                 placeholder="50000 | 100000 | 1000000 | …"
+                 data-testid="cf-admin-reward"
+                 className="w-full mt-1 px-2 py-1.5 border border-slate-300 rounded-lg text-sm" />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-slate-700">Threshold projets (avant ouverture votes)</label>
+          <input type="number" min={2} value={form.threshold_projects}
+                 onChange={(e) => setForm({ ...form, threshold_projects: e.target.value })}
+                 data-testid="cf-admin-threshold"
+                 className="w-full mt-1 px-2 py-1.5 border border-slate-300 rounded-lg text-sm" />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-slate-700">Devise</label>
+          <input type="text" maxLength={10} value={form.reward_currency}
+                 onChange={(e) => setForm({ ...form, reward_currency: e.target.value.toUpperCase() })}
+                 data-testid="cf-admin-currency"
+                 className="w-full mt-1 px-2 py-1.5 border border-slate-300 rounded-lg text-sm uppercase" />
+        </div>
+      </div>
+      <button onClick={save} disabled={busy}
+              data-testid="cf-admin-save-cycle"
+              className="w-full mt-3 bg-indigo-700 text-white py-2.5 rounded-lg font-bold disabled:bg-slate-300">
+        💾 {busy ? '…' : t('crowdfunding.admin_save_cycle', { defaultValue: 'Enregistrer les modifications' })}
+      </button>
+    </div>
+  );
+}
+
+// iter239w — Exporté pour tests / réutilisation depuis AdminPage si besoin.
+export { CrowdfundingTermsModal, AdminProjectActions, CycleControlPanel };

@@ -34,7 +34,7 @@ from slowapi.util import get_remote_address
 
 from database import get_pool
 from routes.auth import get_current_user
-from services.settings_service import get_setting, get_json, set_setting
+from services.settings_service import get_setting, get_json, set_setting, get_bool
 from services import crowdfunding_share_card
 from services import engagement_ai_engine
 
@@ -65,6 +65,11 @@ DEFAULT_REWARD_CURRENCY = "XAF"
 DEFAULT_MIN_ACCOUNT_AGE_DAYS = 7
 DEFAULT_MIN_ACTIVITY_SCORE = 50
 DEFAULT_REQUIRED_ACTIONS = {"posts": 1, "likes": 5, "transactions": 1}
+# iter239w — Cycle duration & terms version
+DEFAULT_CYCLE_DURATION_DAYS = 30
+TERMS_CURRENT_VERSION = "v1"
+# iter239w — Auto-approve toggle (admin-controlled, NO hardcode)
+DEFAULT_AUTO_APPROVE_PROJECTS = False
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────
@@ -134,12 +139,19 @@ async def _ensure_active_cycle(conn) -> Optional[dict]:
                                                   DEFAULT_REWARD_AMOUNT) or DEFAULT_REWARD_AMOUNT))
     reward_currency = str(await get_setting("crowdfunding_reward_currency",
                                             DEFAULT_REWARD_CURRENCY) or DEFAULT_REWARD_CURRENCY)
+    # iter239w — Durée par défaut + ended_at calculé.
+    duration_days = int(await get_setting("crowdfunding_default_cycle_duration_days",
+                                          DEFAULT_CYCLE_DURATION_DAYS) or DEFAULT_CYCLE_DURATION_DAYS)
+    now = datetime.now(timezone.utc)
+    ends_at = now + timedelta(days=duration_days)
     await conn.execute(
         """INSERT INTO crowdfunding_cycles
            (cycle_id, cycle_number, status, threshold_projects, votes_to_win,
-            reward_amount, reward_currency, votes_open)
-           VALUES ($1, 1, 'active', $2, $3, $4, $5, FALSE)""",
+            reward_amount, reward_currency, votes_open, started_at, ended_at,
+            duration_days)
+           VALUES ($1, 1, 'active', $2, $3, $4, $5, FALSE, $6, $7, $8)""",
         cycle_id, threshold, votes_to_win, reward_amount, reward_currency,
+        now, ends_at, duration_days,
     )
     return await _get_active_cycle(conn)
 
@@ -254,21 +266,37 @@ class CreateProjectRequest(BaseModel):
     image_url: str = Field("", max_length=500)
     country_code: str = Field("", max_length=4)
     duration_days: int = Field(30, ge=7, le=180)
+    # iter239w — Acceptation explicite des conditions obligatoires.
+    # Le frontend doit envoyer terms_accepted=True après scroll + checkbox.
+    terms_accepted: bool = Field(False)
+    terms_version: str = Field(TERMS_CURRENT_VERSION, max_length=10)
 
 
 class AdminCycleConfig(BaseModel):
     threshold_projects: Optional[int] = Field(None, ge=2, le=10000)
     votes_to_win: Optional[int] = Field(None, ge=2, le=1_000_000)
+    # iter239w — Alias accepté: minimum_votes_required (admin-side terminology)
+    minimum_votes_required: Optional[int] = Field(None, ge=2, le=1_000_000)
     reward_amount: Optional[float] = Field(None, ge=0)
     reward_currency: Optional[str] = Field(None, max_length=10)
+    # iter239w — Dates configurables par admin à tout moment
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
+    duration_days: Optional[int] = Field(None, ge=1, le=3650)
     notes: Optional[str] = None
 
 
 class StartCycleRequest(BaseModel):
     threshold_projects: int = Field(DEFAULT_THRESHOLD_PROJECTS, ge=2, le=10000)
     votes_to_win: int = Field(DEFAULT_VOTES_TO_WIN, ge=2, le=1_000_000)
+    # iter239w — Alias terminologie admin
+    minimum_votes_required: Optional[int] = Field(None, ge=2, le=1_000_000)
     reward_amount: float = Field(float(DEFAULT_REWARD_AMOUNT), ge=0)
     reward_currency: str = "XAF"
+    # iter239w — Dates configurables (sinon défaut: now() + duration_days)
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
+    duration_days: int = Field(DEFAULT_CYCLE_DURATION_DAYS, ge=1, le=3650)
     notes: str = ""
 
 
@@ -327,9 +355,13 @@ async def get_state(request: Request):
             "votes_opened_at": cycle["votes_opened_at"].isoformat() if cycle["votes_opened_at"] else None,
             "threshold_projects": int(cycle["threshold_projects"]),
             "votes_to_win": int(cycle["votes_to_win"]),
+            # iter239w — alias terminologie cible
+            "minimum_votes_required": int(cycle["votes_to_win"]),
             "reward_amount": str(cycle["reward_amount"]),
             "reward_currency": cycle["reward_currency"],
-            "started_at": cycle["started_at"].isoformat(),
+            "started_at": cycle["started_at"].isoformat() if cycle["started_at"] else None,
+            "ended_at": cycle["ended_at"].isoformat() if cycle.get("ended_at") else None,
+            "duration_days": int(cycle["duration_days"]) if cycle.get("duration_days") else None,
             "winner_project_id": cycle["winner_project_id"],
         },
         "between_cycles": False,
@@ -358,6 +390,11 @@ def _project_dict(row: dict, *, voted_by_me: bool = False) -> dict:
         "status": row["status"],
         "created_at": row["created_at"].isoformat(),
         "won_at": row["won_at"].isoformat() if row.get("won_at") else None,
+        # iter239w — Champs admin/modération (lecture seule côté public)
+        "suspension_reason": row.get("suspension_reason") or "",
+        "moderation_reason": row.get("moderation_reason") or "",
+        "terms_accepted_at": row["terms_accepted_at"].isoformat() if row.get("terms_accepted_at") else None,
+        "terms_version": row.get("terms_version") or "",
         "voted_by_me": bool(voted_by_me),
         # Owner labels — joined in queries below
         "owner_name": row.get("owner_name") or "",
@@ -661,7 +698,7 @@ async def my_dashboard(request: Request):
                  FROM crowdfunding_projects p
                  JOIN users u ON u.user_id = p.user_id
                 WHERE p.user_id = $1 AND p.cycle_id = $2
-                  AND p.status IN ('active','winner')""",
+                  AND p.status IN ('active','winner','pending_review','suspended')""",
             user["user_id"], cycle["cycle_id"],
         )
         elig = await _eligibility_check(conn, user["user_id"])
@@ -710,6 +747,15 @@ async def my_dashboard(request: Request):
 ))
 async def create_project(req: CreateProjectRequest, request: Request):
     user = await get_current_user(request)
+    # iter239w — Conditions de participation OBLIGATOIRES.
+    if not req.terms_accepted:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "TERMS_NOT_ACCEPTED",
+                "message": "Tu dois accepter les conditions de participation avant de soumettre ton projet.",
+            },
+        )
     pool = await get_pool()
     async with pool.acquire() as conn:
         cycle = await _ensure_active_cycle(conn)
@@ -724,7 +770,7 @@ async def create_project(req: CreateProjectRequest, request: Request):
         existing = await conn.fetchval(
             """SELECT project_id FROM crowdfunding_projects
                 WHERE user_id = $1 AND cycle_id = $2
-                  AND status IN ('active','winner')""",
+                  AND status IN ('active','winner','pending_review','suspended')""",
             user["user_id"], cycle["cycle_id"],
         )
         if existing:
@@ -740,6 +786,12 @@ async def create_project(req: CreateProjectRequest, request: Request):
                 status_code=403,
                 detail={"message": "Tu n'es pas encore éligible.", **elig},
             )
+
+        # iter239w — Statut initial : 'pending_review' sauf si admin a activé
+        # l'auto-approbation via settings. Zéro hardcode.
+        auto_approve = await get_bool("crowdfunding_auto_approve_projects",
+                                       DEFAULT_AUTO_APPROVE_PROJECTS)
+        initial_status = "active" if auto_approve else "pending_review"
 
         # Slug + insert
         slug = _slugify(req.title)
@@ -760,24 +812,31 @@ async def create_project(req: CreateProjectRequest, request: Request):
                 """INSERT INTO crowdfunding_projects
                     (project_id, slug, cycle_id, user_id, title, description,
                      objective, category, image_url, country_code,
-                     duration_days, ends_at)
-                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)""",
+                     duration_days, ends_at, status,
+                     terms_accepted_at, terms_version)
+                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,
+                           NOW(), $14)""",
                 project_id, slug, cycle["cycle_id"], user["user_id"],
                 req.title.strip(), req.description.strip(),
                 (req.objective or "").strip(), req.category,
                 (req.image_url or "").strip(),
                 (req.country_code or user.get("country_code") or "").upper()[:2],
-                int(req.duration_days), ends_at,
+                int(req.duration_days), ends_at, initial_status,
+                (req.terms_version or TERMS_CURRENT_VERSION)[:10],
             )
         except asyncpg_unique_violation():  # pragma: no cover
             raise HTTPException(status_code=409,
                                 detail="Conflit — réessaie dans une seconde.")
 
-        # Maybe open votes if this insert hit the threshold
+        # Maybe open votes if this insert hit the threshold (only counts
+        # 'active' or 'winner' projects, NOT 'pending_review').
         cycle = await _maybe_open_votes(conn, cycle)
 
-    logger.info(f"[crowdfunding] project created user={user['user_id']} slug={slug}")
-    return {"project_id": project_id, "slug": slug, "votes_open": cycle["votes_open"]}
+    logger.info(f"[crowdfunding] project created user={user['user_id']} "
+                f"slug={slug} status={initial_status}")
+    return {"project_id": project_id, "slug": slug,
+            "status": initial_status,
+            "votes_open": cycle["votes_open"]}
 
 
 def asyncpg_unique_violation():
@@ -1066,33 +1125,12 @@ async def cast_vote(slug: str, request: Request):
                 new_count, project["project_id"],
             )
 
+            # iter239w — Plus de victoire immédiate. Le gagnant est déterminé
+            # uniquement à la clôture du cycle (worker auto_close_expired_cycles
+            # ou trigger admin), sur la base du projet avec le plus de votes
+            # AYANT atteint minimum_votes_required (ex-votes_to_win).
             won = False
             reward_tx_id = None
-            if (new_count >= int(cycle["votes_to_win"])
-                    and not cycle["winner_project_id"]):
-                # Atomic winner declaration
-                reward_tx_id = await _credit_winner(conn, project, cycle)
-                await conn.execute(
-                    """UPDATE crowdfunding_projects
-                          SET status = 'winner', won_at = NOW(),
-                              reward_tx_id = $1
-                        WHERE project_id = $2""",
-                    reward_tx_id, project["project_id"],
-                )
-                await conn.execute(
-                    """UPDATE crowdfunding_cycles
-                          SET status = 'completed', ended_at = NOW(),
-                              winner_project_id = $1, winner_user_id = $2
-                        WHERE cycle_id = $3""",
-                    project["project_id"], project["user_id"],
-                    cycle["cycle_id"],
-                )
-                won = True
-                logger.info(
-                    f"[crowdfunding] WINNER project={project['project_id']} "
-                    f"user={project['user_id']} cycle={cycle['cycle_id']} "
-                    f"reward={cycle['reward_amount']} {cycle['reward_currency']} tx={reward_tx_id}"
-                )
 
     # iter142E: proactive engagement-state invalidation. Reset the project
     # owner's cooldown so his next /engagement/me call yields a fresh
@@ -1254,23 +1292,34 @@ async def admin_start_cycle(req: StartCycleRequest, request: Request):
                 "SELECT COALESCE(MAX(cycle_number),0)+1 FROM crowdfunding_cycles"
             )
             cycle_id = f"cycle_{uuid.uuid4().hex[:12]}"
+            # iter239w — minimum_votes_required alias supplante votes_to_win si fourni
+            votes_to_win = int(req.minimum_votes_required or req.votes_to_win)
+            now = datetime.now(timezone.utc)
+            started_at = req.started_at or now
+            ended_at = req.ended_at or (started_at + timedelta(days=int(req.duration_days)))
             await conn.execute(
                 """INSERT INTO crowdfunding_cycles
                     (cycle_id, cycle_number, status, threshold_projects,
                      votes_to_win, reward_amount, reward_currency,
-                     votes_open, created_by_admin, notes)
-                   VALUES ($1,$2,'active',$3,$4,$5,$6,FALSE,$7,$8)""",
-                cycle_id, number, req.threshold_projects, req.votes_to_win,
+                     votes_open, created_by_admin, notes,
+                     started_at, ended_at, duration_days)
+                   VALUES ($1,$2,'active',$3,$4,$5,$6,FALSE,$7,$8,$9,$10,$11)""",
+                cycle_id, number, req.threshold_projects, votes_to_win,
                 Decimal(str(req.reward_amount)), req.reward_currency,
                 admin["user_id"], req.notes,
+                started_at, ended_at, int(req.duration_days),
             )
-    return {"cycle_id": cycle_id, "cycle_number": number, "status": "active"}
+    return {
+        "cycle_id": cycle_id, "cycle_number": number, "status": "active",
+        "started_at": started_at.isoformat(), "ended_at": ended_at.isoformat(),
+        "minimum_votes_required": votes_to_win,
+    }
 
 
 @router.put("/admin/cycles/active")
 async def admin_update_active_cycle(req: AdminCycleConfig, request: Request):
-    """Tweak the active cycle's parameters (votes_to_win, reward, etc.).
-    Disabled once a winner has been declared."""
+    """Tweak the active cycle's parameters (threshold, minimum votes, reward,
+    dates). iter239w: dates configurables à tout moment tant que pas de gagnant."""
     await _require_admin(request)
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -1284,15 +1333,26 @@ async def admin_update_active_cycle(req: AdminCycleConfig, request: Request):
         if req.threshold_projects is not None:
             sets.append(f"threshold_projects = ${len(args)+1}")
             args.append(int(req.threshold_projects))
-        if req.votes_to_win is not None:
+        # iter239w — minimum_votes_required alias prioritaire
+        mvr = req.minimum_votes_required if req.minimum_votes_required is not None else req.votes_to_win
+        if mvr is not None:
             sets.append(f"votes_to_win = ${len(args)+1}")
-            args.append(int(req.votes_to_win))
+            args.append(int(mvr))
         if req.reward_amount is not None:
             sets.append(f"reward_amount = ${len(args)+1}")
             args.append(Decimal(str(req.reward_amount)))
         if req.reward_currency is not None:
             sets.append(f"reward_currency = ${len(args)+1}")
             args.append(req.reward_currency)
+        if req.started_at is not None:
+            sets.append(f"started_at = ${len(args)+1}")
+            args.append(req.started_at)
+        if req.ended_at is not None:
+            sets.append(f"ended_at = ${len(args)+1}")
+            args.append(req.ended_at)
+        if req.duration_days is not None:
+            sets.append(f"duration_days = ${len(args)+1}")
+            args.append(int(req.duration_days))
         if req.notes is not None:
             sets.append(f"notes = ${len(args)+1}")
             args.append(req.notes)
@@ -1350,12 +1410,23 @@ async def admin_get_settings(request: Request):
         "default_votes_to_win": int(await get_setting(
             "crowdfunding_votes_to_win",
             DEFAULT_VOTES_TO_WIN) or DEFAULT_VOTES_TO_WIN),
+        # iter239w — alias
+        "default_minimum_votes_required": int(await get_setting(
+            "crowdfunding_votes_to_win",
+            DEFAULT_VOTES_TO_WIN) or DEFAULT_VOTES_TO_WIN),
         "default_reward_amount": str(await get_setting(
             "crowdfunding_reward_amount",
             DEFAULT_REWARD_AMOUNT) or DEFAULT_REWARD_AMOUNT),
         "default_reward_currency": str(await get_setting(
             "crowdfunding_reward_currency",
             DEFAULT_REWARD_CURRENCY) or DEFAULT_REWARD_CURRENCY),
+        "default_cycle_duration_days": int(await get_setting(
+            "crowdfunding_default_cycle_duration_days",
+            DEFAULT_CYCLE_DURATION_DAYS) or DEFAULT_CYCLE_DURATION_DAYS),
+        "auto_approve_projects": await get_bool(
+            "crowdfunding_auto_approve_projects",
+            DEFAULT_AUTO_APPROVE_PROJECTS),
+        "terms_current_version": TERMS_CURRENT_VERSION,
     }
 
 
@@ -1365,8 +1436,12 @@ class AdminUpdateSettings(BaseModel):
     required_actions: Optional[dict] = None
     default_threshold_projects: Optional[int] = Field(None, ge=2, le=10000)
     default_votes_to_win: Optional[int] = Field(None, ge=2, le=1_000_000)
+    # iter239w — alias prioritaire
+    default_minimum_votes_required: Optional[int] = Field(None, ge=2, le=1_000_000)
     default_reward_amount: Optional[float] = Field(None, ge=0)
     default_reward_currency: Optional[str] = Field(None, max_length=10)
+    default_cycle_duration_days: Optional[int] = Field(None, ge=1, le=3650)
+    auto_approve_projects: Optional[bool] = None
 
 
 @router.put("/admin/settings")
@@ -1384,15 +1459,22 @@ async def admin_update_settings(req: AdminUpdateSettings, request: Request):
     if req.default_threshold_projects is not None:
         await set_setting("crowdfunding_threshold_projects",
                           int(req.default_threshold_projects))
-    if req.default_votes_to_win is not None:
-        await set_setting("crowdfunding_votes_to_win",
-                          int(req.default_votes_to_win))
+    # iter239w — minimum_votes_required alias prioritaire
+    mvr = req.default_minimum_votes_required if req.default_minimum_votes_required is not None else req.default_votes_to_win
+    if mvr is not None:
+        await set_setting("crowdfunding_votes_to_win", int(mvr))
     if req.default_reward_amount is not None:
         await set_setting("crowdfunding_reward_amount",
                           str(req.default_reward_amount))
     if req.default_reward_currency is not None:
         await set_setting("crowdfunding_reward_currency",
                           req.default_reward_currency)
+    if req.default_cycle_duration_days is not None:
+        await set_setting("crowdfunding_default_cycle_duration_days",
+                          int(req.default_cycle_duration_days))
+    if req.auto_approve_projects is not None:
+        await set_setting("crowdfunding_auto_approve_projects",
+                          bool(req.auto_approve_projects))
     return await admin_get_settings(request)
 
 
@@ -1660,3 +1742,351 @@ async def my_recruiter_progress(request: Request,
                         "next_tier": None, "badges": []}
             cycle_id = str(cid)
         return await my_progress(conn, user["user_id"], cycle_id)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# iter239w — Refonte logique de victoire + admin total
+# ──────────────────────────────────────────────────────────────────────────
+
+class ProjectModerationRequest(BaseModel):
+    reason: str = Field(..., min_length=5, max_length=500)
+
+
+async def _notify_owner(conn, user_id: str, *, title: str, message: str,
+                        notif_type: str, data: str = "{}"):
+    """Best-effort in-app notification for project owner. Never raises."""
+    try:
+        await conn.execute(
+            """INSERT INTO notifications (notif_id, user_id, type, title, message, data)
+               VALUES ($1, $2, $3, $4, $5, $6::jsonb)""",
+            f"notif_{uuid.uuid4().hex[:14]}", user_id, notif_type, title, message, data,
+        )
+    except Exception as e:
+        logger.warning(f"[crowdfunding] notify_owner skipped: {e}")
+
+
+@router.post("/admin/projects/{slug}/approve")
+async def admin_approve_project(slug: str, request: Request):
+    """iter239w — Approuve un projet en attente (pending_review → active)."""
+    admin = await _require_admin(request)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT project_id, status, user_id, title FROM crowdfunding_projects WHERE slug=$1",
+            slug,
+        )
+        if not row:
+            raise HTTPException(status_code=404, detail="Projet introuvable.")
+        if row["status"] != "pending_review":
+            raise HTTPException(
+                status_code=409,
+                detail=f"Projet non en attente (statut actuel: {row['status']}).",
+            )
+        await conn.execute(
+            """UPDATE crowdfunding_projects
+                  SET status='active',
+                      reviewed_at = NOW(),
+                      reviewed_by = $1,
+                      updated_at = NOW()
+                WHERE slug = $2""",
+            admin["user_id"], slug,
+        )
+        cycle = await _get_active_cycle(conn)
+        if cycle:
+            await _maybe_open_votes(conn, cycle)
+        await _notify_owner(
+            conn, row["user_id"],
+            title="Ton projet a ete approuve",
+            message=f"Ton projet \u00ab {row['title']} \u00bb est maintenant visible.",
+            notif_type="crowdfunding_approved",
+            data=f'{{"slug":"{slug}"}}',
+        )
+        logger.warning(f"[crowdfunding][ADMIN] admin={admin['user_id']} approved slug={slug}")
+    return {"ok": True, "slug": slug, "status": "active"}
+
+
+@router.post("/admin/projects/{slug}/suspend")
+async def admin_suspend_project(slug: str, req: ProjectModerationRequest,
+                                request: Request):
+    """iter239w — Suspension temporaire (invisible publique, recuperable)."""
+    admin = await _require_admin(request)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT project_id, status, user_id, title FROM crowdfunding_projects WHERE slug=$1",
+            slug,
+        )
+        if not row:
+            raise HTTPException(status_code=404, detail="Projet introuvable.")
+        if row["status"] not in ("active", "pending_review"):
+            raise HTTPException(
+                status_code=409,
+                detail=f"Suspension impossible (statut: {row['status']}).",
+            )
+        await conn.execute(
+            """UPDATE crowdfunding_projects
+                  SET status='suspended',
+                      suspended_at = NOW(),
+                      suspended_by = $1,
+                      suspension_reason = $2,
+                      updated_at = NOW()
+                WHERE slug = $3""",
+            admin["user_id"], req.reason, slug,
+        )
+        await _notify_owner(
+            conn, row["user_id"],
+            title="Ton projet a ete suspendu",
+            message=f"\u00ab {row['title']} \u00bb \u2014 motif : {req.reason}",
+            notif_type="crowdfunding_suspended",
+            data=f'{{"slug":"{slug}"}}',
+        )
+        logger.warning(f"[crowdfunding][ADMIN] admin={admin['user_id']} "
+                       f"suspended slug={slug} reason={req.reason!r}")
+    return {"ok": True, "slug": slug, "status": "suspended", "reason": req.reason}
+
+
+@router.post("/admin/projects/{slug}/reactivate")
+async def admin_reactivate_project(slug: str, request: Request):
+    """iter239w — Reactive un projet suspendu (suspended -> active)."""
+    admin = await _require_admin(request)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT project_id, status, user_id, title FROM crowdfunding_projects WHERE slug=$1",
+            slug,
+        )
+        if not row:
+            raise HTTPException(status_code=404, detail="Projet introuvable.")
+        if row["status"] != "suspended":
+            raise HTTPException(
+                status_code=409,
+                detail=f"Reactivation impossible (statut: {row['status']}).",
+            )
+        await conn.execute(
+            """UPDATE crowdfunding_projects
+                  SET status='active',
+                      suspended_at = NULL,
+                      suspended_by = NULL,
+                      suspension_reason = NULL,
+                      updated_at = NOW()
+                WHERE slug = $1""",
+            slug,
+        )
+        cycle = await _get_active_cycle(conn)
+        if cycle:
+            await _maybe_open_votes(conn, cycle)
+        await _notify_owner(
+            conn, row["user_id"],
+            title="Ton projet a ete reactive",
+            message=f"\u00ab {row['title']} \u00bb est de nouveau visible.",
+            notif_type="crowdfunding_reactivated",
+            data=f'{{"slug":"{slug}"}}',
+        )
+        logger.warning(f"[crowdfunding][ADMIN] admin={admin['user_id']} reactivated slug={slug}")
+    return {"ok": True, "slug": slug, "status": "active"}
+
+
+@router.delete("/admin/projects/{slug}/force-delete")
+async def admin_force_delete_project(slug: str, req: ProjectModerationRequest,
+                                     request: Request):
+    """iter239w — Suppression definitive admin (tout statut sauf 'winner')."""
+    admin = await _require_admin(request)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT project_id, status, user_id, title FROM crowdfunding_projects WHERE slug=$1",
+            slug,
+        )
+        if not row:
+            raise HTTPException(status_code=404, detail="Projet introuvable.")
+        if row["status"] == "winner":
+            raise HTTPException(
+                status_code=409,
+                detail="Refus : ce projet a deja gagne. Suppression interdite.",
+            )
+        await conn.execute(
+            """UPDATE crowdfunding_projects
+                  SET status='deleted',
+                      moderation_reason = $1,
+                      reviewed_at = NOW(),
+                      reviewed_by = $2,
+                      updated_at = NOW()
+                WHERE slug = $3""",
+            req.reason, admin["user_id"], slug,
+        )
+        await _notify_owner(
+            conn, row["user_id"],
+            title="Ton projet a ete supprime",
+            message=f"\u00ab {row['title']} \u00bb \u2014 motif : {req.reason}",
+            notif_type="crowdfunding_deleted",
+            data=f'{{"slug":"{slug}"}}',
+        )
+        logger.warning(f"[crowdfunding][ADMIN] admin={admin['user_id']} "
+                       f"force-deleted slug={slug} reason={req.reason!r}")
+    return {"ok": True, "slug": slug, "status": "deleted", "reason": req.reason}
+
+
+@router.get("/admin/projects")
+async def admin_list_all_projects(
+    request: Request,
+    status: Optional[str] = Query(None, max_length=32),
+    cycle_id: Optional[str] = Query(None, max_length=40),
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+):
+    """iter239w — Liste admin de TOUS les projets (tous statuts, tous cycles)."""
+    await _require_admin(request)
+    pool = await get_pool()
+    where_parts = []
+    args: list = []
+    if status:
+        args.append(status)
+        where_parts.append(f"p.status = ${len(args)}")
+    if cycle_id:
+        args.append(cycle_id)
+        where_parts.append(f"p.cycle_id = ${len(args)}")
+    where_sql = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
+    args.extend([limit, offset])
+    sql = f"""
+        SELECT p.project_id, p.slug, p.cycle_id, p.user_id, p.title,
+               p.category, p.country_code, p.votes_count, p.status,
+               p.suspended_at, p.suspension_reason, p.moderation_reason,
+               p.terms_accepted_at, p.terms_version,
+               p.created_at, p.updated_at,
+               u.first_name, u.last_name, u.username
+          FROM crowdfunding_projects p
+          JOIN users u ON u.user_id = p.user_id
+          {where_sql}
+         ORDER BY p.created_at DESC
+         LIMIT ${len(args)-1} OFFSET ${len(args)}
+    """
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(sql, *args)
+    out = []
+    for r in rows:
+        d = dict(r)
+        out.append({
+            "project_id": d["project_id"], "slug": d["slug"],
+            "cycle_id": d["cycle_id"], "user_id": d["user_id"],
+            "title": d["title"], "category": d["category"],
+            "country_code": d["country_code"] or "",
+            "votes_count": int(d["votes_count"]),
+            "status": d["status"],
+            "suspended_at": d["suspended_at"].isoformat() if d["suspended_at"] else None,
+            "suspension_reason": d["suspension_reason"] or "",
+            "moderation_reason": d["moderation_reason"] or "",
+            "terms_accepted_at": d["terms_accepted_at"].isoformat() if d["terms_accepted_at"] else None,
+            "terms_version": d["terms_version"] or "",
+            "created_at": d["created_at"].isoformat(),
+            "updated_at": d["updated_at"].isoformat() if d["updated_at"] else None,
+            "owner_name": (
+                f"{d.get('first_name','') or ''} {d.get('last_name','') or ''}".strip()
+                or d.get("username") or "Anonyme"
+            ),
+        })
+    return out
+
+
+# ─── Closing logic ────────────────────────────────────────────────────────
+async def close_cycle_and_determine_winner(cycle_id: str) -> dict:
+    """iter239w — Cloture atomique d'un cycle.
+       Renvoie {result: 'winner'|'no_winner'|'noop', ...}.
+    """
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            cycle = await conn.fetchrow(
+                "SELECT * FROM crowdfunding_cycles WHERE cycle_id = $1 FOR UPDATE",
+                cycle_id,
+            )
+            if not cycle:
+                return {"result": "noop", "reason": "cycle_not_found"}
+            if cycle["status"] != "active":
+                return {"result": "noop", "reason": "cycle_not_active",
+                        "status": cycle["status"]}
+
+            minimum_votes = int(cycle["votes_to_win"])
+            reward_amount = Decimal(str(cycle["reward_amount"]))
+            cycle_number = int(cycle["cycle_number"])
+
+            winner = await conn.fetchrow(
+                """SELECT project_id, user_id, votes_count, slug, title
+                     FROM crowdfunding_projects
+                    WHERE cycle_id = $1
+                      AND status = 'active'
+                      AND votes_count >= $2
+                    ORDER BY votes_count DESC, created_at ASC
+                    LIMIT 1""",
+                cycle_id, minimum_votes,
+            )
+
+            if not winner:
+                await conn.execute(
+                    """UPDATE crowdfunding_cycles
+                          SET status='completed', ended_at=COALESCE(ended_at, NOW()),
+                              notes = COALESCE(NULLIF(notes,''),'') || ' [auto-closed: no project reached minimum]'
+                        WHERE cycle_id = $1""",
+                    cycle_id,
+                )
+                await conn.execute(
+                    """UPDATE crowdfunding_projects
+                          SET status='expired', updated_at=NOW()
+                        WHERE cycle_id = $1 AND status = 'active'""",
+                    cycle_id,
+                )
+                logger.warning(
+                    f"[crowdfunding] cycle={cycle_id} closed WITHOUT winner "
+                    f"(min_required={minimum_votes})"
+                )
+                return {"result": "no_winner", "cycle_id": cycle_id,
+                        "minimum_votes": minimum_votes}
+
+            reward_tx_id = await _credit_winner(conn, dict(winner), dict(cycle))
+            await conn.execute(
+                """UPDATE crowdfunding_projects
+                      SET status='winner', won_at=NOW(), reward_tx_id=$1,
+                          updated_at=NOW()
+                    WHERE project_id = $2""",
+                reward_tx_id, winner["project_id"],
+            )
+            await conn.execute(
+                """UPDATE crowdfunding_projects
+                      SET status='expired', updated_at=NOW()
+                    WHERE cycle_id = $1 AND status='active' AND project_id != $2""",
+                cycle_id, winner["project_id"],
+            )
+            await conn.execute(
+                """UPDATE crowdfunding_cycles
+                      SET status='completed', ended_at=COALESCE(ended_at, NOW()),
+                          winner_project_id=$1, winner_user_id=$2
+                    WHERE cycle_id = $3""",
+                winner["project_id"], winner["user_id"], cycle_id,
+            )
+            await _notify_owner(
+                conn, winner["user_id"],
+                title=f"Tu as gagne le cycle #{cycle_number} !",
+                message=f"\u00ab {winner['title']} \u00bb remporte {reward_amount} {cycle['reward_currency']}. "
+                        f"Verifie ton wallet. Pour retirer, ton KYC doit etre approuve.",
+                notif_type="crowdfunding_winner",
+                data=f'{{"slug":"{winner["slug"]}","tx_id":"{reward_tx_id}"}}',
+            )
+            logger.warning(
+                f"[crowdfunding] cycle={cycle_id} CLOSED -- winner={winner['slug']} "
+                f"({winner['votes_count']} votes, reward={reward_amount} {cycle['reward_currency']})"
+            )
+            return {
+                "result": "winner",
+                "cycle_id": cycle_id,
+                "winner_project_id": winner["project_id"],
+                "winner_user_id": winner["user_id"],
+                "winner_slug": winner["slug"],
+                "votes_count": int(winner["votes_count"]),
+                "reward_tx_id": reward_tx_id,
+            }
+
+
+@router.post("/admin/cycles/{cycle_id}/close")
+async def admin_close_cycle(cycle_id: str, request: Request):
+    """iter239w — Force la cloture immediate d'un cycle (sans attendre ended_at)."""
+    await _require_admin(request)
+    return await close_cycle_and_determine_winner(cycle_id)

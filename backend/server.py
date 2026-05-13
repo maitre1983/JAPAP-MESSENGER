@@ -403,6 +403,8 @@ async def _iter237c_deferred_workers_start():
         ("scholarship_digest",    "services.scholarship_digest_worker",        "_loop"),
         ("public_url_audit",      "services.public_url_audit_worker",          "_loop"),
         ("cf_recruit_remind",     "services.crowdfunding_recruit_remind_worker","_loop"),
+        # iter239w — Auto-close des cycles expirés et désignation gagnant
+        ("cf_cycle_close",        "services.crowdfunding_cycle_close_worker",  "_loop"),
         ("seller_reminder",       "services.seller_reminder_worker",           "_loop"),
         ("video_transcode",       "services.video_transcode_worker",           "_loop"),
         ("migration_broadcast",   "services.migration_broadcast",              "_worker_loop"),

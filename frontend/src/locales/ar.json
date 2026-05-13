@@ -565,7 +565,14 @@
     "compte_a_rebours": "العد التنازلي",
     "verrouille": "مؤمّن",
     "creation": "جاري الإنشاء…",
-    "pas_encore_eligible": "غير مؤهل بعد"
+    "pas_encore_eligible": "غير مؤهل بعد",
+    "create_title": "إنشاء مشروعي",
+    "launch_btn": "إطلاق مشروعي",
+    "not_eligible_title": "أنت غير مؤهل بعد",
+    "error_title_too_short": "يجب أن يحتوي العنوان على 4 أحرف على الأقل.",
+    "error_description_too_short": "يجب أن يحتوي الوصف على 20 حرفًا على الأقل.",
+    "created_success": "تم إنشاء المشروع!",
+    "create_failed": "تعذر إنشاء المشروع."
   },
   "settings": {
     "visibilite_du_compte": "رؤية الحساب",

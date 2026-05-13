@@ -99,5 +99,16 @@
       "medium_risk": "Требует проверки",
       "high_risk": "Высокий риск"
     }
+  },
+  "crowdfunding": {
+    "creation": "Создание…",
+    "pas_encore_eligible": "Пока недоступно",
+    "create_title": "Создать мой проект",
+    "launch_btn": "Запустить мой проект",
+    "not_eligible_title": "Вы пока не соответствуете требованиям",
+    "error_title_too_short": "Название должно содержать не менее 4 символов.",
+    "error_description_too_short": "Описание должно содержать не менее 20 символов.",
+    "created_success": "Проект создан!",
+    "create_failed": "Не удалось создать проект."
   }
 }

@@ -593,7 +593,14 @@
     "compte_a_rebours": "Countdown",
     "verrouille": "Locked",
     "creation": "Creating…",
-    "pas_encore_eligible": "Not yet eligible"
+    "pas_encore_eligible": "Not yet eligible",
+    "create_title": "Create my project",
+    "launch_btn": "Launch my project",
+    "not_eligible_title": "You're not eligible yet",
+    "error_title_too_short": "Title must be at least 4 characters.",
+    "error_description_too_short": "Description must be at least 20 characters.",
+    "created_success": "Project created!",
+    "create_failed": "Could not create project."
   },
   "settings": {
     "visibilite_du_compte": "Account Visibility",

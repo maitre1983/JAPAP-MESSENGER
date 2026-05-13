@@ -213,21 +213,40 @@ function CreateProjectModal({ open, onClose, onCreated, eligibility }) {
     country_code: '', duration_days: 30,
   });
   const [submitting, setSubmitting] = useState(false);
+  // iter239v — Explicit validation feedback so the user is never stuck on a
+  // silently-blocked button (iPhone landscape regression).
+  const [formError, setFormError] = useState('');
 
   if (!open) return null;
 
   const submit = async (e) => {
     e.preventDefault();
     if (submitting) return;
+    setFormError('');
+
+    // Explicit (non-silent) validation — mirrors required/minLength on inputs.
+    const title = (form.title || '').trim();
+    const description = (form.description || '').trim();
+    if (title.length < 4) {
+      setFormError(t('crowdfunding.error_title_too_short', { defaultValue: 'Le titre doit contenir au moins 4 caractères.' }));
+      return;
+    }
+    if (description.length < 20) {
+      setFormError(t('crowdfunding.error_description_too_short', { defaultValue: 'La description doit contenir au moins 20 caractères.' }));
+      return;
+    }
+
     setSubmitting(true);
     try {
       const { data } = await axios.post(`${API}/api/crowdfunding/projects`, form, {
         withCredentials: true,
       });
-      toast.success('Projet créé !');
+      toast.success(t('crowdfunding.created_success', { defaultValue: 'Projet créé !' }));
       onCreated(data);
     } catch (err) {
-      toast.error(extractErrorMessage(err, 'Création impossible.'));
+      const msg = extractErrorMessage(err, t('crowdfunding.create_failed', { defaultValue: 'Création impossible.' }));
+      setFormError(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -274,7 +293,7 @@ function CreateProjectModal({ open, onClose, onCreated, eligibility }) {
           </div>
         )}
 
-        <form id="cf-create-form" onSubmit={submit} className="space-y-3">
+        <form id="cf-create-form" onSubmit={submit} noValidate className="space-y-3">
           <div>
             <label className="text-xs font-semibold text-slate-700">Titre *</label>
             <input
@@ -360,15 +379,37 @@ function CreateProjectModal({ open, onClose, onCreated, eligibility }) {
               data-testid="cf-create-duration"
               className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-sm" />
           </div>
+        </form>
 
+        {/* iter239v — Inline error block so validation feedback is never silent. */}
+        {formError && (
+          <div
+            role="alert"
+            aria-live="polite"
+            data-testid="cf-create-error"
+            className="mt-3 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-lg px-3 py-2">
+            {formError}
+          </div>
+        )}
+        </div>
+        {/* /scrollable body */}
+
+        {/* iter239v — Sticky footer: button always reachable above iOS home
+            indicator (safe-area-inset-bottom) and Android nav bar. */}
+        <div
+          className="flex-shrink-0 border-t border-slate-100 bg-white px-5 pt-3"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}>
           <button
             type="submit"
+            form="cf-create-form"
             disabled={submitting || !eligible}
             data-testid="cf-create-submit"
-            className="w-full mt-2 bg-rose-600 text-white py-3 rounded-full font-bold hover:bg-rose-700 disabled:bg-slate-300 disabled:cursor-not-allowed">
-            {submitting ? t('crowdfunding.creation') : 'Lancer mon projet'}
+            className="w-full bg-rose-600 text-white py-3 rounded-full font-bold hover:bg-rose-700 disabled:bg-slate-300 disabled:cursor-not-allowed shadow-lg">
+            {submitting
+              ? t('crowdfunding.creation', { defaultValue: 'Création…' })
+              : t('crowdfunding.launch_btn', { defaultValue: 'Lancer mon projet' })}
           </button>
-        </form>
+        </div>
       </div>
     </div>
   );

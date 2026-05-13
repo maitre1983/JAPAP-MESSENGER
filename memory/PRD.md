@@ -7,6 +7,38 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter239v — Crowdfunding modal sticky-footer + validation explicite + SW v17 (13/05/2026)
+
+**Règles respectées** : zéro touche aux paiements (Hubtel, Paystack, USDT, Orange Money, Wave), 100% additif, zéro régression.
+
+### Problème reporté
+Le bouton "Lancer mon projet" du modal Crowdfunding était :
+1. **Invisible** sur iPhone 13 Pro Max portrait (le formulaire débordait sous la home indicator).
+2. **Silencieux** en paysage (HTML5 native validation tooltip masqué par le clavier → l'utilisateur cliquait sans aucun retour).
+
+### Fix livré
+**`CrowdfundingModule.js::CreateProjectModal`** (3 changements structurels) :
+1. **Layout flex-column** avec `maxHeight: min(92vh, 92dvh)` + body scrollable + **footer sticky**.
+2. **Bouton submit déplacé HORS du `<form>`** (lié via `form="cf-create-form"`) dans un footer `flex-shrink-0` avec `padding-bottom: calc(env(safe-area-inset-bottom) + 12px)`.
+3. **`<form noValidate>`** + état React `formError` + bloc `[data-testid="cf-create-error"]` `role="alert"` qui affiche **explicitement** les messages d'erreur (titre < 4 chars, description < 20 chars, API failure).
+
+**`index.css`** : ajout d'helpers réutilisables `.app-modal-overlay/.app-modal-shell/.app-modal-header/.app-modal-body/.app-modal-footer/.app-modal-submit` + media query landscape (`max-height: 480px and orientation: landscape`) pour shrink le footer. Disponibles pour tous les modals futurs.
+
+**i18n (5 langues)** — `fr/en/es/ar/ru.json` enrichis avec : `crowdfunding.create_title`, `launch_btn`, `not_eligible_title`, `error_title_too_short`, `error_description_too_short`, `created_success`, `create_failed`. RU section `crowdfunding` créée (n'existait pas).
+
+**SW bump** : `v16-iter239u` → `v17-iter239v` (auto-reload PWA).
+
+### Validation E2E (5/5 ✅)
+| Cas | Résultat |
+|---|---|
+| iPhone 13 Pro Max portrait (390×844) — bouton dans viewport | ✅ `box_bot=824 ≤ 844` |
+| iPhone 13 Pro Max paysage (844×390) — bouton dans viewport | ✅ `box_bot=362 ≤ 390` |
+| Galaxy S21 portrait (360×800) — bouton dans viewport | ✅ `box_bot=780 ≤ 800` |
+| Submit vide → erreur inline visible (`role="alert"`) | ✅ DOM confirmé |
+| Submit valide → modal ferme + projet créé en DB | ✅ `prj_*` créé puis cleanup OK |
+
+
+
 ## iter239u — Avatar legacy URL graceful fallback + SW v16 (12/05/2026)
 
 **Règles respectées** : zéro touche aux méthodes de paiement, 100% additif, zéro régression.

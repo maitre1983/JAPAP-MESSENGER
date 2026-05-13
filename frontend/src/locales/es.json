@@ -565,7 +565,14 @@
     "compte_a_rebours": "Cuenta regresiva",
     "verrouille": "Bloqueado",
     "creation": "Creando…",
-    "pas_encore_eligible": "Aún no es elegible"
+    "pas_encore_eligible": "Aún no es elegible",
+    "create_title": "Crear mi proyecto",
+    "launch_btn": "Lanzar mi proyecto",
+    "not_eligible_title": "Aún no eres elegible",
+    "error_title_too_short": "El título debe tener al menos 4 caracteres.",
+    "error_description_too_short": "La descripción debe tener al menos 20 caracteres.",
+    "created_success": "¡Proyecto creado!",
+    "create_failed": "No se pudo crear el proyecto."
   },
   "settings": {
     "visibilite_du_compte": "Visibilidad de la cuenta",

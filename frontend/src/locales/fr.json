@@ -593,7 +593,14 @@
     "compte_a_rebours": "Compte à rebours",
     "verrouille": "Verrouillé",
     "creation": "Création…",
-    "pas_encore_eligible": "Pas encore éligible"
+    "pas_encore_eligible": "Pas encore éligible",
+    "create_title": "Créer mon projet",
+    "launch_btn": "Lancer mon projet",
+    "not_eligible_title": "Tu n'es pas encore éligible",
+    "error_title_too_short": "Le titre doit contenir au moins 4 caractères.",
+    "error_description_too_short": "La description doit contenir au moins 20 caractères.",
+    "created_success": "Projet créé !",
+    "create_failed": "Création impossible."
   },
   "settings": {
     "visibilite_du_compte": "Visibilité du compte",

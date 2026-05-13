@@ -1,0 +1,29 @@
+{
+  "summary": "iter240d FRONTEND TESTING — All 7 features (A,B,C,D,E,F,G) PASS end-to-end. (A) CrowdfundingModule AdminPanel: cf-admin-btn opens modal with 4 tabs in order Projects/Cycles/Settings/History, default tab is 'projects' (cf-admin-projects-tab rendered), filter pill cf-admin-projects-filter-pending_review is highlighted by default (bg-rose-600), pending project listed under its real slug. (B) Pending badge: cf-admin-btn-pending-badge visible with count='1', classes contain bg-amber-400 (NOT bg-rose-500, NOT animate-pulse) — correct since the project was created <24h ago (2026-05-13T06:07Z). (C) /admin dashboard: admin-tab-crowdfunding present labelled 'Crowdfunding', clicking renders admin-tab-crowdfunding-content with inner cf-admin-projects-tab and same project listed; admin-tab-crowdfunding-open-module href='/services?view=crowdfunding'. (D) END-TO-END APPROVAL: clicked cf-admin-approve-{slug} → POST /api/crowdfunding/admin/projects/{slug}/approve returned 200; project disappeared from pending list and appeared under Active filter; logged in as Bob → /services?view=crowdfunding shows project publicly AND cf-threshold-counter went from '0 / 15 projets · encore 15 pour déclencher' → '1 / 15 projets · encore 14 pour déclencher'. (E) All 8 filter pills (all/pending_review/active/suspended/disqualified/expired/winner/deleted) render with count badges and are clickable. (F) SW_VERSION='v22-iter240d' confirmed via fetch('/sw.js'). Mobile project-creation regression already validated in iter255 — not re-tested to avoid further DB mutation. (G) i18n EN: cf-admin-tab-projects='Projects', cf-admin-projects-filter-pending_review='⏳Pending', filter-active='✅Active' — confirms en.json keys load correctly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Crowdfunding initial load", "issues": ["Pre-existing 401 console spam on initial page load (~5-10 background calls before auth hydrates). Carried over from iter255 — not a regression of iter240d."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_256.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Review request's expected test-id 'cf-admin-projects-item-japap-refactor' is INCORRECT — the actual project slug is 'cration-dun-logiciel-de-gestion-des-mnages-2520bd' (auto-generated from the title with diacritics stripped). The component is correct — the reviewer doc just used a placeholder. No code change needed; future task specs should compute the slug from title.",
+    "CrowdfundingAdminProjectsTab.fetchCounts() fires 7 parallel admin GET requests on every mount. With 5+ admin tabs across the app it can spam the backend. Consider a single aggregated endpoint /api/crowdfunding/admin/projects/counts that returns {pending_review: n, active: n, ...} in one round-trip.",
+    "usePendingReviewBadge polls every 60s while any page is open (even when admin button isn't in viewport). Acceptable for now but worth gating behind isAdmin && visibilityState==='visible'.",
+    "AdminProjectActions imported from CrowdfundingModule.js via prop-injection (ActionsComponent) — clean pattern that avoided circular imports. Good DI choice.",
+    "AdminPage.js render block keeps growing with tab===N conditional renders (lines 136-170+). Consider a tabs config-driven map {id: Component} pattern.",
+    "CrowdfundingModule.js still 1561 lines — should be split (TermsModal/CreateProjectModal/AdminPanel/AdminProjectActions into separate files). Recommendation from iter255 carried over."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "7/7 features PASS (A,B,C,D,E,F,G)"},
+  "test_credentials": "admin@japap.com / JapapAdmin2024! (no 2FA); bob@japap.com / Test1234! ; captcha bypass JAPAP_E2E_BYPASS_2026 / 0",
+  "seed_data_creation": "Approved the pre-existing pending_review project prj_b32e50760cd74c (slug=cration-dun-logiciel-de-gestion-des-mnages-2520bd, title='Création d'un logiciel de gestion des ménages') as part of Feature D end-to-end test. Project is now status=active in cycle cycle_96082b64d2df. The pending_review queue is now empty — if the next testing iteration needs another pending project, one must be created via Bob (POST /api/crowdfunding/projects).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter240d fully validated. Heads-up for follow-up iters: (1) pending_review queue is now empty after this iter approved prj_b32e50760cd74c — to test the rose-500/animate-pulse 'urgent >24h' badge variant, create a new pending project via Bob then aged via SQL: UPDATE crowdfunding_projects SET created_at = NOW() - INTERVAL '25 hours' WHERE project_id='...'; (2) test-id pattern for project items is cf-admin-projects-item-{slug} where {slug} is computed server-side from title; (3) the EN locale keys (crowdfunding.admin_filter_*, admin_tab_projects, etc.) render correctly when localStorage.i18nextLng='en'; (4) approve API is POST /api/crowdfunding/admin/projects/{slug}/approve (not the project_id).",
+  "rca_of_the_issue": "N/A — iter240d feature add, not a bug fix. All new UI surfaces (AdminButtonWithBadge, 4th tab 'Projets' in AdminPanel, /admin top-level 'Crowdfunding' tab, shared CrowdfundingAdminProjectsTab) wired up correctly with proper data-testids, working filter pills, working approve→active transition, working badge counts, and proper i18n in EN/FR. Counter on the public-facing page correctly increments when a project transitions pending_review → active (verified Bob sees 1/15 after admin approval)."
+}

@@ -21,7 +21,8 @@
     "optional": "اختياري",
     "required": "إلزامي",
     "change_language": "تغيير اللغة",
-    "language": "اللغة"
+    "language": "اللغة",
+    "reload": "تحديث"
   },
   "nav": {
     "home": "الرئيسية",
@@ -627,7 +628,29 @@
     "jury_wins_count_other": "{{count}} انتصارات",
     "jury_hall_title": "قاعة مشاهير أعضاء هيئة المحلفين",
     "jury_hall_intro": "هؤلاء الفائزون السابقون يشكلون هيئة المحلفين النشطة. صوتهم له وزن مضاعف.",
-    "jury_hall_empty": "لا يوجد أعضاء بعد. كن أول من يفوز بدورة وانضم إلى هيئة المحلفين!"
+    "jury_hall_empty": "لا يوجد أعضاء بعد. كن أول من يفوز بدورة وانضم إلى هيئة المحلفين!",
+    "admin_filter_all": "الكل",
+    "admin_filter_pending": "قيد الانتظار",
+    "admin_filter_active": "نشطة",
+    "admin_filter_suspended": "موقوفة",
+    "admin_filter_disqualified": "مستبعدة",
+    "admin_filter_expired": "منتهية",
+    "admin_filter_winner": "الفائزون",
+    "admin_filter_deleted": "محذوفة",
+    "admin_projects_load_failed": "تعذّر تحميل المشاريع.",
+    "admin_projects_loading": "جارٍ التحميل…",
+    "admin_projects_empty": "لا توجد مشاريع في هذا التصفية.",
+    "admin_tab_projects": "المشاريع",
+    "admin_tab_cycles": "الدورات",
+    "admin_tab_settings": "الإعدادات",
+    "admin_tab_history": "السجل",
+    "admin_projects_page_title": "التمويل الجماعي — مراجعة المشاريع",
+    "admin_open_full_module": "فتح الوحدة الكاملة ↗",
+    "anonymous": "مجهول",
+    "votes": "أصوات",
+    "rel_just_now": "الآن",
+    "rel_hours_ago": "{{h}} س",
+    "rel_days_ago": "{{d}} ي"
   },
   "pwa": {
     "update_available": "إصدار جديد من JAPAP متاح. سيتم تطبيقه تلقائياً.",

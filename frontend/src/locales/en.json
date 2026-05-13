@@ -21,7 +21,8 @@
     "optional": "optional",
     "required": "required",
     "change_language": "Change language",
-    "language": "Language"
+    "language": "Language",
+    "reload": "Reload"
   },
   "nav": {
     "home": "Home",
@@ -655,7 +656,29 @@
     "jury_wins_count_other": "{{count}} wins",
     "jury_hall_title": "Jury Hall of Fame",
     "jury_hall_intro": "These past winners make up the active jury. Their vote carries a weighted boost.",
-    "jury_hall_empty": "No jurors yet. Be the first to win a cycle and join the jury!"
+    "jury_hall_empty": "No jurors yet. Be the first to win a cycle and join the jury!",
+    "admin_filter_all": "All",
+    "admin_filter_pending": "Pending",
+    "admin_filter_active": "Active",
+    "admin_filter_suspended": "Suspended",
+    "admin_filter_disqualified": "Disqualified",
+    "admin_filter_expired": "Expired",
+    "admin_filter_winner": "Winners",
+    "admin_filter_deleted": "Deleted",
+    "admin_projects_load_failed": "Unable to load projects.",
+    "admin_projects_loading": "Loading…",
+    "admin_projects_empty": "No projects in this filter.",
+    "admin_tab_projects": "Projects",
+    "admin_tab_cycles": "Cycles",
+    "admin_tab_settings": "Settings",
+    "admin_tab_history": "History",
+    "admin_projects_page_title": "Crowdfunding — Project moderation",
+    "admin_open_full_module": "Open full module ↗",
+    "anonymous": "Anonymous",
+    "votes": "votes",
+    "rel_just_now": "just now",
+    "rel_hours_ago": "{{h}}h",
+    "rel_days_ago": "{{d}}d"
   },
   "pwa": {
     "update_available": "A new version of JAPAP is available. It will be applied automatically.",

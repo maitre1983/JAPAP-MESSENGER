@@ -14,6 +14,7 @@ import EngagementBanner from '@/components/crowdfunding/EngagementBanner';
 import JuryHallOfFame from '@/components/JuryHallOfFame';
 import { useEngagementState, trackEngagementEvent } from '@/hooks/useEngagementState';
 import RecruiterPanel from '@/components/crowdfunding/RecruiterPanel';
+import CrowdfundingAdminProjectsTab, { usePendingReviewBadge } from '@/components/crowdfunding/CrowdfundingAdminProjectsTab';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -596,10 +597,30 @@ function MyDashboard({ me, engagement, onCreate, onEdit, onDelete }) {
   );
 }
 
+// ─── iter240d — Bouton ⚙️ Admin avec badge pulsant sur projets en attente ──
+function AdminButtonWithBadge({ onClick }) {
+  const { count, urgent } = usePendingReviewBadge();
+  return (
+    <button
+      onClick={onClick}
+      data-testid="cf-admin-btn"
+      className="relative bg-slate-900 text-white px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1">
+      <Gear size={14} /> Admin
+      {count > 0 && (
+        <span
+          data-testid="cf-admin-btn-pending-badge"
+          className={`ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold ${urgent ? 'bg-rose-500 text-white animate-pulse' : 'bg-amber-400 text-slate-900'}`}>
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
 // ─── Admin panel ─────────────────────────────────────────────────────────
 function AdminPanel({ open, onClose, onChanged, activeCycle }) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState('cycle');
+  const [tab, setTab] = useState('projects');
   const [cycle, setCycle] = useState({ threshold_projects: 50, votes_to_win: 100, reward_amount: 50000, reward_currency: 'XAF', notes: '' });
   const [activeUpdate, setActiveUpdate] = useState({});
   const [settings, setSettings] = useState(null);
@@ -667,19 +688,25 @@ function AdminPanel({ open, onClose, onChanged, activeCycle }) {
           <button onClick={onClose} className="p-1.5 rounded-full hover:bg-slate-100"><X size={20} /></button>
         </div>
 
-        <div className="px-5 pt-3 flex gap-1 border-b">
-          {[['cycle', 'Cycles'], ['settings', 'Réglages'], ['history', 'Historique']].map(([k, v]) => (
+        <div className="px-5 pt-3 flex gap-1 border-b overflow-x-auto">
+          {[
+            ['projects', t('crowdfunding.admin_tab_projects', { defaultValue: 'Projets' })],
+            ['cycle', t('crowdfunding.admin_tab_cycles', { defaultValue: 'Cycles' })],
+            ['settings', t('crowdfunding.admin_tab_settings', { defaultValue: 'Réglages' })],
+            ['history', t('crowdfunding.admin_tab_history', { defaultValue: 'Historique' })],
+          ].map(([k, v]) => (
             <button
               key={k}
               data-testid={`cf-admin-tab-${k}`}
               onClick={() => setTab(k)}
-              className={`px-3 py-2 text-sm font-semibold border-b-2 ${tab === k ? 'border-rose-600 text-rose-600' : 'border-transparent text-slate-500'}`}>
+              className={`px-3 py-2 text-sm font-semibold border-b-2 whitespace-nowrap ${tab === k ? 'border-rose-600 text-rose-600' : 'border-transparent text-slate-500'}`}>
               {v}
             </button>
           ))}
         </div>
 
         <div className="p-5 space-y-5">
+          {tab === 'projects' && <CrowdfundingAdminProjectsTab ActionsComponent={AdminProjectActions} />}
           {tab === 'cycle' && (
             <>
               <section>
@@ -950,12 +977,7 @@ export default function CrowdfundingModule({ onBack }) {
             <ArrowsClockwise size={20} />
           </button>
           {isAdmin && (
-            <button
-              onClick={() => setShowAdmin(true)}
-              data-testid="cf-admin-btn"
-              className="bg-slate-900 text-white px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1">
-              <Gear size={14} /> Admin
-            </button>
+            <AdminButtonWithBadge onClick={() => setShowAdmin(true)} />
           )}
         </div>
       </header>

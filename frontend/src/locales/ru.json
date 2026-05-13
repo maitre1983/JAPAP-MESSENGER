@@ -2,7 +2,8 @@
   "common": {
     "back": "Назад",
     "cancel": "Отмена",
-    "loading": "Загрузка…"
+    "loading": "Загрузка…",
+    "reload": "Обновить"
   },
   "paystack": {
     "method_label": "Карта / Mobile Money",
@@ -171,6 +172,28 @@
     "jury_wins_count_other": "{{count}} побед",
     "jury_hall_title": "Зал славы членов жюри",
     "jury_hall_intro": "Эти прошлые победители образуют активное жюри. Их голос имеет повышенный вес.",
-    "jury_hall_empty": "Пока нет членов жюри. Будьте первым, кто выиграет цикл, и присоединитесь к жюри!"
+    "jury_hall_empty": "Пока нет членов жюри. Будьте первым, кто выиграет цикл, и присоединитесь к жюри!",
+    "admin_filter_all": "Все",
+    "admin_filter_pending": "На модерации",
+    "admin_filter_active": "Активные",
+    "admin_filter_suspended": "Приостановлены",
+    "admin_filter_disqualified": "Дисквалифицированы",
+    "admin_filter_expired": "Истёкшие",
+    "admin_filter_winner": "Победители",
+    "admin_filter_deleted": "Удалённые",
+    "admin_projects_load_failed": "Не удалось загрузить проекты.",
+    "admin_projects_loading": "Загрузка…",
+    "admin_projects_empty": "В этом фильтре нет проектов.",
+    "admin_tab_projects": "Проекты",
+    "admin_tab_cycles": "Циклы",
+    "admin_tab_settings": "Настройки",
+    "admin_tab_history": "История",
+    "admin_projects_page_title": "Краудфандинг — Модерация проектов",
+    "admin_open_full_module": "Открыть полный модуль ↗",
+    "anonymous": "Аноним",
+    "votes": "голосов",
+    "rel_just_now": "только что",
+    "rel_hours_ago": "{{h}} ч",
+    "rel_days_ago": "{{d}} д"
   }
 }

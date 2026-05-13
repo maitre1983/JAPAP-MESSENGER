@@ -21,7 +21,8 @@
     "optional": "optionnel",
     "required": "requis",
     "change_language": "Changer la langue",
-    "language": "Langue"
+    "language": "Langue",
+    "reload": "Actualiser"
   },
   "nav": {
     "home": "Accueil",
@@ -655,7 +656,29 @@
     "jury_wins_count_other": "{{count}} victoires",
     "jury_hall_title": "Hall of Fame des Jurés",
     "jury_hall_intro": "Ces anciens gagnants forment le jury actif. Leur vote a un poids majoré.",
-    "jury_hall_empty": "Aucun juré pour l'instant. Sois le premier à remporter un cycle pour rejoindre le jury !"
+    "jury_hall_empty": "Aucun juré pour l'instant. Sois le premier à remporter un cycle pour rejoindre le jury !",
+    "admin_filter_all": "Tous",
+    "admin_filter_pending": "En attente",
+    "admin_filter_active": "Actifs",
+    "admin_filter_suspended": "Suspendus",
+    "admin_filter_disqualified": "Disqualifiés",
+    "admin_filter_expired": "Expirés",
+    "admin_filter_winner": "Gagnants",
+    "admin_filter_deleted": "Supprimés",
+    "admin_projects_load_failed": "Impossible de charger les projets.",
+    "admin_projects_loading": "Chargement…",
+    "admin_projects_empty": "Aucun projet dans ce filtre.",
+    "admin_tab_projects": "Projets",
+    "admin_tab_cycles": "Cycles",
+    "admin_tab_settings": "Réglages",
+    "admin_tab_history": "Historique",
+    "admin_projects_page_title": "Crowdfunding — Modération des projets",
+    "admin_open_full_module": "Ouvrir le module complet ↗",
+    "anonymous": "Anonyme",
+    "votes": "votes",
+    "rel_just_now": "à l'instant",
+    "rel_hours_ago": "{{h}}h",
+    "rel_days_ago": "{{d}}j"
   },
   "pwa": {
     "refresh_btn": "Actualiser",

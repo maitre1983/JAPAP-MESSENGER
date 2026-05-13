@@ -27,6 +27,8 @@ import MigrationBroadcastAdminTab from '@/pages/admin/MigrationBroadcastAdminTab
 import ZoomableImage from '@/components/media/ZoomableImage';
 import UsersByBalanceTab from '@/pages/admin/UsersByBalanceTab';
 import ReferralTiersEditor from '@/components/admin/referrals/ReferralTiersEditor';
+import CrowdfundingAdminProjectsTab from '@/components/crowdfunding/CrowdfundingAdminProjectsTab';
+import { AdminProjectActions } from '@/pages/CrowdfundingModule';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -73,6 +75,7 @@ export default function AdminPage() {
     { id: 'wheel', label: 'Roue Fortune', icon: Target },
     { id: 'engagement', label: 'Quiz & Tap', icon: GameController },
     { id: 'recruit', label: 'Recruteurs (Viral)', icon: Confetti },
+    { id: 'crowdfunding', label: 'Crowdfunding', icon: Gift },
     { id: 'quiz-champion', label: 'Quiz Champion', icon: Crown },
     { id: 'spin', label: 'Mini-spin XAF', icon: GameController },
     { id: 'pro', label: 'JAPAP PRO', icon: Crown },
@@ -140,6 +143,22 @@ export default function AdminPage() {
       {tab === 'wheel' && <WheelFortuneAdminTab />}
       {tab === 'engagement' && <GamesEngagementAdminTab />}
       {tab === 'recruit' && <RecruitAdminTab />}
+      {tab === 'crowdfunding' && (
+        <div className="space-y-4" data-testid="admin-tab-crowdfunding-content">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold font-['Outfit']" style={{ color: 'var(--jp-text)' }}>
+              {t('crowdfunding.admin_projects_page_title', { defaultValue: 'Crowdfunding — Modération des projets' })}
+            </h2>
+            <a
+              href="/services?view=crowdfunding"
+              data-testid="admin-tab-crowdfunding-open-module"
+              className="text-xs font-semibold text-rose-600 hover:underline">
+              {t('crowdfunding.admin_open_full_module', { defaultValue: 'Ouvrir le module complet ↗' })}
+            </a>
+          </div>
+          <CrowdfundingAdminProjectsTab ActionsComponent={AdminProjectActions} />
+        </div>
+      )}
       {tab === 'spin' && <SpinAdminTab setMessage={setMessage} />}
       {tab === 'pro' && <ProAdminTab setMessage={setMessage} />}
       {tab === 'referrals' && <ReferralsAdminTab />}

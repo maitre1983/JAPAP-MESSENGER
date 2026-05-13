@@ -19,6 +19,7 @@ from __future__ import annotations
 import os
 import re
 import uuid
+import json
 import hashlib
 import logging
 import random
@@ -175,6 +176,11 @@ async def _maybe_open_votes(conn, cycle: dict) -> dict:
         cycle["votes_open"] = True
         cycle["votes_opened_at"] = datetime.now(timezone.utc)
         logger.info(f"[crowdfunding] Votes OPENED for cycle {cycle['cycle_id']} (projects={cnt})")
+        # iter239z — Fan-out push aux jurés actifs ("Les votes sont ouverts !")
+        try:
+            await _notify_jurors_votes_opened(conn, cycle)
+        except Exception as e:
+            logger.error(f"[crowdfunding][JURY_PUSH] notify_votes_opened failed: {e}")
     return cycle
 
 
@@ -1335,6 +1341,11 @@ async def admin_start_cycle(req: StartCycleRequest, request: Request):
         "cycle_id": cycle_id, "cycle_number": number, "status": "active",
         "started_at": started_at.isoformat(), "ended_at": ended_at.isoformat(),
         "minimum_votes_required": votes_to_win,
+        "jury_notified_count": await _notify_jurors_new_cycle_safe(
+            cycle_id=cycle_id, cycle_number=number,
+            reward_amount=req.reward_amount, reward_currency=req.reward_currency,
+            ended_at=ended_at,
+        ),
     }
 
 
@@ -2557,4 +2568,233 @@ async def get_jury_certificate(user_id: str, cycle_id: Optional[str] = None):
     from fastapi.responses import Response
     return Response(content=png, media_type="image/png",
                     headers={"Cache-Control": "public, max-age=3600"})
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# iter239z — Notifications push automatiques aux jurés
+# ──────────────────────────────────────────────────────────────────────────
+
+
+async def _fetch_active_jurors_user_ids(conn, *, current_cycle_number: int) -> list[str]:
+    """Renvoie la liste des user_id des jurés actifs (non révoqués, non
+    expirés au regard du cycle courant)."""
+    rows = await conn.fetch(
+        """SELECT DISTINCT user_id FROM crowdfunding_jury_members
+            WHERE revoked_at IS NULL
+              AND (expires_at_cycle_number IS NULL
+                   OR expires_at_cycle_number >= $1)""",
+        int(current_cycle_number),
+    )
+    return [r["user_id"] for r in rows]
+
+
+async def _send_jury_push(user_id: str, *, title: str, body: str,
+                          data: dict, notif_type: str) -> None:
+    """In-app row + best-effort web push (OneSignal). Never raises."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        try:
+            await conn.execute(
+                """INSERT INTO notifications (notif_id, user_id, type, title, message, data)
+                   VALUES ($1, $2, $3, $4, $5, $6::jsonb)""",
+                f"notif_{uuid.uuid4().hex[:14]}", user_id, notif_type, title, body,
+                json.dumps(data),
+            )
+        except Exception as e:
+            logger.warning(f"[crowdfunding][JURY_PUSH] in-app insert skipped for {user_id}: {e}")
+    # Best-effort web push via OneSignal (already wired in services.push_service)
+    try:
+        from services.push_service import send_push_to_user, build_payload
+        payload = build_payload(
+            title=title, body=body,
+            url=data.get("deep_link", "/services?view=crowdfunding"),
+            tag=notif_type,
+            type_=notif_type,
+            extra=data,
+        )
+        await send_push_to_user(user_id, payload)
+    except Exception as e:
+        logger.debug(f"[crowdfunding][JURY_PUSH] web push skipped for {user_id}: {e}")
+
+
+# iter239z — Templates de notifications jurés, traduits en 5 langues.
+# Zéro hardcode applicatif : on lit la langue préférée de l'user, sinon FR.
+_JURY_NEW_CYCLE_TPL = {
+    "fr": {
+        "title": "🆕 Cycle #{cycle_number} ouvert !",
+        "body": "Nouveau cycle Crowdfunding · {reward_amount} {reward_currency} à gagner. Surveille les projets et prépare tes votes de juré.",
+    },
+    "en": {
+        "title": "🆕 Cycle #{cycle_number} is open!",
+        "body": "New Crowdfunding cycle · win {reward_amount} {reward_currency}. Watch the projects and prepare your juror votes.",
+    },
+    "es": {
+        "title": "🆕 ¡Ciclo #{cycle_number} abierto!",
+        "body": "Nuevo ciclo de Crowdfunding · gana {reward_amount} {reward_currency}. Vigila los proyectos y prepara tus votos de jurado.",
+    },
+    "ar": {
+        "title": "🆕 الدورة رقم {cycle_number} مفتوحة!",
+        "body": "دورة Crowdfunding جديدة · اربح {reward_amount} {reward_currency}. راقب المشاريع وحضّر أصواتك كعضو في هيئة المحلفين.",
+    },
+    "ru": {
+        "title": "🆕 Цикл #{cycle_number} открыт!",
+        "body": "Новый цикл Crowdfunding · выиграй {reward_amount} {reward_currency}. Следи за проектами и готовь свои голоса члена жюри.",
+    },
+}
+
+_JURY_VOTES_OPEN_TPL = {
+    "fr": {
+        "title": "🎖️ Les votes sont ouverts ! Ton vote vaut +{weight}",
+        "body": "Cycle #{cycle_number} · Les projets attendent ton vote de juré. Chaque clic compte pour {weight} voix. Récompense : {reward_amount} {reward_currency}.",
+    },
+    "en": {
+        "title": "🎖️ Voting is open! Your vote counts for +{weight}",
+        "body": "Cycle #{cycle_number} · Projects are waiting for your juror vote. Each click counts for {weight} votes. Reward: {reward_amount} {reward_currency}.",
+    },
+    "es": {
+        "title": "🎖️ ¡Votación abierta! Tu voto vale +{weight}",
+        "body": "Ciclo #{cycle_number} · Los proyectos esperan tu voto de jurado. Cada clic vale {weight} votos. Premio: {reward_amount} {reward_currency}.",
+    },
+    "ar": {
+        "title": "🎖️ التصويت مفتوح! صوتك يساوي +{weight}",
+        "body": "الدورة #{cycle_number} · المشاريع تنتظر صوتك كعضو في هيئة المحلفين. كل نقرة تساوي {weight} أصوات. الجائزة: {reward_amount} {reward_currency}.",
+    },
+    "ru": {
+        "title": "🎖️ Голосование открыто! Ваш голос стоит +{weight}",
+        "body": "Цикл #{cycle_number} · Проекты ждут вашего голоса члена жюри. Каждый клик равен {weight} голосам. Приз: {reward_amount} {reward_currency}.",
+    },
+}
+
+
+async def _user_lang(conn, user_id: str) -> str:
+    """Renvoie la langue préférée de l'user (fr|en|es|ar|ru), fallback 'fr'."""
+    try:
+        row = await conn.fetchrow(
+            "SELECT preferred_lang, language FROM users WHERE user_id = $1",
+            user_id,
+        )
+        if not row:
+            return "fr"
+        lang = (row["preferred_lang"] or row["language"] or "fr").lower()[:2]
+        return lang if lang in _JURY_NEW_CYCLE_TPL else "fr"
+    except Exception:
+        return "fr"
+
+
+def _render_tpl(tpl: dict, lang: str, **fields) -> tuple[str, str]:
+    """Render title/body in given lang, fallback fr."""
+    pack = tpl.get(lang) or tpl["fr"]
+    return pack["title"].format(**fields), pack["body"].format(**fields)
+
+
+async def _fetch_active_jurors_user_ids(conn, *, current_cycle_number: int) -> list[str]:
+    """Renvoie la liste des user_id des jurés actifs (non révoqués, non
+    expirés au regard du cycle courant)."""
+    rows = await conn.fetch(
+        """SELECT DISTINCT user_id FROM crowdfunding_jury_members
+            WHERE revoked_at IS NULL
+              AND (expires_at_cycle_number IS NULL
+                   OR expires_at_cycle_number >= $1)""",
+        int(current_cycle_number),
+    )
+    return [r["user_id"] for r in rows]
+
+
+async def _notify_jurors_new_cycle_safe(*, cycle_id: str, cycle_number: int,
+                                        reward_amount: float, reward_currency: str,
+                                        ended_at: datetime) -> int:
+    """iter239z — Trigger #1 : nouveau cycle ouvert par l'admin."""
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            user_ids = await _fetch_active_jurors_user_ids(
+                conn, current_cycle_number=cycle_number)
+        if not user_ids:
+            return 0
+        data = {
+            "cycle_id": cycle_id,
+            "cycle_number": int(cycle_number),
+            "ended_at": ended_at.isoformat() if ended_at else None,
+            "deep_link": "/services?view=crowdfunding",
+        }
+        sent = 0
+        for uid in user_ids:
+            try:
+                async with pool.acquire() as conn:
+                    lang = await _user_lang(conn, uid)
+                title, body = _render_tpl(_JURY_NEW_CYCLE_TPL, lang,
+                                          cycle_number=int(cycle_number),
+                                          reward_amount=reward_amount,
+                                          reward_currency=reward_currency)
+                await _send_jury_push(uid, title=title, body=body, data=data,
+                                      notif_type="crowdfunding_jury_new_cycle")
+                sent += 1
+            except Exception as e:
+                logger.warning(f"[crowdfunding][JURY_PUSH] new_cycle send failed for {uid}: {e}")
+        logger.warning(f"[crowdfunding][JURY_PUSH] new_cycle fanout cycle={cycle_id} "
+                       f"jurors={len(user_ids)} sent={sent}")
+        return sent
+    except Exception as e:
+        logger.error(f"[crowdfunding][JURY_PUSH] new_cycle fatal: {e}", exc_info=True)
+        return 0
+
+
+async def _notify_jurors_votes_opened(conn, cycle: dict) -> int:
+    """iter239z — Trigger #2 : votes_open vient de flipper à TRUE."""
+    try:
+        cycle_number = int(cycle["cycle_number"])
+        user_ids = await _fetch_active_jurors_user_ids(
+            conn, current_cycle_number=cycle_number)
+        if not user_ids:
+            return 0
+        sent = 0
+        for uid in user_ids:
+            try:
+                weight = await _compute_vote_weight(
+                    conn, uid, cycle["cycle_id"], cycle_number)
+                lang = await _user_lang(conn, uid)
+                title, body = _render_tpl(_JURY_VOTES_OPEN_TPL, lang,
+                                          cycle_number=cycle_number,
+                                          weight=int(weight),
+                                          reward_amount=cycle.get("reward_amount"),
+                                          reward_currency=cycle.get("reward_currency", "XAF"))
+                data = {
+                    "cycle_id": cycle["cycle_id"],
+                    "cycle_number": cycle_number,
+                    "vote_weight": int(weight),
+                    "deep_link": "/services?view=crowdfunding",
+                }
+                await _send_jury_push(uid, title=title, body=body, data=data,
+                                      notif_type="crowdfunding_jury_votes_opened")
+                sent += 1
+            except Exception as e:
+                logger.warning(f"[crowdfunding][JURY_PUSH] votes_opened send failed for {uid}: {e}")
+        logger.warning(f"[crowdfunding][JURY_PUSH] votes_opened fanout cycle={cycle['cycle_id']} "
+                       f"jurors={len(user_ids)} sent={sent}")
+        return sent
+    except Exception as e:
+        logger.error(f"[crowdfunding][JURY_PUSH] votes_opened fatal: {e}", exc_info=True)
+        return 0
+
+
+@router.post("/admin/jury/test-push")
+async def admin_test_jury_push(request: Request):
+    """iter239z — Endpoint admin de test : déclenche manuellement le fan-out
+    aux jurés actifs comme si un nouveau cycle venait d'ouvrir. Permet à
+    l'admin de vérifier que les pushes fonctionnent sans devoir créer un
+    vrai nouveau cycle."""
+    await _require_admin(request)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        cycle = await _get_active_cycle(conn)
+    if not cycle:
+        raise HTTPException(status_code=409, detail="Aucun cycle actif.")
+    sent = await _notify_jurors_new_cycle_safe(
+        cycle_id=cycle["cycle_id"],
+        cycle_number=int(cycle["cycle_number"]),
+        reward_amount=float(cycle["reward_amount"]),
+        reward_currency=cycle["reward_currency"],
+        ended_at=cycle.get("ended_at") or datetime.now(timezone.utc),
+    )
+    return {"ok": True, "jurors_notified": sent, "cycle_id": cycle["cycle_id"]}
 

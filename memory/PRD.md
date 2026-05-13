@@ -7,6 +7,32 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter239z — Push notifications jurés sur événements cycle + SW v21 (13/05/2026)
+
+**Règles respectées** : zéro paiement touché, 100% additif, zéro régression, 5 langues, zéro hardcode (templates dans constants module).
+
+### Implémenté
+- **2 triggers automatiques** dans `routes/crowdfunding.py` :
+  1. **Nouveau cycle ouvert** (`admin_start_cycle`) → fan-out aux jurés actifs avec lien deep `/services?view=crowdfunding`. Renvoie `jury_notified_count` dans la réponse admin.
+  2. **Votes ouverts** (`_maybe_open_votes` quand `votes_open` flip TRUE) → fan-out avec multiplicateur personnalisé par juré (chaque juré reçoit son propre `vote_weight` dans le message).
+- **Templates traduits 5 langues** (FR/EN/ES/AR/RU) en constantes `_JURY_NEW_CYCLE_TPL` et `_JURY_VOTES_OPEN_TPL`. Sélection de langue via `users.preferred_lang || users.language || 'fr'`.
+- **Fan-out best-effort** : `_send_jury_push()` insère in-app row + tente OneSignal push (via `services.push_service.send_push_to_user`). Exceptions catchées, jamais ne crash le flow.
+- **Endpoint admin de test** : `POST /admin/jury/test-push` déclenche manuellement le fan-out "new cycle" sans devoir créer un vrai cycle.
+
+### Validation E2E
+- ✅ `/admin/jury/test-push` → `jurors_notified=1`
+- ✅ Notif FR : `🆕 Cycle #3 ouvert !` + corps complet en français
+- ✅ Notif RU (après `UPDATE users.preferred_lang='ru'`) : `🆕 Цикл #3 открыт!` + corps en russe
+- ✅ Data JSONB contient `cycle_id`, `cycle_number`, `ended_at`, `deep_link`
+
+### Pas de frontend touché
+La cloche de notification existante affiche déjà les types `crowdfunding_jury_*` (générique). Le deep_link est utilisable côté front pour rediriger au clic.
+
+### SW bump
+`v20-iter239y` → `v21-iter239z`
+
+---
+
 ## iter239y — Hall of Fame des Jurés + SW v20 (13/05/2026)
 
 **Règles respectées** : zéro paiement touché, 100% additif, zéro hardcode (la liste vient de l'API admin-configurable), zéro régression.

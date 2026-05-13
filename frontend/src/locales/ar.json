@@ -615,7 +615,23 @@
     "winner_notification": "🏆 تهانينا! فزت بـ {{amount}} {{currency}}!",
     "winner_kyc_note": "لسحب أرباحك يجب اعتماد KYC.",
     "cycle_ended_no_winner": "انتهت الدورة بدون فائز.",
-    "keep_voting": "الدورة مستمرة — استمر في التصويت!"
+    "keep_voting": "الدورة مستمرة — استمر في التصويت!",
+    "vote_btn": "👍 صوّت لهذا المشروع",
+    "vote_login_required": "تحتاج إلى حساب Japap للتصويت.",
+    "vote_login_required_btn": "🔐 سجّل الدخول للتصويت",
+    "vote_create_account": "ليس لديك حساب؟ أنشئ حساب Japap",
+    "jury_vote_success": "🎖️ صوتك كعضو في هيئة المحلفين يُحسب بـ +{{weight}}!",
+    "jury_badge": "عضو هيئة المحلفين",
+    "jury_certificate_download": "تنزيل شهادتي",
+    "jury_wins_count_one": "{{count}} انتصار",
+    "jury_wins_count_other": "{{count}} انتصارات"
+  },
+  "pwa": {
+    "refresh_btn": "تحديث",
+    "refreshing": "جارٍ التحديث…",
+    "refresh_tooltip": "مزامنة مع الخادم",
+    "update_available_short": "تحديث متاح!",
+    "last_refresh": "منذ {{time}}"
   },
   "settings": {
     "visibilite_du_compte": "رؤية الحساب",

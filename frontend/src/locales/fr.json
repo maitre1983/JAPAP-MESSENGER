@@ -643,7 +643,23 @@
     "winner_notification": "🏆 Félicitations ! Vous avez gagné {{amount}} {{currency}} !",
     "winner_kyc_note": "Pour retirer vos gains, votre KYC doit être approuvé.",
     "cycle_ended_no_winner": "Ce cycle s'est terminé sans gagnant. Le minimum de {{minimum}} votes n'a pas été atteint.",
-    "keep_voting": "Le cycle continue — continuez à voter !"
+    "keep_voting": "Le cycle continue — continuez à voter !",
+    "vote_btn": "👍 Voter pour ce projet",
+    "vote_login_required": "Vous devez avoir un compte Japap pour voter.",
+    "vote_login_required_btn": "🔐 Connectez-vous pour voter",
+    "vote_create_account": "Pas encore de compte ? Créer un compte Japap",
+    "jury_vote_success": "🎖️ Ton vote de juré compte pour +{{weight}} !",
+    "jury_badge": "Membre du Jury",
+    "jury_certificate_download": "Télécharger mon certificat",
+    "jury_wins_count_one": "{{count}} victoire",
+    "jury_wins_count_other": "{{count}} victoires"
+  },
+  "pwa": {
+    "refresh_btn": "Actualiser",
+    "refreshing": "Actualisation…",
+    "refresh_tooltip": "Synchroniser avec le serveur",
+    "update_available_short": "Mise à jour disponible !",
+    "last_refresh": "il y a {{time}}"
   },
   "settings": {
     "visibilite_du_compte": "Visibilité du compte",

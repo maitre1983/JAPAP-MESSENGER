@@ -1011,17 +1011,30 @@ async def admin_disqualify_project(slug: str, req: DisqualifyRequest,
 @router.post("/projects/{slug}/vote")
 @_limiter.limit("30/minute")
 async def cast_vote(slug: str, request: Request):
-    """Atomic vote + winner-detection + reward credit.
+    """Atomic vote with jury vote weight (iter239x).
 
-    Order of operations inside a single connection:
-      1. Lookup project FOR UPDATE (locks the row)
-      2. Refuse if cycle.votes_open is False
-      3. Refuse if voter == owner
-      4. INSERT into crowdfunding_votes (UNIQUE blocks double vote)
-      5. UPDATE projects SET votes_count = votes_count + 1
-      6. If new count >= votes_to_win AND no winner yet → declare winner +
-         credit wallet + mark cycle complete (no auto new cycle)."""
-    user = await get_current_user(request)
+    Order of operations:
+      1. Auth required (compte Japap actif) — iter239x: code `login_required`
+      2. Lookup project FOR UPDATE
+      3. Refuse if cycle.votes_open is False
+      4. Refuse if voter == owner
+      5. Compute vote_weight (1 by default, > 1 if voter is active jury member)
+      6. INSERT into crowdfunding_votes (UNIQUE blocks double vote)
+      7. UPDATE projects SET votes_count += vote_weight
+      Winner detection is deferred to close_cycle_and_determine_winner()."""
+    # iter239x — TÂCHE 1: code d'erreur `login_required` pour le frontend.
+    try:
+        user = await get_current_user(request)
+    except HTTPException as e:
+        if e.status_code == 401:
+            raise HTTPException(
+                status_code=401,
+                detail={
+                    "code": "login_required",
+                    "message": "Japap account required to vote",
+                },
+            ) from e
+        raise
     pool = await get_pool()
 
     async with pool.acquire() as conn:
@@ -1062,16 +1075,22 @@ async def cast_vote(slug: str, request: Request):
                     },
                 )
 
+            # iter239x — Compute vote weight (jury membership)
+            vote_weight = await _compute_vote_weight(
+                conn, user["user_id"], cycle["cycle_id"], int(cycle["cycle_number"]),
+            )
+
             # Insert vote (UNIQUE catches double)
             try:
                 vote_row = await conn.fetchrow(
                     """INSERT INTO crowdfunding_votes
-                        (project_id, user_id, cycle_id, ip_hash, user_agent_hash, country_code)
-                       VALUES ($1,$2,$3,$4,$5,$6)
+                        (project_id, user_id, cycle_id, ip_hash, user_agent_hash, country_code, vote_weight)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7)
                        RETURNING id""",
                     project["project_id"], user["user_id"], cycle["cycle_id"],
                     _hash_ip(request), _hash_ua(request),
                     (user.get("country_code") or "").upper()[:2],
+                    vote_weight,
                 )
                 vote_id = vote_row["id"] if vote_row else None
             except Exception as e:
@@ -1119,7 +1138,7 @@ async def cast_vote(slug: str, request: Request):
             except Exception as e:
                 logger.warning(f"[crowdfunding] recruit credit failed: {e}")
 
-            new_count = int(project["votes_count"]) + 1
+            new_count = int(project["votes_count"]) + int(vote_weight)
             await conn.execute(
                 "UPDATE crowdfunding_projects SET votes_count = $1 WHERE project_id = $2",
                 new_count, project["project_id"],
@@ -1155,9 +1174,12 @@ async def cast_vote(slug: str, request: Request):
     return {
         "ok": True,
         "votes_count": new_count,
+        "vote_weight": int(vote_weight),
+        "is_jury_vote": int(vote_weight) > 1,
         "won": won,
         "reward_tx_id": reward_tx_id,
         "votes_to_win": int(cycle["votes_to_win"]),
+        "minimum_votes_required": int(cycle["votes_to_win"]),
         "progress_pct": min(100, int(round(new_count / max(1, int(cycle["votes_to_win"])) * 100))),
     }
 
@@ -1427,6 +1449,11 @@ async def admin_get_settings(request: Request):
             "crowdfunding_auto_approve_projects",
             DEFAULT_AUTO_APPROVE_PROJECTS),
         "terms_current_version": TERMS_CURRENT_VERSION,
+        # iter239x — Jury settings (admin-controlled, zéro hardcode)
+        "jury_vote_weight_by_wins": await get_json(
+            "crowdfunding_jury_vote_weight_by_wins",
+            DEFAULT_JURY_VOTE_WEIGHT_BY_WINS) or DEFAULT_JURY_VOTE_WEIGHT_BY_WINS,
+        "jury_membership_duration_cycles": await _get_jury_duration_cycles(),
     }
 
 
@@ -1442,6 +1469,9 @@ class AdminUpdateSettings(BaseModel):
     default_reward_currency: Optional[str] = Field(None, max_length=10)
     default_cycle_duration_days: Optional[int] = Field(None, ge=1, le=3650)
     auto_approve_projects: Optional[bool] = None
+    # iter239x — Jury config
+    jury_vote_weight_by_wins: Optional[dict] = None
+    jury_membership_duration_cycles: Optional[int] = Field(None, ge=0, le=10000)
 
 
 @router.put("/admin/settings")
@@ -1475,6 +1505,15 @@ async def admin_update_settings(req: AdminUpdateSettings, request: Request):
     if req.auto_approve_projects is not None:
         await set_setting("crowdfunding_auto_approve_projects",
                           bool(req.auto_approve_projects))
+    # iter239x — Jury settings
+    if req.jury_vote_weight_by_wins is not None:
+        await set_setting("crowdfunding_jury_vote_weight_by_wins",
+                          req.jury_vote_weight_by_wins)
+    if req.jury_membership_duration_cycles is not None:
+        # 0 → null (permanent). Sinon valeur entière.
+        v = int(req.jury_membership_duration_cycles)
+        await set_setting("crowdfunding_jury_membership_duration_cycles",
+                          v if v > 0 else None)
     return await admin_get_settings(request)
 
 
@@ -2062,6 +2101,16 @@ async def close_cycle_and_determine_winner(cycle_id: str) -> dict:
                     WHERE cycle_id = $3""",
                 winner["project_id"], winner["user_id"], cycle_id,
             )
+            # iter239x — Octroi automatique du badge "Membre du Jury" au gagnant.
+            try:
+                await _grant_jury_membership(
+                    conn,
+                    user_id=winner["user_id"],
+                    awarded_cycle_id=cycle_id,
+                    awarded_cycle_number=int(cycle["cycle_number"]),
+                )
+            except Exception as je:
+                logger.error(f"[crowdfunding][JURY] grant failed for winner {winner['user_id']}: {je}")
             await _notify_owner(
                 conn, winner["user_id"],
                 title=f"Tu as gagne le cycle #{cycle_number} !",
@@ -2090,3 +2139,422 @@ async def admin_close_cycle(cycle_id: str, request: Request):
     """iter239w — Force la cloture immediate d'un cycle (sans attendre ended_at)."""
     await _require_admin(request)
     return await close_cycle_and_determine_winner(cycle_id)
+
+# ──────────────────────────────────────────────────────────────────────────
+# iter239x — Système Membre du Jury (anciens gagnants -> vote pondéré)
+# ──────────────────────────────────────────────────────────────────────────
+
+# Defaults (admin overridable via /admin/settings) - ZÉRO HARDCODE strict :
+# l'admin peut modifier ces valeurs à tout moment sans redéploiement.
+DEFAULT_JURY_VOTE_WEIGHT_BY_WINS = {"1": 50, "2": 100, "3": 200, "4": 400, "5": 800}
+DEFAULT_JURY_MEMBERSHIP_DURATION_CYCLES = None  # None = permanent
+
+
+async def _get_jury_weight_table(conn=None) -> dict:
+    """Retourne la table {nb_wins (str): poids} configurée par l'admin."""
+    cfg = await get_json(
+        "crowdfunding_jury_vote_weight_by_wins",
+        DEFAULT_JURY_VOTE_WEIGHT_BY_WINS,
+    )
+    return cfg or DEFAULT_JURY_VOTE_WEIGHT_BY_WINS
+
+
+async def _get_jury_duration_cycles() -> Optional[int]:
+    """Durée d'adhésion en nombre de cycles. NULL = permanent."""
+    v = await get_setting(
+        "crowdfunding_jury_membership_duration_cycles",
+        DEFAULT_JURY_MEMBERSHIP_DURATION_CYCLES,
+    )
+    try:
+        return int(v) if v not in (None, "", "null", "None") else None
+    except (TypeError, ValueError):
+        return None
+
+
+async def _get_active_jury_membership(conn, user_id: str,
+                                      current_cycle_number: int) -> Optional[dict]:
+    """Retourne la grant ACTIVE (la plus recente non-revoquee, non-expiree)."""
+    row = await conn.fetchrow(
+        """SELECT * FROM crowdfunding_jury_members
+            WHERE user_id = $1
+              AND revoked_at IS NULL
+              AND (expires_at_cycle_number IS NULL
+                   OR expires_at_cycle_number >= $2)
+            ORDER BY granted_at DESC
+            LIMIT 1""",
+        user_id, int(current_cycle_number),
+    )
+    return dict(row) if row else None
+
+
+async def _compute_vote_weight(conn, user_id: str, cycle_id: str,
+                               cycle_number: int) -> int:
+    """Poids du vote : 1 par defaut, > 1 si juré actif. Echelle par nb wins."""
+    membership = await _get_active_jury_membership(conn, user_id, cycle_number)
+    if not membership:
+        return 1
+    table = await _get_jury_weight_table(conn)
+    wins = int(membership.get("total_wins_at_grant", 1))
+    if wins < 1:
+        wins = 1
+    if str(wins) in table:
+        return int(table[str(wins)])
+    available = sorted(int(k) for k in table.keys() if str(k).isdigit())
+    chosen = 1
+    for k in available:
+        if k <= wins:
+            chosen = k
+        else:
+            break
+    return int(table.get(str(chosen), 1))
+
+
+async def _grant_jury_membership(conn, *, user_id: str, awarded_cycle_id: str,
+                                 awarded_cycle_number: int) -> dict:
+    """Idempotent : si deja juré actif, ne cree pas de doublon."""
+    existing = await _get_active_jury_membership(conn, user_id, awarded_cycle_number)
+    total_wins = await conn.fetchval(
+        "SELECT COUNT(*) FROM crowdfunding_projects "
+        "WHERE user_id = $1 AND status = 'winner'",
+        user_id,
+    ) or 1
+
+    duration_cycles = await _get_jury_duration_cycles()
+    expires_at = (int(awarded_cycle_number) + int(duration_cycles)
+                  if duration_cycles else None)
+
+    if existing:
+        await conn.execute(
+            """UPDATE crowdfunding_jury_members
+                  SET total_wins_at_grant = GREATEST(total_wins_at_grant, $1),
+                      expires_at_cycle_number = $2
+                WHERE jury_id = $3""",
+            int(total_wins), expires_at, existing["jury_id"],
+        )
+        return {**existing, "total_wins_at_grant": int(total_wins),
+                "expires_at_cycle_number": expires_at}
+
+    jury_id = f"jury_{uuid.uuid4().hex[:14]}"
+    await conn.execute(
+        """INSERT INTO crowdfunding_jury_members
+            (jury_id, user_id, awarded_cycle_id, awarded_cycle_number,
+             total_wins_at_grant, expires_at_cycle_number)
+           VALUES ($1, $2, $3, $4, $5, $6)""",
+        jury_id, user_id, awarded_cycle_id, int(awarded_cycle_number),
+        int(total_wins), expires_at,
+    )
+    logger.warning(f"[crowdfunding][JURY] granted user={user_id} cycle={awarded_cycle_id} "
+                   f"total_wins={total_wins} expires_at_cycle={expires_at}")
+    return {
+        "jury_id": jury_id, "user_id": user_id,
+        "awarded_cycle_id": awarded_cycle_id,
+        "awarded_cycle_number": int(awarded_cycle_number),
+        "total_wins_at_grant": int(total_wins),
+        "expires_at_cycle_number": expires_at,
+    }
+
+
+@router.get("/jury/me")
+async def get_my_jury_status(request: Request):
+    """Statut juré personnel."""
+    try:
+        user = await get_current_user(request)
+    except HTTPException:
+        return {"is_jury": False, "memberships": []}
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        active_cycle = await _get_active_cycle(conn)
+        current_cycle_num = int(active_cycle["cycle_number"]) if active_cycle else 0
+        active = await _get_active_jury_membership(conn, user["user_id"], current_cycle_num)
+        all_grants = await conn.fetch(
+            """SELECT jury_id, user_id, awarded_cycle_id, awarded_cycle_number,
+                      total_wins_at_grant, granted_at, expires_at_cycle_number,
+                      revoked_at, revoke_reason, certificate_url
+                 FROM crowdfunding_jury_members
+                WHERE user_id = $1
+                ORDER BY granted_at DESC""",
+            user["user_id"],
+        )
+        weight = await _compute_vote_weight(
+            conn, user["user_id"],
+            active_cycle["cycle_id"] if active_cycle else "",
+            current_cycle_num,
+        ) if active_cycle else 1
+    return {
+        "is_jury": bool(active),
+        "vote_weight": int(weight),
+        "active_membership": active,
+        "memberships": [
+            {**dict(g),
+             "granted_at": g["granted_at"].isoformat() if g["granted_at"] else None,
+             "revoked_at": g["revoked_at"].isoformat() if g["revoked_at"] else None,
+             }
+            for g in all_grants
+        ],
+    }
+
+
+@router.get("/jury/members")
+async def list_jury_members(limit: int = Query(50, ge=1, le=500),
+                            offset: int = Query(0, ge=0)):
+    """Liste publique des membres du jury actifs."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        active_cycle = await _get_active_cycle(conn)
+        current_cycle_num = int(active_cycle["cycle_number"]) if active_cycle else 0
+        rows = await conn.fetch(
+            """SELECT j.jury_id, j.user_id, j.awarded_cycle_id, j.awarded_cycle_number,
+                      j.total_wins_at_grant, j.granted_at, j.expires_at_cycle_number,
+                      j.certificate_url,
+                      u.first_name, u.last_name, u.username, u.avatar, u.country_code
+                 FROM crowdfunding_jury_members j
+                 JOIN users u ON u.user_id = j.user_id
+                WHERE j.revoked_at IS NULL
+                  AND (j.expires_at_cycle_number IS NULL
+                       OR j.expires_at_cycle_number >= $1)
+                ORDER BY j.granted_at DESC
+                LIMIT $2 OFFSET $3""",
+            int(current_cycle_num), int(limit), int(offset),
+        )
+        table = await _get_jury_weight_table(conn)
+    out = []
+    for r in rows:
+        d = dict(r)
+        wins = int(d["total_wins_at_grant"])
+        if str(wins) in table:
+            weight = int(table[str(wins)])
+        else:
+            available = sorted(int(k) for k in table.keys() if str(k).isdigit())
+            chosen = 1
+            for k in available:
+                if k <= wins:
+                    chosen = k
+            weight = int(table.get(str(chosen), 1))
+        out.append({
+            "user_id": d["user_id"],
+            "name": (f"{d.get('first_name','') or ''} {d.get('last_name','') or ''}".strip()
+                     or d.get("username") or "Anonyme"),
+            "avatar": d["avatar"] or "",
+            "country_code": d["country_code"] or "",
+            "total_wins": wins,
+            "vote_weight": weight,
+            "granted_at": d["granted_at"].isoformat() if d["granted_at"] else None,
+            "awarded_cycle_number": int(d["awarded_cycle_number"]) if d["awarded_cycle_number"] else None,
+            "certificate_url": d["certificate_url"] or None,
+            "expires_at_cycle_number": d["expires_at_cycle_number"],
+        })
+    return out
+
+
+class GrantJuryRequest(BaseModel):
+    user_id: str = Field(..., max_length=64)
+    awarded_cycle_id: Optional[str] = Field(None, max_length=40)
+
+
+@router.post("/admin/jury/grant")
+async def admin_grant_jury(req: GrantJuryRequest, request: Request):
+    """iter239x — Octroi manuel admin du badge Jury."""
+    admin = await _require_admin(request)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        exists = await conn.fetchval("SELECT 1 FROM users WHERE user_id = $1", req.user_id)
+        if not exists:
+            raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
+        cycle_id = req.awarded_cycle_id
+        cycle_number = 0
+        if cycle_id:
+            cycle = await conn.fetchrow(
+                "SELECT cycle_id, cycle_number FROM crowdfunding_cycles WHERE cycle_id = $1",
+                cycle_id,
+            )
+            if not cycle:
+                raise HTTPException(status_code=404, detail="Cycle introuvable.")
+            cycle_number = int(cycle["cycle_number"])
+        else:
+            active = await _get_active_cycle(conn)
+            if not active:
+                raise HTTPException(status_code=409, detail="Aucun cycle actif.")
+            cycle_id = active["cycle_id"]
+            cycle_number = int(active["cycle_number"])
+        membership = await _grant_jury_membership(
+            conn, user_id=req.user_id, awarded_cycle_id=cycle_id,
+            awarded_cycle_number=cycle_number,
+        )
+    logger.warning(f"[crowdfunding][ADMIN][JURY] admin={admin['user_id']} "
+                   f"granted user={req.user_id} cycle={cycle_id}")
+    return {"ok": True, "membership": membership}
+
+
+class RevokeJuryRequest(BaseModel):
+    reason: str = Field(..., min_length=5, max_length=500)
+
+
+@router.post("/admin/jury/{user_id}/revoke")
+async def admin_revoke_jury(user_id: str, req: RevokeJuryRequest, request: Request):
+    """iter239x — Revocation admin du badge (toutes memberships actives)."""
+    admin = await _require_admin(request)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            """UPDATE crowdfunding_jury_members
+                  SET revoked_at = NOW(),
+                      revoked_by = $1,
+                      revoke_reason = $2
+                WHERE user_id = $3 AND revoked_at IS NULL""",
+            admin["user_id"], req.reason, user_id,
+        )
+        rev_count = 0
+        try:
+            rev_count = int(result.split()[-1])
+        except Exception:
+            pass
+    if rev_count == 0:
+        raise HTTPException(status_code=404, detail="Aucune membership active a revoquer.")
+    logger.warning(f"[crowdfunding][ADMIN][JURY] admin={admin['user_id']} "
+                   f"revoked user={user_id} count={rev_count} reason={req.reason!r}")
+    return {"ok": True, "user_id": user_id, "revoked_count": rev_count}
+
+
+@router.get("/admin/jury")
+async def admin_list_jury_all(request: Request,
+                              include_revoked: bool = Query(False),
+                              limit: int = Query(100, ge=1, le=1000)):
+    """iter239x — Liste admin de TOUTES les memberships jury, filtrable."""
+    await _require_admin(request)
+    where_clause = "" if include_revoked else "WHERE j.revoked_at IS NULL"
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            f"""SELECT j.jury_id, j.user_id, j.awarded_cycle_id, j.awarded_cycle_number,
+                       j.total_wins_at_grant, j.granted_at,
+                       j.expires_at_cycle_number, j.revoked_at, j.revoked_by, j.revoke_reason,
+                       j.certificate_url,
+                       u.first_name, u.last_name, u.username, u.avatar
+                  FROM crowdfunding_jury_members j
+                  JOIN users u ON u.user_id = j.user_id
+                  {where_clause}
+                 ORDER BY j.granted_at DESC
+                 LIMIT $1""", int(limit),
+        )
+    out = []
+    for r in rows:
+        d = dict(r)
+        out.append({
+            "jury_id": d["jury_id"], "user_id": d["user_id"],
+            "owner_name": (f"{d.get('first_name','') or ''} {d.get('last_name','') or ''}".strip()
+                           or d.get("username") or "Anonyme"),
+            "awarded_cycle_id": d["awarded_cycle_id"],
+            "awarded_cycle_number": int(d["awarded_cycle_number"]) if d["awarded_cycle_number"] else None,
+            "total_wins_at_grant": int(d["total_wins_at_grant"]),
+            "expires_at_cycle_number": d["expires_at_cycle_number"],
+            "granted_at": d["granted_at"].isoformat() if d["granted_at"] else None,
+            "revoked_at": d["revoked_at"].isoformat() if d["revoked_at"] else None,
+            "revoke_reason": d["revoke_reason"] or "",
+            "certificate_url": d["certificate_url"] or None,
+        })
+    return out
+
+
+# ─── Certificate generator (PNG via Pillow) ───────────────────────────────
+def _generate_certificate_png_bytes(*, name: str, cycle_number: int,
+                                    reward_amount: str, reward_currency: str,
+                                    granted_at_iso: str) -> bytes:
+    """iter239x — Genere un certificat PNG (1200x900) en memoire."""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError:
+        import base64
+        return base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+        )
+
+    W, H = 1200, 900
+    img = Image.new("RGB", (W, H), color=(255, 251, 240))
+    draw = ImageDraw.Draw(img)
+    border_color = (212, 165, 80)
+    for i in range(0, 15):
+        draw.rectangle([i, i, W - 1 - i, H - 1 - i], outline=border_color)
+    draw.rectangle([60, 60, W - 60, H - 60], outline=(60, 40, 20), width=2)
+
+    def font(size):
+        for path in ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                     "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"]:
+            try:
+                return ImageFont.truetype(path, size=size)
+            except Exception:
+                continue
+        return ImageFont.load_default()
+
+    title_f = font(72)
+    sub_f = font(36)
+    name_f = font(56)
+    body_f = font(28)
+    foot_f = font(22)
+
+    def center_text(y, text, fnt, fill):
+        bbox = draw.textbbox((0, 0), text, font=fnt)
+        w = bbox[2] - bbox[0]
+        draw.text(((W - w) // 2, y), text, font=fnt, fill=fill)
+
+    center_text(140, "CERTIFICAT", title_f, (60, 40, 20))
+    center_text(225, "Membre du Jury - Crowdfunding JAPAP", sub_f, (110, 80, 40))
+    draw.line([(W // 2 - 200, 295), (W // 2 + 200, 295)], fill=border_color, width=3)
+    center_text(360, "Decerne a", body_f, (60, 40, 20))
+    center_text(420, name or "-", name_f, (180, 30, 80))
+    center_text(530, f"Pour avoir remporte le cycle #{cycle_number}", body_f, (60, 40, 20))
+    center_text(580, f"avec une recompense de {reward_amount} {reward_currency}", body_f, (60, 40, 20))
+    center_text(680, "En reconnaissance de cet exploit, ce certificat", body_f, (60, 40, 20))
+    center_text(715, "confere le statut de Membre du Jury au porteur.", body_f, (60, 40, 20))
+    try:
+        dt = datetime.fromisoformat(granted_at_iso.replace("Z", "+00:00"))
+        date_str = dt.strftime("%d/%m/%Y")
+    except Exception:
+        date_str = granted_at_iso[:10] if granted_at_iso else ""
+    center_text(800, f"Delivre le {date_str}  ·  JAPAP", foot_f, (110, 80, 40))
+
+    import io
+    buf = io.BytesIO()
+    img.save(buf, format="PNG", optimize=True)
+    return buf.getvalue()
+
+
+@router.get("/jury/certificate/{user_id}.png")
+async def get_jury_certificate(user_id: str, cycle_id: Optional[str] = None):
+    """iter239x — Telechargement du certificat Jury (PNG)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        if cycle_id:
+            j = await conn.fetchrow(
+                """SELECT j.*, u.first_name, u.last_name, u.username, c.reward_amount, c.reward_currency
+                     FROM crowdfunding_jury_members j
+                     JOIN users u ON u.user_id = j.user_id
+                     LEFT JOIN crowdfunding_cycles c ON c.cycle_id = j.awarded_cycle_id
+                    WHERE j.user_id = $1 AND j.awarded_cycle_id = $2
+                    LIMIT 1""", user_id, cycle_id,
+            )
+        else:
+            j = await conn.fetchrow(
+                """SELECT j.*, u.first_name, u.last_name, u.username, c.reward_amount, c.reward_currency
+                     FROM crowdfunding_jury_members j
+                     JOIN users u ON u.user_id = j.user_id
+                     LEFT JOIN crowdfunding_cycles c ON c.cycle_id = j.awarded_cycle_id
+                    WHERE j.user_id = $1
+                    ORDER BY j.granted_at DESC
+                    LIMIT 1""", user_id,
+            )
+    if not j:
+        raise HTTPException(status_code=404, detail="Aucun certificat pour cet utilisateur.")
+    name = (f"{j.get('first_name','') or ''} {j.get('last_name','') or ''}".strip()
+            or j.get("username") or "Anonyme")
+    png = _generate_certificate_png_bytes(
+        name=name,
+        cycle_number=int(j["awarded_cycle_number"]) if j.get("awarded_cycle_number") else 0,
+        reward_amount=str(j["reward_amount"]) if j.get("reward_amount") else "-",
+        reward_currency=j["reward_currency"] if j.get("reward_currency") else "XAF",
+        granted_at_iso=j["granted_at"].isoformat() if j.get("granted_at") else "",
+    )
+    from fastapi.responses import Response
+    return Response(content=png, media_type="image/png",
+                    headers={"Cache-Control": "public, max-age=3600"})
+

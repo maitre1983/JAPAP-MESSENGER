@@ -1,0 +1,42 @@
+{
+  "summary": "iter239x — Jury membership system + login_required vote gating + PwaRefreshButton E2E tested. Backend: 11/12 pytest passing (1 test_jury_vote_weight_scales SKIPPED because the test voter had already cast a vote in the current cycle from a prior run; main agent had already validated this via curl with vote_weight=50 for 1-win jury). All P0 backend contracts pass: (a) anonymous POST /api/crowdfunding/projects/{slug}/vote → HTTP 401 with detail.code='login_required' + Japap message; (b) authenticated non-jury vote → vote_weight=1, is_jury_vote=False, votes_count += 1 (verified GET delta); (c) admin grant idempotent (re-grant returns success but only 1 active membership row); (d) admin revoke 404 when no active membership; (e) /jury/me reflects pre/post-grant state with vote_weight/active_membership/memberships; (f) /jury/members public list contains granted user with name/vote_weight/total_wins/country_code; (g) /admin/jury list works; anonymous gets 401/403; (h) /jury/certificate/{user_id}.png returns image/png with valid PNG signature and IHDR 1200x900; (i) /admin/settings GET/PUT exposes & persists jury_vote_weight_by_wins (dict) and jury_membership_duration_cycles (0 → null); (j) SW_VERSION='v19-iter239x' confirmed. Frontend: PwaRefreshButton [data-testid='pwa-refresh-btn'] visible top-right on / and /crowdfunding (x=1875, y=8 on 1920px viewport), data-update-available='no' initially. Clicking dispatched window event japap:refresh count=1 (confirmed via in-page listener). Vote button code path in CrowdfundingModule.js correctly routes notLoggedIn users to /login?redirect=/crowdfunding/p/{slug}. Could not screenshot the vote-button label live because: (i) the public /api/crowdfunding/projects?limit=5 returned [] (no active projects in current cycle 38b7dc325828 after iter239w cleanup), and (ii) anonymous visit to /crowdfunding bounces to /login. The code logic and i18n keys for the label are validated by code review + i18n test.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "i18n locales", "issues": ["pwa.refresh_btn / refreshing / refresh_tooltip / update_available_short / last_refresh are ONLY present in ru.json — MISSING in fr.json, en.json, es.json, ar.json. Spec required all 5 locales. Falls back to defaultValue in PwaRefreshButton.jsx so functionally OK, but breaks the 5-language consistency rule of the task."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter239x_jury.py",
+    "/app/test_reports/pytest/iter239x_results.xml"
+  ],
+  "action_items": [
+    "Add pwa.refresh_btn / pwa.refreshing / pwa.refresh_tooltip / pwa.update_available_short / pwa.last_refresh keys to /app/frontend/src/locales/{fr,en,es,ar}.json (currently only in ru.json).",
+    "(Optional) Provide a 'seed test project' helper so frontend agents can visit /crowdfunding/p/{slug} anonymously to validate the '🔐 Connectez-vous pour voter' label live — the current cycle has 0 active public projects after the iter239w cleanup."
+  ],
+  "critical_code_review_comments": [
+    "routes/crowdfunding.py:1014-1180 (cast_vote) — login_required check is first (before any DB work) and returns the documented dict {code, message}. ✅",
+    "routes/crowdfunding.py:_compute_vote_weight — reads weight table from settings via get_json with fallback default; uses total_wins lookup keyed as string (matches admin PUT shape). Good. Note: if total_wins exceeds max key, falls back to default 1 (verify this is the intended behaviour for >N wins).",
+    "routes/crowdfunding.py:_grant_jury_membership — idempotent path: existing active membership detected via _get_active_jury_membership → UPDATE row with new total_wins/expires_at instead of inserting. Confirmed by test_admin_grant_idempotent (1 active row after 2 grants). ✅",
+    "routes/crowdfunding.py:2222-2247 — duration_cycles=0 OR null is treated as permanent (expires_at_cycle_number=NULL). PUT accepts 0 alias correctly. ✅",
+    "routes/crowdfunding.py:/admin/jury/grant returns {ok: True, membership: {...}} (not flat membership). Frontend/tests need to access body.membership.* — test updated accordingly. Recommend documenting this in OpenAPI/spec.",
+    "frontend/CrowdfundingModule.js:128-135 — handleVoteClick uses window.location.href for redirect which forces a full reload (loses SPA state). Consider useNavigate to keep React Router state, though full reload is acceptable here since the user is logging in anyway.",
+    "frontend/PwaRefreshButton.jsx:87 — japap:refresh event dispatched even before the SW reload is attempted; pages re-fetch immediately on click — good UX (instant refresh feedback).",
+    "i18n: PwaRefreshButton.jsx falls back to French defaultValue when keys are missing → en/es/ar users will see French text. Add the 4 missing locale entries."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter239x_jury.py (new — 12 tests covering iter239x backend + assets)"
+  ],
+  "success_rate": {
+    "backend": "92% (11/12; 1 skipped due to cycle-vote dedup limitation; main agent already curl-validated the skipped path)",
+    "frontend": "100% on the parts testable as anon (PwaRefreshButton mount + event + top-right position + persists across routes); code review confirms vote-login-required redirect path."
+  },
+  "test_credentials": "admin@japap.com / JapapAdmin2024! ; alice@japap.com / Alice2026! ; bob@japap.com / Test1234! ; captcha bypass JAPAP_E2E_BYPASS_2026/0 — all working.",
+  "seed_data_creation": "Test fixture creates one TEST_E2E_iter239x project owned by Bob ONLY if no existing active project found (current preview cycle has 0 active public projects — the fixture created one to allow vote tests, then admin-approved it; cleanup not performed to preserve a project for next test run; main agent may force-delete via /admin/projects/{slug}/force-delete if needed). All jury memberships granted in tests are revoked in fixture teardown.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && REACT_APP_BACKEND_URL=$(grep REACT_APP_BACKEND_URL /app/frontend/.env|cut -d= -f2-) python -m pytest -p no:ethereum tests/test_iter239x_jury.py -v --tb=short. IMPORTANT context: (1) /admin/jury/grant response is {ok:True, membership:{...}} — NOT flat. (2) The crowdfunding_votes table has a per-user-per-cycle unique constraint, so test_jury_vote_weight_scales will skip if Bob/Alice already voted in the active cycle — to fully validate weight scaling, create a brand-new user account in the test or do it in a fresh cycle. (3) PwaRefreshButton attaches to BOTH desktop (compact=true at App.js:321) and full-screen routes — confirmed visible top-right at (1875,8) on 1920×1080. (4) Anonymous /crowdfunding lists 0 projects after iter239w cleanup; visit /crowdfunding/p/{slug} directly (public route) to see the '🔐 Connectez-vous pour voter' label. (5) The 4-locale pwa.* i18n gap is the ONLY new issue introduced by iter239x.",
+  "rca of the issue": "Frontend i18n gap: when adding the new PwaRefreshButton in iter239x, the developer added pwa.refresh_btn/refreshing/refresh_tooltip/update_available_short/last_refresh to ru.json only (likely copy-paste from a single locale's editor session) and did not propagate to fr/en/es/ar. The component still renders correctly thanks to t() defaultValue fallback in French (e.g., 'Rafraîchir' for refresh_btn) — but English/Spanish/Arabic users will see French strings, violating the 5-language consistency rule explicitly called out in the iter239x task ('5 langues'). Mitigation: add the 5 keys to each of fr/en/es/ar with proper translations (mirroring the ru entries)."
+}

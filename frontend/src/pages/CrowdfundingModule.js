@@ -120,7 +120,19 @@ function ProjectCard({ project, votesOpen, votesToWin, currentUserId, voting, on
   const isMine = currentUserId && project.user_id === currentUserId;
   const isWinner = project.status === 'winner';
   const isVotingThis = voting === project.slug;
-  const disabled = !votesOpen || isMine || project.voted_by_me || isWinner || isVotingThis;
+  // iter239x — Login required is the ONLY condition; not-logged users get
+  // a redirect-to-login button instead of being silently disabled.
+  const notLoggedIn = !currentUserId;
+  const disabled = notLoggedIn ? false : (!votesOpen || isMine || project.voted_by_me || isWinner || isVotingThis);
+
+  const handleVoteClick = () => {
+    if (notLoggedIn) {
+      const redirect = encodeURIComponent(`/crowdfunding/p/${project.slug}`);
+      window.location.href = `/login?redirect=${redirect}`;
+      return;
+    }
+    onVote(project);
+  };
 
   return (
     <div
@@ -174,24 +186,27 @@ function ProjectCard({ project, votesOpen, votesToWin, currentUserId, voting, on
 
       <div className="flex gap-2">
         <button
-          onClick={() => onVote(project)}
+          onClick={handleVoteClick}
           disabled={disabled}
           data-testid={`cf-vote-btn-${project.slug}`}
           className={`flex-1 py-2 rounded-full text-sm font-bold transition ${
-            disabled && !isVotingThis
-              ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-              : 'bg-rose-600 text-white hover:bg-rose-700 active:scale-95'
+            notLoggedIn
+              ? 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95'
+              : disabled && !isVotingThis
+                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                : 'bg-rose-600 text-white hover:bg-rose-700 active:scale-95'
           } ${isVotingThis ? 'opacity-70 cursor-wait' : ''}`}>
           {isVotingThis ? (
             <span className="inline-flex items-center gap-2">
               <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               Vote…
             </span>
-          ) : isWinner ? 'Gagnant' :
+          ) : notLoggedIn ? t('crowdfunding.vote_login_required_btn', { defaultValue: '🔐 Connectez-vous pour voter' }) :
+             isWinner ? 'Gagnant' :
              isMine ? 'Ton projet' :
              project.voted_by_me ? '✓ Voté' :
              !votesOpen ? t('crowdfunding.verrouille') :
-             '🗳 Voter'}
+             t('crowdfunding.vote_btn', { defaultValue: '🗳 Voter' })}
         </button>
         <button
           onClick={() => onShare(project)}
@@ -797,6 +812,13 @@ export default function CrowdfundingModule({ onBack }) {
 
   useEffect(() => { reload(); }, [reload]);
 
+  // iter239x — Listen to global PWA refresh button to re-fetch all data.
+  useEffect(() => {
+    const handler = () => reload();
+    window.addEventListener('japap:refresh', handler);
+    return () => window.removeEventListener('japap:refresh', handler);
+  }, [reload]);
+
   const onVote = async (project) => {
     if (voting) return;
     setVoting(project.slug);
@@ -807,6 +829,16 @@ export default function CrowdfundingModule({ onBack }) {
       ]);
       const data = voteRes.data;
       trackEngagementEvent('vote', { project_id: project.project_id });
+      // iter239x — Jury vote feedback
+      if (data.is_jury_vote || data.vote_weight > 1) {
+        toast.success(
+          t('crowdfunding.jury_vote_success', {
+            defaultValue: '🎖️ Ton vote de juré compte pour +{{weight}} !',
+            weight: data.vote_weight,
+          }),
+          { duration: 5000 }
+        );
+      }
       if (data.won) {
         toast.success('🏆 Projet gagnant ! Récompense créditée.', { duration: 5000 });
       }
@@ -820,6 +852,12 @@ export default function CrowdfundingModule({ onBack }) {
       refreshEngagement();
     } catch (e) {
       const detail = e?.response?.data?.detail;
+      // iter239x — Login required: redirect to /login
+      if (e?.response?.status === 401 && detail?.code === 'login_required') {
+        const redirect = encodeURIComponent(`/crowdfunding/p/${project.slug}`);
+        window.location.href = `/login?redirect=${redirect}`;
+        return;
+      }
       if (detail?.code === 'VOTES_NOT_OPEN') {
         toast.error(detail.message);
       } else {

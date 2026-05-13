@@ -152,6 +152,24 @@
     "winner_notification": "🏆 Поздравляем! Вы выиграли {{amount}} {{currency}}!",
     "winner_kyc_note": "Для вывода необходим одобренный KYC.",
     "cycle_ended_no_winner": "Цикл завершился без победителя.",
-    "keep_voting": "Цикл продолжается — продолжайте голосовать!"
+    "keep_voting": "Цикл продолжается — продолжайте голосовать!",
+    "vote_btn": "👍 Проголосовать за проект",
+    "vote_login_required": "Для голосования необходим аккаунт Japap.",
+    "vote_login_required_btn": "🔐 Войдите чтобы голосовать",
+    "vote_create_account": "Нет аккаунта? Создайте аккаунт Japap",
+    "jury_vote_success": "🎖️ Ваш голос члена жюри считается за +{{weight}}!",
+    "jury_badge": "Член жюри",
+    "jury_certificate_download": "Скачать сертификат",
+    "jury_wins_count_one": "{{count}} победа",
+    "jury_wins_count_few": "{{count}} победы",
+    "jury_wins_count_many": "{{count}} побед",
+    "jury_wins_count_other": "{{count}} побед"
+  },
+  "pwa": {
+    "refresh_btn": "Обновить",
+    "refreshing": "Обновление…",
+    "refresh_tooltip": "Синхронизировать с сервером",
+    "update_available_short": "Доступно обновление!",
+    "last_refresh": "{{time}} назад"
   }
 }

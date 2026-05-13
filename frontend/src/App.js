@@ -1,6 +1,7 @@
 import ErrorBoundary from '@/components/ErrorBoundary';
 import PushOptInPrompt from '@/components/PushOptInPrompt';
 import PwaUpdateBanner from '@/components/PwaUpdateBanner';
+import PwaRefreshButton from '@/components/PwaRefreshButton';
 import { installAxiosErrorReporter } from '@/utils/axiosErrorReporter';
 import { useEffect, lazy, Suspense } from 'react';
 
@@ -307,6 +308,18 @@ function App() {
                       <InstallPWA />
                       <PushOptInPrompt />
                       <PwaUpdateBanner />
+                      {/* iter239x — Floating PWA refresh button (top-right, always visible) */}
+                      <div
+                        style={{
+                          position: 'fixed',
+                          top: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+                          right: '8px',
+                          zIndex: 9000,
+                          pointerEvents: 'auto',
+                        }}
+                        data-testid="pwa-refresh-floating">
+                        <PwaRefreshButton compact />
+                      </div>
                       <Toaster
                         position="top-center"
                         richColors

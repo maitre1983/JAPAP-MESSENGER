@@ -1071,6 +1071,30 @@ async def init_db():
             # ─────────────────────────────────────────────────────────
             # Cycles : durée + alias minimum_votes_required (généré, lit
             # automatiquement votes_to_win pour zéro régression).
+            # ─────────────────────────────────────────────────────────
+            # iter239x — Membres du Jury (anciens gagnants)
+            # ─────────────────────────────────────────────────────────
+            # Vote weight sur chaque vote (default 1, > 1 pour les jurés)
+            "ALTER TABLE crowdfunding_votes ADD COLUMN IF NOT EXISTS vote_weight INT NOT NULL DEFAULT 1",
+            # Statut juré persisté (1 row par grant ; un user peut avoir N grants au fil des cycles)
+            """CREATE TABLE IF NOT EXISTS crowdfunding_jury_members (
+                jury_id            VARCHAR(40) PRIMARY KEY,
+                user_id            VARCHAR(64) NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+                awarded_cycle_id   VARCHAR(40),
+                awarded_cycle_number INT,
+                total_wins_at_grant INT NOT NULL DEFAULT 1,
+                granted_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                expires_at_cycle_number INT,                   -- NULL = permanent (limited durée admin)
+                revoked_at         TIMESTAMPTZ,
+                revoked_by         VARCHAR(64),
+                revoke_reason      TEXT,
+                certificate_url    VARCHAR(500)
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_cf_jury_user ON crowdfunding_jury_members(user_id, revoked_at)",
+            "CREATE INDEX IF NOT EXISTS idx_cf_jury_active ON crowdfunding_jury_members(user_id) WHERE revoked_at IS NULL",
+            # ─────────────────────────────────────────────────────────
+            # iter239x — Fin migrations
+            # ─────────────────────────────────────────────────────────
             "ALTER TABLE crowdfunding_cycles ADD COLUMN IF NOT EXISTS duration_days INT DEFAULT 30",
             """DO $cf239w_cycles$
             BEGIN

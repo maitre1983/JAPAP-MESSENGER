@@ -345,6 +345,12 @@ code {
     }
 }
 
+/* iter239x — Spin animation for PwaRefreshButton */
+@keyframes japap-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 /* ─── iter239v — Global responsive modal helpers ──────────────────────
    Reusable across ALL modals in the app (Crowdfunding, Marketplace,
    Settings, KYC, …). Goal: the primary submit button is ALWAYS visible

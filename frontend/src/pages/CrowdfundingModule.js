@@ -237,24 +237,44 @@ function CreateProjectModal({ open, onClose, onCreated, eligibility }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-2" onClick={onClose}>
-      <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-5"
-           onClick={(e) => e.stopPropagation()}
-           data-testid="cf-create-modal">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-bold text-slate-900">Créer mon projet</h3>
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-slate-100"><X size={20} /></button>
+      {/*
+        iter239v — Sticky-footer layout so the "Launch my project" button
+        is ALWAYS reachable on small viewports (iPhone 13 Pro Max portrait
+        ≈ 390×844 with safe-area top + keyboard). The header stays fixed
+        too, the middle scrolls, and `safe-area-inset-bottom` keeps the
+        button above the home indicator. `100dvh` (dynamic viewport
+        height) avoids the Safari 100vh-includes-toolbars bug.
+      */}
+      <div
+        className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg flex flex-col"
+        style={{
+          maxHeight: 'min(92vh, 92dvh)',
+          WebkitOverflowScrolling: 'touch',
+        }}
+        onClick={(e) => e.stopPropagation()}
+        data-testid="cf-create-modal">
+
+        {/* Header fixe */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-slate-100 flex-shrink-0">
+          <h3 className="text-lg font-bold text-slate-900">{t('crowdfunding.create_title', { defaultValue: 'Créer mon projet' })}</h3>
+          <button onClick={onClose} aria-label={t('common.close', { defaultValue: 'Fermer' })}
+                  className="p-1.5 rounded-full hover:bg-slate-100"><X size={20} /></button>
         </div>
+
+        {/* Zone scrollable (iOS momentum scroll via WebkitOverflowScrolling parent) */}
+        <div className="flex-1 overflow-y-auto px-5 py-3"
+             style={{ WebkitOverflowScrolling: 'touch' }}>
 
         {!eligible && (
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 text-sm" data-testid="cf-create-not-eligible">
-            <div className="font-bold text-amber-800 mb-1">Tu n'es pas encore éligible</div>
+            <div className="font-bold text-amber-800 mb-1">{t('crowdfunding.not_eligible_title', { defaultValue: "Tu n'es pas encore éligible" })}</div>
             <ul className="text-amber-700 text-xs space-y-0.5 list-disc list-inside">
               {eligibility.reasons.map((r, i) => <li key={i}>{r}</li>)}
             </ul>
           </div>
         )}
 
-        <form onSubmit={submit} className="space-y-3">
+        <form id="cf-create-form" onSubmit={submit} className="space-y-3">
           <div>
             <label className="text-xs font-semibold text-slate-700">Titre *</label>
             <input

@@ -652,7 +652,10 @@
     "jury_badge": "Membre du Jury",
     "jury_certificate_download": "Télécharger mon certificat",
     "jury_wins_count_one": "{{count}} victoire",
-    "jury_wins_count_other": "{{count}} victoires"
+    "jury_wins_count_other": "{{count}} victoires",
+    "jury_hall_title": "Hall of Fame des Jurés",
+    "jury_hall_intro": "Ces anciens gagnants forment le jury actif. Leur vote a un poids majoré.",
+    "jury_hall_empty": "Aucun juré pour l'instant. Sois le premier à remporter un cycle pour rejoindre le jury !"
   },
   "pwa": {
     "refresh_btn": "Actualiser",

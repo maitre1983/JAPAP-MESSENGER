@@ -624,7 +624,10 @@
     "jury_badge": "Miembro del Jurado",
     "jury_certificate_download": "Descargar mi certificado",
     "jury_wins_count_one": "{{count}} victoria",
-    "jury_wins_count_other": "{{count}} victorias"
+    "jury_wins_count_other": "{{count}} victorias",
+    "jury_hall_title": "Salón de la Fama de los Jurados",
+    "jury_hall_intro": "Estos antiguos ganadores forman el jurado activo. Su voto tiene un peso aumentado.",
+    "jury_hall_empty": "Aún no hay jurados. ¡Sé el primero en ganar un ciclo y únete al jurado!"
   },
   "pwa": {
     "update_available": "Una nueva versión de JAPAP está disponible. Se aplicará automáticamente.",

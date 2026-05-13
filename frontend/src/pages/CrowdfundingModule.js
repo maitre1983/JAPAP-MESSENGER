@@ -11,6 +11,7 @@ import {
 import { extractErrorMessage } from '@/utils/errorMessage';
 import VoteCelebration from '@/components/crowdfunding/VoteCelebration';
 import EngagementBanner from '@/components/crowdfunding/EngagementBanner';
+import JuryHallOfFame from '@/components/JuryHallOfFame';
 import { useEngagementState, trackEngagementEvent } from '@/hooks/useEngagementState';
 import RecruiterPanel from '@/components/crowdfunding/RecruiterPanel';
 
@@ -970,6 +971,9 @@ export default function CrowdfundingModule({ onBack }) {
             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }}
         />
+
+        {/* iter239y — Hall of Fame des Jurés */}
+        <JuryHallOfFame />
 
         {state && !state.between_cycles && (
           <div className="flex gap-2 items-center" data-testid="cf-sort-bar">

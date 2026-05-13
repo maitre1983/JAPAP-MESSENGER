@@ -652,7 +652,10 @@
     "jury_badge": "Jury Member",
     "jury_certificate_download": "Download my certificate",
     "jury_wins_count_one": "{{count}} win",
-    "jury_wins_count_other": "{{count}} wins"
+    "jury_wins_count_other": "{{count}} wins",
+    "jury_hall_title": "Jury Hall of Fame",
+    "jury_hall_intro": "These past winners make up the active jury. Their vote carries a weighted boost.",
+    "jury_hall_empty": "No jurors yet. Be the first to win a cycle and join the jury!"
   },
   "pwa": {
     "update_available": "A new version of JAPAP is available. It will be applied automatically.",

@@ -7,6 +7,33 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter239y — Hall of Fame des Jurés + SW v20 (13/05/2026)
+
+**Règles respectées** : zéro paiement touché, 100% additif, zéro hardcode (la liste vient de l'API admin-configurable), zéro régression.
+
+### Implémenté
+- **Nouveau composant** `/app/frontend/src/components/JuryHallOfFame.jsx` :
+  - Fetch `GET /api/crowdfunding/jury/members` (public, déjà existant)
+  - Affichage : avatar circulaire (gradient amber→rose fallback), nom + drapeau pays, badge "🎖️ Membre du Jury", compteur de victoires, **multiplicateur `+50/+100/...`** en pill rose, date du grant, bouton 📜 téléchargement certificat
+  - Empty state encourageant si aucun juré
+  - Écoute `japap:refresh` pour re-fetch automatique
+  - Téléchargement certificat : ouvre `/api/crowdfunding/jury/certificate/{user_id}.png` dans nouvel onglet
+- **Intégration** : ajouté dans `CrowdfundingModule.js` juste après `RecruiterPanel`, visible par tous (auth ou non)
+- **i18n 5 langues** : 3 nouvelles clés `crowdfunding.jury_hall_title`, `jury_hall_intro`, `jury_hall_empty` ajoutées dans FR/EN/ES/AR/RU
+- **SW bump** `v19-iter239x` → `v20-iter239y`
+
+### Tests validés (DOM-level)
+- Section visible (`cf-jury-hall-section`) ✅
+- Compteur dynamique ("(1)") ✅
+- Cards rendues avec nom, badge, multiplicateur (+50), date ✅
+- Bouton téléchargement certificat présent et cliquable ✅
+- API `/jury/members` retourne Bob avec total_wins=1, vote_weight=50, avatar, country_code=CM ✅
+
+### Pas de nouveau backend
+Tous les endpoints `/jury/members` et `/jury/certificate/{user_id}.png` étaient déjà créés en iter239x. Pure addition frontend.
+
+---
+
 ## iter239x — Vote login-required + PwaRefreshButton + Système Membre du Jury + SW v19 (13/05/2026)
 
 **Règles respectées** : zéro modification des paiements (Hubtel/Paystack/USDT/Orange Money/Wave), 100% additif, zéro hardcode (toutes les valeurs admin-controlled), zéro régression.

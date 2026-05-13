@@ -168,6 +168,9 @@
     "jury_wins_count_one": "{{count}} победа",
     "jury_wins_count_few": "{{count}} победы",
     "jury_wins_count_many": "{{count}} побед",
-    "jury_wins_count_other": "{{count}} побед"
+    "jury_wins_count_other": "{{count}} побед",
+    "jury_hall_title": "Зал славы членов жюри",
+    "jury_hall_intro": "Эти прошлые победители образуют активное жюри. Их голос имеет повышенный вес.",
+    "jury_hall_empty": "Пока нет членов жюри. Будьте первым, кто выиграет цикл, и присоединитесь к жюри!"
   }
 }

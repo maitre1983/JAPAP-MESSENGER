@@ -7,6 +7,34 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240l-cert-fix v2 — Logos JAPAP OFFICIELS embarqués (14/05/2026)
+
+**Demande user** : remplacer les SVG paths que j'avais dessinés à la main par les VRAIES images du brand JAPAP (j rouge + dot bleu en mark, "japap" wordmark en background).
+
+### Réalisé
+- Téléchargé les 2 assets depuis Emergent CDN :
+  - `mark.png` (j+dot officiel, 291×400 px, fond transparent après cleaning des pixels blancs)
+  - `wordmark.png` (signature "japap" 900px, PNG transparent natif)
+- Stockés dans `/app/backend/static/japap_logos/` (pas de R2 — embed direct dans le SVG)
+- **`_logo_data_uri()`** : helper qui charge le PNG en base64 et cache le data URI au niveau module (1 seule lecture I/O pour tout le process)
+- **`_japap_logo_svg()`** v2 : retourne un `<image href="data:image/png;base64,...">` au lieu d'un path SVG dessiné à la main. Self-contained → fonctionne dans le PDF cairosvg sans network.
+- **Wordmark watermark** : `<image>` 880×385 centré, opacity 0.07 — remplace l'ancien text "JAPAP" 180px. Fallback text si l'asset manque (graceful degradation).
+
+### Validation visuelle
+Screenshot confirmé — les 2 logos officiels JAPAP rendent **parfaitement** :
+- Header top-center : vraie marque "j" rouge + dot bleu (transparent, propre)
+- Background : wordmark "japap" en filigrane (discret, signature reconnaissable)
+- QR code scannable, contenu inchangé
+
+### Taille SVG
+6.6KB → 172KB (+150KB pour 2 PNG base64). Acceptable car le certificat est généré 1× puis cached sur R2 + Cloudflare CDN.
+
+### Fichiers
+- MOD : `backend/services/jury_certificate_svg.py` (+`_logo_data_uri` + `_japap_wordmark_data_uri` + `_japap_logo_svg` v2 + watermark image)
+- NEW : `backend/static/japap_logos/mark.png` (transparent bg)
+- NEW : `backend/static/japap_logos/wordmark.png`
+
+
 ## iter240l-cert-fix — Logo JAPAP officiel + QR Code réel (14/05/2026)
 
 **Demande user** : remplacer le logo générique par le vrai brand mark JAPAP (j rouge + dot bleu sans fond), insérer un QR code scannable pointant vers `/crowdfunding/jury`, persister les URLs PDF en DB, désactiver les endpoints emergent.host.

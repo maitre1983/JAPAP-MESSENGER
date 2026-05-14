@@ -149,29 +149,55 @@ def _get_jury_qr_path() -> dict:
 
 
 def _japap_logo_svg() -> str:
-    """iter240l-cert-fix — Real JAPAP brand mark (red 'j' + dark-blue dot).
+    """iter240l-cert-fix-v2 — Real JAPAP brand mark (j rouge + dot bleu).
 
-    Cleaner reconstruction: the brand mark is a stylized lowercase 'j' — a
-    vertical red stem with a hook/foot at the bottom left, topped by a dark
-    blue dot (offset right). Drawn within an 80×100 inner box scaled to fit
-    near the top-center of the 1200×850 certificate."""
-    return """
-  <!-- JAPAP brand mark — red 'j' + dark blue dot (no background) -->
+    The official JAPAP brand mark is embedded as a base64-encoded PNG
+    (transparent background) inside the SVG. Self-contained → works in PDF
+    export via cairosvg, no external network dependency at render time."""
+    data_uri = _logo_data_uri("mark.png")
+    if not data_uri:
+        # Fallback: simple rendered shapes if asset missing
+        return """
   <g id="japap-logo" transform="translate(572 30)">
-    <!-- Dark blue dot (top-right of the j-stem) -->
-    <circle cx="42" cy="14" r="11" fill="#1A237E" stroke="#0D47A1" stroke-width="0.8"/>
-    <ellipse cx="38" cy="9" rx="4" ry="2.4" fill="rgba(255,255,255,0.35)" transform="rotate(-20 38 9)"/>
-    <!-- Vertical body of the 'j' -->
+    <circle cx="42" cy="14" r="11" fill="#1A237E"/>
     <rect x="28" y="32" width="14" height="50" rx="7" fill="#E53935"/>
-    <!-- Foot curving to the bottom-left -->
-    <path d="M 42 70
-             Q 42 95  22 95
-             Q  4 95   4 80
-             L 14 80
-             Q 14 86  22 86
-             Q 30 86  30 70 Z"
-          fill="#E53935"/>
   </g>"""
+    # The PNG mark is portrait (291×400). Display at 80×100 px so the
+    # blue dot sits at the top and the red 'j' fills the rest, centered
+    # horizontally on the certificate around x=600.
+    return f"""
+  <!-- JAPAP brand mark — official PNG, transparent bg -->
+  <image x="560" y="22" width="80" height="100" preserveAspectRatio="xMidYMid meet"
+         href="{data_uri}" />"""
+
+
+# ── Embedded JAPAP brand assets (base64 data URIs, loaded once) ─────────────
+_LOGO_CACHE: dict = {}
+_LOGO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "..", "static", "japap_logos")
+
+
+def _logo_data_uri(filename: str) -> str:
+    """Return `data:image/png;base64,...` for a logo asset. Cached."""
+    if filename in _LOGO_CACHE:
+        return _LOGO_CACHE[filename]
+    try:
+        import base64
+        path = os.path.join(_LOGO_DIR, filename)
+        with open(path, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode("ascii")
+        uri = f"data:image/png;base64,{b64}"
+        _LOGO_CACHE[filename] = uri
+        return uri
+    except Exception as e:
+        logger.warning(f"[jury_cert] cannot load logo asset {filename}: {e}")
+        _LOGO_CACHE[filename] = ""
+        return ""
+
+
+def _japap_wordmark_data_uri() -> str:
+    """Public JAPAP word-mark used as a discreet watermark behind the text."""
+    return _logo_data_uri("wordmark.png")
 
 
 def _format_date(dt: Optional[datetime], lang: str) -> str:
@@ -245,6 +271,16 @@ def render_jury_certificate_svg(
 
     # Pull dynamic content
     japap_logo = _japap_logo_svg()
+    wordmark_uri = _japap_wordmark_data_uri()
+    wordmark_svg = ""
+    if wordmark_uri:
+        # iter240l-cert-fix-v2 — Official "japap" wordmark as a discreet
+        # background watermark (centered, low opacity, large but soft).
+        wordmark_svg = (
+            f'<image x="160" y="250" width="880" height="385" '
+            f'preserveAspectRatio="xMidYMid meet" '
+            f'opacity="0.07" href="{wordmark_uri}" />'
+        )
     qr = _get_jury_qr_path()
     qr_svg = ""
     if qr.get("path"):
@@ -300,10 +336,10 @@ def render_jury_certificate_svg(
   <!-- Decorative particles -->
   {particles_svg}
 
-  <!-- Watermark seal centered -->
-  <circle cx="600" cy="425" r="260" fill="url(#seal)"/>
-  <text x="600" y="430" text-anchor="middle" class="title-font"
-        font-size="180" font-weight="900" fill="#FFD700" opacity="0.06">JAPAP</text>
+  <!-- Watermark: official JAPAP wordmark centered, very low opacity -->
+  {wordmark_svg}
+  <!-- Fallback text watermark (used only if wordmark image asset is missing) -->
+  {('<text x="600" y="430" text-anchor="middle" class="title-font" font-size="180" font-weight="900" fill="#FFD700" opacity="0.06">JAPAP</text>') if not wordmark_svg else ''}
 
   <!-- Double border (gold) -->
   <rect x="30" y="30" width="1140" height="790" rx="16" ry="16"

@@ -7,6 +7,59 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240j — LinkedIn-style profiles + visibilité public/privé (14/05/2026)
+
+**Règles respectées** : zéro paiement touché, 100% additif (`ADD COLUMN IF NOT EXISTS`), SW bumpé, 5 langues, zéro hardcode.
+
+### Audit anti-doublons effectué
+- ❌ Route `/profile/:username` n'existait PAS (créée)
+- ❌ Aucune des 15 colonnes n'existait (toutes ajoutées additivement)
+- ❌ Aucun nom cliquable côté UI (UserNameLink créé)
+- ✅ ProfilePage own existait → conservée intacte, juste enrichie d'une nouvelle section
+- ✅ `GET /users/profile/{id}` existait → étendu avec username lookup + visibility + completion
+
+### Implémenté
+1. **DB** : ALTER TABLE users +15 colonnes (`profile_visibility`, `headline`, `bio`, `location`, `website_url`, `linkedin_url`, `twitter_url`, `profession`, `company`, `skills TEXT[]`, `languages_spoken TEXT[]`, `experience JSONB`, `education JSONB`, `achievements JSONB`, `profile_completed_at`) + index `idx_users_username_lower`.
+2. **Backend** :
+   - `GET /api/users/profile/{user_id_or_username}` : lookup par username OU user_id, auth optionnelle (anon ok pour public), `_strip_for_private_view` masque 14 champs sensibles si privé, `profile_completion_pct` calculé serveur, email JAMAIS exposé, JSONB décodé proprement
+   - `PUT /api/users/profile` étendu : validation longueurs (headline≤220, bio≤2000, skills≤15), serialization JSON, marquage `profile_completed_at` au franchissement de 60%
+   - `POST /api/users/profile/visibility` : toggle public/private
+   - `GET /api/users/profile/me/full` : helper bootstrap pour la modal
+3. **Frontend** :
+   - **NEW** `PublicProfilePage.jsx` : route `/profile/:username`, 2-col layout, masque privé, RTL arabe, toggle visibilité owner-side
+   - **NEW** `EditProfileLinkedInModal.jsx` : 9 sections (headline, bio, location, profession+company, skills chips, languages chips, experience/education/achievements dynamic lists, links)
+   - **NEW** `ProfileCompletionBar.jsx` : barre gradient avec message i18n
+   - **NEW** `UserNameLink.jsx` : wrapper navigation `/profile/{username}` (additif)
+   - **MOD** `ProfilePage.js` : ajoute carte LinkedIn (completion bar + CTA modal + lien profil public)
+   - **MOD** `FeedPage.js` : avatar + nom des posts wrappés en UserNameLink
+   - **MOD** `App.js` : route `/profile/:username` ajoutée (ProfilePage existante intacte)
+4. **i18n** : +39-45 clés `profile.*` × 5 langues (FR/EN/ES/AR/RU)
+5. **SW_VERSION** : v25-iter240i → v25-iter240j
+
+### Validation E2E (testing_agent_v3_fork iter259)
+- ✅ **Backend 12/12 PASS** : tous les endpoints fonctionnels (auth optionnelle, masquage privé, completion calculée, no email leak)
+- ✅ **Frontend visual confirmé** : PublicProfilePage rendue correctement (headline, location, Send-message CTA, Bio card, Skills chips, Links card)
+- 🟡 Owner-flow Playwright bloqué par captcha math : data-testids présents (vérifiés par grep), code review OK
+
+### Fichiers
+- MOD : `backend/routes/users.py` (+90 lignes : Pydantic, helpers, 3 endpoints, JSONB defensif)
+- NEW : `frontend/src/pages/PublicProfilePage.jsx`
+- NEW : `frontend/src/components/profile/EditProfileLinkedInModal.jsx`
+- NEW : `frontend/src/components/profile/ProfileCompletionBar.jsx`
+- NEW : `frontend/src/components/common/UserNameLink.jsx`
+- MOD : `frontend/src/pages/ProfilePage.js`, `FeedPage.js`, `App.js`
+- MOD : `frontend/src/locales/{fr,en,es,ar,ru}.json` (+39-45 clés)
+- MOD : `frontend/public/sw.js` (v25-iter240j)
+- NEW : `backend/tests/test_iter240j_linkedin_profile.py`
+
+### Backlog identifié (UserNameLink à appliquer ailleurs)
+- 🟡 Wrapper UserNameLink dans : MessengerPage, MarketplacePage, CrowdfundingModule (cards créateur), ReelsPage, StoryViewer, comments
+- 🟡 Frontend captcha bypass E2E (helper `?e2e=1` pour Playwright)
+- 🟡 Migration des `experience/education/achievements` "[]" strings → JSONB direct (cleanup data)
+- 🟡 Auditer occasional uvicorn unresponsiveness (LiteLLM async-blocking ?)
+
+
+
 ## iter240i — Stories i18n (14/05/2026) — 95% existait déjà
 
 **Audit anti-doublons** : Le système Stories complet existait DÉJÀ depuis iter147+ :

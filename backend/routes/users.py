@@ -150,6 +150,16 @@ async def get_profile(user_id_or_username: str, request: Request):
             if hasattr(v, "isoformat"):
                 v = v.isoformat()
             resp[k] = v
+        # iter240j — Defensively json.loads JSONB columns that were stored
+        # as `json.dumps` strings by older PUT calls (asyncpg doesn't decode
+        # JSONB unless a codec is registered).
+        import json as _json
+        for k in ("experience", "education", "achievements"):
+            if isinstance(resp.get(k), str):
+                try:
+                    resp[k] = _json.loads(resp[k])
+                except Exception:
+                    resp[k] = []
         # Ensure JSONB/list defaults are never null in the JSON payload.
         for k in ("skills", "languages_spoken", "experience", "education", "achievements"):
             if resp.get(k) is None:

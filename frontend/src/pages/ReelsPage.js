@@ -11,6 +11,7 @@ import { pollVideoJobWithToast } from '@/utils/videoUploadPoll';
 import uploadErrorMessage from '@/utils/uploadErrorMessage';
 import UploadProgressButton from '@/components/UploadProgressButton';
 import { useTranslation } from 'react-i18next';
+import UserNameLink from '@/components/common/UserNameLink';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -489,7 +490,11 @@ export default function ReelsPage() {
                   {r.user.avatar ? <img src={r.user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
                     : (r.user.name[0] || '?').toUpperCase()}
                 </div>
-                <span className="font-['Outfit'] font-bold text-sm">@{r.user.username || r.user.name}</span>
+                <UserNameLink user={{ user_id: r.user.user_id || r.user.id, username: r.user.username }}
+                              className="font-['Outfit'] font-bold text-sm"
+                              data-testid={`reel-${r.reel_id || r.id}-author`}>
+                  @{r.user.username || r.user.name}
+                </UserNameLink>
               </div>
               {r.caption && <p className="text-xs font-['Manrope'] leading-relaxed line-clamp-3">{r.caption}</p>}
             </div>

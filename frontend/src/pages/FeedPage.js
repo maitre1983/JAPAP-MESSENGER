@@ -1247,7 +1247,11 @@ function StoryViewer({ group, index, onChangeIndex, onClose }) {
         <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-xs font-bold">
           {group.avatar ? <img src={group.avatar} alt="" className="w-full h-full rounded-full object-cover" /> : (group.name[0] || '?').toUpperCase()}
         </div>
-        <span className="text-white text-sm font-['Manrope'] font-bold">{group.name}</span>
+        <UserNameLink user={{ user_id: group.user_id, username: group.username }}
+                      className="text-white text-sm font-['Manrope'] font-bold"
+                      data-testid="story-viewer-author">
+          {group.name}
+        </UserNameLink>
       </div>
 
       <div className="w-full h-full flex items-center justify-center p-8" style={{ background: story.background_color }}>

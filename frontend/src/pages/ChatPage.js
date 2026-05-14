@@ -29,6 +29,7 @@ import VideoPlayer from '@/components/VideoPlayer';
 import WalletDepositCurrencySelector from '@/components/wallet/WalletDepositCurrencySelector';
 // iter237u — "Vu hier à 14h32" presence label when peer is offline.
 import formatLastSeen from '@/utils/formatLastSeen';
+import UserNameLink from '@/components/common/UserNameLink';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -633,7 +634,11 @@ export default function ChatPage() {
                   {u.is_online && <span className="jp-online-dot" />}
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-medium font-['Manrope']" style={{ color: 'var(--jp-text)' }}>{u.first_name} {u.last_name}</p>
+                  <UserNameLink user={u} className="text-sm font-medium font-['Manrope']"
+                                style={{ color: 'var(--jp-text)' }}
+                                data-testid={`chat-list-name-${u.user_id || u.username}`}>
+                    {u.first_name} {u.last_name}
+                  </UserNameLink>
                   <p className="text-xs" style={{ color: 'var(--jp-text-muted)' }}>@{u.username}</p>
                 </div>
               </button>

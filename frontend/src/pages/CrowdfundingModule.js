@@ -16,6 +16,7 @@ import { useEngagementState, trackEngagementEvent } from '@/hooks/useEngagementS
 import RecruiterPanel from '@/components/crowdfunding/RecruiterPanel';
 import CrowdfundingAdminProjectsTab, { usePendingReviewBadge } from '@/components/crowdfunding/CrowdfundingAdminProjectsTab';
 import MoneyDisplay from '@/components/common/MoneyDisplay';
+import UserNameLink from '@/components/common/UserNameLink';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -178,7 +179,7 @@ function ProjectCard({ project, votesOpen, votesToWin, currentUserId, voting, on
             {project.country_code && <span>· {project.country_code}</span>}
           </div>
           <h3 className="font-bold text-slate-900 leading-tight mt-0.5 line-clamp-2">{project.title}</h3>
-          <div className="text-xs text-slate-500 mt-0.5">par {project.owner_name}</div>
+          <div className="text-xs text-slate-500 mt-0.5">par <UserNameLink username={project.owner_username} userId={project.user_id}>{project.owner_name}</UserNameLink></div>
         </div>
       </div>
 

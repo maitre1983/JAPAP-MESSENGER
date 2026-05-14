@@ -30,9 +30,9 @@ export default function AdminUserDetailModal({ userId, onClose }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
     if (!userId) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const { data } = await axios.get(`${API}/api/admin/users/${userId}/detail`, { withCredentials: true });
       setData(data);
@@ -41,6 +41,7 @@ export default function AdminUserDetailModal({ userId, onClose }) {
     } finally { setLoading(false); }
   }, [userId, t]);
   useEffect(() => { load(); }, [load]);
+  const reload = useCallback(() => load(true), [load]);
 
   if (!userId) return null;
 
@@ -63,7 +64,7 @@ export default function AdminUserDetailModal({ userId, onClose }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="jp-btn jp-btn-ghost jp-btn-sm" onClick={load} title={t('common.reload', { defaultValue:'Actualiser' })} data-testid="aud-reload">
+            <button className="jp-btn jp-btn-ghost jp-btn-sm" onClick={() => load()} title={t('common.reload', { defaultValue:'Actualiser' })} data-testid="aud-reload">
               <ArrowsClockwise size={16} />
             </button>
             <button className="jp-btn jp-btn-ghost jp-btn-sm" onClick={onClose} data-testid="aud-close">
@@ -87,12 +88,12 @@ export default function AdminUserDetailModal({ userId, onClose }) {
         <div className="app-modal-body" style={{ flex:1, overflow:'auto', padding:16 }}>
           {loading && !data && <div className="text-center text-sm py-8" style={{ color:'var(--jp-text-muted)' }}>{t('common.loading', { defaultValue:'Chargement…' })}</div>}
           {data && tab === 'overview'     && <OverviewTab data={data} t={t} />}
-          {data && tab === 'games'        && <GamesTab data={data} t={t} userId={userId} reload={load} />}
+          {data && tab === 'games'        && <GamesTab data={data} t={t} userId={userId} reload={reload} />}
           {data && tab === 'transactions' && <TransactionsTab data={data} t={t} />}
           {data && tab === 'kyc'          && <KycTab data={data} t={t} />}
           {data && tab === 'posts'        && <PostsTab data={data} t={t} />}
-          {data && tab === 'restrictions' && <RestrictionsTab data={data} t={t} userId={userId} reload={load} />}
-          {data && tab === 'notes'        && <NotesTab data={data} t={t} userId={userId} reload={load} />}
+          {data && tab === 'restrictions' && <RestrictionsTab data={data} t={t} userId={userId} reload={reload} />}
+          {data && tab === 'notes'        && <NotesTab data={data} t={t} userId={userId} reload={reload} />}
         </div>
 
         {/* Footer: send notif */}
@@ -318,7 +319,7 @@ function RestrictionsTab({ data, t, userId, reload }) {
           {active.map(r => (
             <li key={r.id} className="flex items-center justify-between gap-2 p-2 jp-card" data-testid={`aud-restrict-${r.id}`}>
               <span><b>{r.restriction_type}</b> — {r.reason || '—'} <span style={{ color:'var(--jp-text-muted)' }}>{fmtDate(r.created_at)} → {r.expires_at ? fmtDate(r.expires_at) : '∞'}</span></span>
-              <button className="jp-btn jp-btn-ghost jp-btn-sm" onClick={()=>lift(r.restriction_type)} disabled={busy}>{t('admin.user_detail.lift')}</button>
+              <button className="jp-btn jp-btn-ghost jp-btn-sm" onClick={()=>lift(r.restriction_type)} disabled={busy} data-testid={`aud-restrict-lift-${r.id}`}>{t('admin.user_detail.lift')}</button>
             </li>
           ))}
         </ul>

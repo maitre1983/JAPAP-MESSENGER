@@ -106,7 +106,7 @@ function ReelCommentsDrawer({ reelId, onClose, onNewCount, currentUser }) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs">
-                  <span className="font-bold">@{c.username || c.first_name}</span>
+                  <UserNameLink username={c.username} userId={c.user_id} className="font-bold">@{c.username || c.first_name}</UserNameLink>
                   <span className="ml-2 text-[10px] text-[var(--jp-text-muted)]">{timeAgo(c.created_at)}</span>
                 </div>
                 <p className="text-sm break-words mt-0.5">{c.text}</p>

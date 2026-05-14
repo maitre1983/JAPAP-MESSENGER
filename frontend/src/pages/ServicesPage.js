@@ -10,6 +10,7 @@ import CrowdfundingModule from '@/pages/CrowdfundingModule';
 import GamesModule from '@/pages/GamesModule';
 import JobsModule from '@/pages/JobsModule';
 import KycVerifiedBadge from '@/components/KycVerifiedBadge';
+import UserNameLink from '@/components/common/UserNameLink';
 import TransportModule from '@/pages/TransportModule';
 import AdsUserPage from '@/pages/AdsUserPage';
 import AdSlot from '@/components/AdSlot';
@@ -754,7 +755,7 @@ export default function ServicesPage() {
                 <div className="jp-avatar jp-avatar-sm jp-avatar-primary" style={{ width: '20px', height: '20px', fontSize: '8px' }}>
                   {prod.first_name?.[0]}
                 </div>
-                <span>{prod.first_name} {prod.last_name}</span>
+                <UserNameLink username={prod.username} userId={prod.seller_id}>{prod.first_name} {prod.last_name}</UserNameLink>
                 <KycVerifiedBadge verified={prod.seller_kyc_verified} size="sm" iconOnly />
                 {prod.location && <span> - {prod.location}</span>}
               </div>

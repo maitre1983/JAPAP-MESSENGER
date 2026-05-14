@@ -7,6 +7,71 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240k — Fiche Admin complète (7 onglets) + iter240j-ext UserNameLink global (14/05/2026)
+
+**Règles respectées** : 100% additif, zéro touche aux paiements, 5 langues (FR/EN/ES/AR RTL/RU), SW bumpé v25-iter240k-ext.
+
+### iter240k — Fiche Admin complète
+**Backend** : 7 endpoints additifs dans `/app/backend/routes/admin_user_detail.py` montés sous `/api/admin/users` :
+- `GET /{user_id}/detail` — dossier complet (user sanitized, wallet, transactions, KYC, game_activity, restrictions, posts, crowdfunding, login_history, flags, referrals, notes)
+- `GET /{user_id}/notes` + `POST /{user_id}/notes`
+- `POST /{user_id}/restrict` + `POST /{user_id}/unrestrict`
+- `POST /{user_id}/reset-game-limits`
+- `POST /{user_id}/send-notification`
+
+**Frontend** : nouveau composant `/app/frontend/src/components/admin/AdminUserDetailModal.jsx` (~340 lignes) avec 7 onglets :
+1. Vue Générale (grid de 15 cards)
+2. Activité Jeux (Quiz, Roue de la Fortune, Mini Spin, Staking) + bouton "Reset limites du jour"
+3. Transactions (table 20 dernières)
+4. KYC (statut, dates, motif rejet)
+5. Publications (posts + crowdfunding)
+6. Restrictions (formulaire + listes Active/Lifted, action Lever par item)
+7. Notes Admin (textarea + liste)
++ Footer permanent : envoyer une notif in-app à l'utilisateur
+
+**Intégration** : icône 👁️ (Eye, phosphor) ajoutée dans `AdminPage.js` table utilisateurs (data-testid=`view-user-<user_id>`), à gauche des boutons Edit/Reset/Suspend existants.
+
+**i18n** : 77 sous-clés sous `admin.user_detail.*` ajoutées aux 5 locales (FR/EN/ES/AR/RU) via `/tmp/add_user_detail_i18n.py`. RTL Arabe respecté.
+
+**UX fix post-test** : `reload()` rendu silencieux (`load(silent=true)`) pour éviter l'écran "Chargement…" après création de note/restriction. Aussi ajout de `data-testid="aud-restrict-lift-<id>"` pour testabilité E2E déterministe.
+
+### iter240j-ext — UserNameLink global
+Application du composant `UserNameLink` (créé en iter240j) à 4 nouveaux call sites :
+- `ServicesPage.js` L758 — nom vendeur sous chaque produit marketplace
+- `CrowdfundingModule.js` L182 — "par {owner_name}" sur chaque carte projet
+- `components/feed/CommentSection.jsx` L127 — auteur de chaque commentaire dans le Feed
+- `pages/ReelsPage.js` L109 — auteur de chaque commentaire dans les Reels
+
+**Bug fix critique du composant** (UserNameLink.jsx) : ajout de `e.preventDefault()` dans le `onClick` pour empêcher la navigation native d'un éventuel parent `<Link>/<a>`. Sans ce fix, cliquer le nom d'un vendeur (parent `<Link to=/marketplace/...>`) ouvrait le produit au lieu du profil. Validé manuellement → `/profile/<username>` est désormais atteint correctement.
+
+### Validation
+- ✅ Backend 12/12 PASS (testing_agent iter260) — auth/RBAC, dossier complet, notes round-trip, restrict→unrestrict lifecycle, reset-limits, send-notification
+- ✅ Frontend modal 7 onglets (testing_agent iter261) — toutes les tabs cliquables, notes/restrictions/notif fonctionnels, close, i18n EN OK
+- ✅ Marketplace UNL navigation validée par smoke screenshot main agent → `/profile/bestinsingapore`
+- ✅ Reels UNL PASS (testing_agent iter262)
+- 🟡 CF + Feed comments UNL non vérifiés en E2E (timeout/selector issue), code review OK
+
+### Fichiers
+- NEW : `backend/routes/admin_user_detail.py` (7 endpoints, ~250 lignes)
+- MOD : `backend/server.py` (+import +include_router)
+- NEW : `backend/tests/test_iter240k_admin_user_detail.py` (12 tests)
+- NEW : `frontend/src/components/admin/AdminUserDetailModal.jsx`
+- MOD : `frontend/src/pages/AdminPage.js` (Eye icon + state + modal mount)
+- MOD : `frontend/src/components/common/UserNameLink.jsx` (preventDefault fix)
+- MOD : `frontend/src/pages/ServicesPage.js` (import + L758)
+- MOD : `frontend/src/pages/CrowdfundingModule.js` (import + L182)
+- MOD : `frontend/src/components/feed/CommentSection.jsx` (import + L127)
+- MOD : `frontend/src/pages/ReelsPage.js` (L109)
+- MOD : `frontend/src/locales/{fr,en,es,ar,ru}.json` (+77 clés × 5 = 385 entrées)
+- MOD : `frontend/public/sw.js` (v25-iter240j → v25-iter240k-ext)
+- DB : tables `user_restrictions`, `admin_user_notes` créées en pré-session
+
+### Backlog identifié (non-bloquant)
+- `/admin` Utilisateurs : race intermittente sur le premier mount — `/api/admin/users` peut renvoyer 401 avant l'hydratation cookie (pré-existant, workaround = taper dans la barre de recherche).
+- Crowdfunding rendering à `/services?view=crowdfunding` : 0 cartes pour Bob — investiguer le filtre par défaut.
+- `data-testid` dédiés par contexte pour UNL (vendor/cf/comment) recommandés en DX future.
+
+
 ## iter240j — LinkedIn-style profiles + visibilité public/privé (14/05/2026)
 
 **Règles respectées** : zéro paiement touché, 100% additif (`ADD COLUMN IF NOT EXISTS`), SW bumpé, 5 langues, zéro hardcode.

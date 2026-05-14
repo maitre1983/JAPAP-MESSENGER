@@ -20,6 +20,9 @@ export default function UserNameLink({
   if (!handle) return <span className={className} style={style}>{children}</span>;
   const onClick = (e) => {
     if (stopPropagation) e.stopPropagation();
+    // iter240j-ext fix : also preventDefault so a parent <Link>/<a>
+    // doesn't fire its native href navigation after we've called navigate().
+    e.preventDefault();
     navigate(`/profile/${encodeURIComponent(handle)}`);
   };
   return (

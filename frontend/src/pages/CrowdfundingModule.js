@@ -628,6 +628,9 @@ function FastTrackCta({ project, onChanged }) {
 
   if (!info || !info.enabled) return null;
 
+  // iter240e — Strip trailing ".0" so '500.0 XAF' renders as '500 XAF'.
+  const priceLabel = String(info.price || '').replace(/\.0+$/, '');
+
   const submit = async () => {
     setBusy(true);
     try {
@@ -668,7 +671,7 @@ function FastTrackCta({ project, onChanged }) {
           <div className="text-xs text-slate-700 mt-0.5">
             {t('crowdfunding.fast_track_pitch', {
               defaultValue: 'Ton projet est en attente. Passe en tête de la file admin pour {{n}} {{c}} (débit du wallet Japap).',
-              n: info.price, c: info.currency,
+              n: priceLabel, c: info.currency,
             })}
           </div>
         </div>
@@ -679,7 +682,7 @@ function FastTrackCta({ project, onChanged }) {
           onClick={() => setConfirming(true)}
           data-testid="cf-my-fast-track-btn"
           className="w-full bg-gradient-to-r from-amber-500 to-rose-600 text-white py-2 rounded-full text-sm font-bold hover:opacity-90">
-          🚀 {t('crowdfunding.fast_track_cta', { defaultValue: 'Booster pour {{n}} {{c}}', n: info.price, c: info.currency })}
+          🚀 {t('crowdfunding.fast_track_cta', { defaultValue: 'Booster pour {{n}} {{c}}', n: priceLabel, c: info.currency })}
         </button>
       ) : (
         <div className="flex gap-2">

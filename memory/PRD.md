@@ -7,6 +7,51 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240e — Fast-track modération payante + finitions Jury (14/05/2026)
+
+**Règles respectées** : zéro paiement externe touché (Hubtel/Paystack/USDT/MoMo/Wave intouchés), 100% additif, SW bumpé, 5 langues, zéro hardcode (tout admin-configurable).
+
+### Doublons évités
+Audit anti-doublons mené avant code. Système Jury existant à 95% (table riche, auto-grant `_close_cycle_and_determine_winner`, vote multiplié `_compute_vote_weight`, refus self-vote ligne 1057, certificat PNG dynamique via PIL, settings admin `jury_vote_weight_by_wins`, `JuryHallOfFame.jsx`, 8 clés i18n). Modal "Créer projet" sticky/safe-area déjà fait (iter239v/240a/c).
+
+### Implémenté
+1. **Fast-track modération payante (nouveau)** :
+   - Migration DB : `crowdfunding_projects` + colonnes `is_priority`, `priority_paid_at`, `priority_paid_amount`, `priority_currency` + index `(status, is_priority DESC, priority_paid_at DESC)`.
+   - 3 settings admin seedés : `crowdfunding_fast_track_price=500`, `_currency=XAF`, `_enabled=true`.
+   - Endpoint **POST `/api/crowdfunding/projects/{slug}/fast-track`** : auth requis, owner-only, status=pending_review, débit atomique du wallet Japap interne (`SELECT FOR UPDATE` + UPDATE balance + INSERT transactions type='crowdfunding_fast_track'), flip `is_priority=true`. Idempotent (409 `already_priority`).
+   - Endpoint **GET `/api/crowdfunding/fast-track/price`** (authentifié) : retourne enabled/price/currency pour le CTA.
+   - **Tri admin** : `GET /admin/projects` ORDER BY `is_priority DESC, priority_paid_at DESC NULLS LAST, created_at DESC`.
+   - **Frontend** : composant `FastTrackCta` injecté dans `MyDashboard` quand `status=pending_review` → bouton "🚀 Booster pour 500 XAF" → confirm modal → débit + toast success. Badge "⚡ Priority Boost actif" sur la carte Mon projet quand `is_priority=true`. Badge "⚡ PRIORITY" en tête du titre dans la queue admin (gradient amber→rose).
+   - **Admin Settings** : nouveaux champs dans onglet Réglages : checkbox `fast_track_enabled`, NumField `fast_track_price`, input `fast_track_currency`.
+2. **Badge Jury + certificat sur Profile (complétion)** :
+   - Nouveau composant `frontend/src/components/profile/ProfileJuryBadge.jsx` qui appelle `GET /api/crowdfunding/jury/me` et affiche badge ⚖️ + bouton "📜 Télécharger mon certificat" (lien direct vers `/api/crowdfunding/jury/certificate/{user_id}.png`).
+   - Injecté dans `ProfilePage.js` sous les badges role/kyc/verified/pro.
+3. **21 nouvelles clés i18n × 5 langues** (FR/EN/ES/AR/RU) : `jury_member`, `jury_vote_weight`, `cannot_vote_own`, `jury_awarded`, `jury_settings`, `jury_wins_count`, `fast_track_title`, `fast_track_pitch`, `fast_track_cta`, `fast_track_confirm`, `fast_track_cancel`, `fast_track_paying`, `fast_track_success`, `fast_track_insufficient`, `fast_track_already`, `fast_track_failed`, `fast_track_active_badge`, `fast_track_admin_section`, `fast_track_admin_enabled`, `fast_track_admin_price`, `fast_track_admin_currency`.
+4. **SW_VERSION** : v22-iter240d → v23-iter240e.
+
+### Validation E2E (testing_agent_v3_fork iter257, 11/12 PASS — 1 skip env)
+- ✅ GET `/fast-track/price` retourne `{enabled:true, price:'500.0', currency:'XAF'}`
+- ✅ POST `/fast-track` débite exactement 500 XAF, flip `is_priority=true`, INSERT transactions completed
+- ✅ Idempotence : 2ᵉ call → 409 `already_priority`
+- ✅ Tri admin : projet boosté en tête de la queue pending_review
+- ✅ Admin settings GET/PUT : enabled/price/currency persistés
+- ✅ Granted/Revoked jury Bob → `GET /jury/me` is_jury=true → cert PNG 200
+- ✅ Régression : admin Approve → pending → active OK
+- ✅ Cosmétique post-test : strip `.0` final (`500.0` → `500`) côté frontend
+- 🟡 Skip : insufficient_balance non testable en E2E (OTP fresh user) mais code path complet en backend
+
+### Fichiers
+- MOD : `backend/routes/crowdfunding.py` (+POST /fast-track, +GET /fast-track/price, +tri admin, +settings admin, +_project_dict is_priority)
+- NEW : `frontend/src/components/profile/ProfileJuryBadge.jsx`
+- MOD : `frontend/src/pages/CrowdfundingModule.js` (FastTrackCta, badge cf-my-priority, admin settings)
+- MOD : `frontend/src/components/crowdfunding/CrowdfundingAdminProjectsTab.jsx` (badge PRIORITY)
+- MOD : `frontend/src/pages/ProfilePage.js` (import + injection ProfileJuryBadge)
+- MOD : `frontend/src/locales/{fr,en,es,ar,ru}.json` (+21 clés)
+- MOD : `frontend/public/sw.js` (bump v23)
+- NEW : `backend/tests/test_iter240e_fast_track.py` (suite régression réutilisable)
+
+
+
 ## iter240d — Modération Crowdfunding (Admin) — onglet Projets + badge pulsant (13/05/2026)
 
 **Règles respectées** : zéro paiement touché, 100% additif, zéro régression, SW bumpé, 5 langues.

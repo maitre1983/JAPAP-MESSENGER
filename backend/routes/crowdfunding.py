@@ -429,8 +429,10 @@ async def list_projects(
         if country:
             args.append(country.upper()[:2])
             where += f" AND UPPER(p.country_code) = ${len(args)}"
-        order = "p.votes_count DESC, p.created_at DESC" if sort == "votes" \
-                else "p.created_at DESC"
+        # iter240f — Boosted (is_priority) projects always surface first in
+        # the public listing so the paid visibility boost has real value.
+        order = "p.is_priority DESC, p.votes_count DESC, p.created_at DESC" if sort == "votes" \
+                else "p.is_priority DESC, p.created_at DESC"
         args.extend([limit, offset])
         sql = f"""
             SELECT p.*, u.first_name, u.last_name, u.username, u.avatar
@@ -1292,11 +1294,38 @@ async def fast_track_project(slug: str, request: Request):
                 raise HTTPException(status_code=404, detail="Projet introuvable.")
             if project["user_id"] != user["user_id"]:
                 raise HTTPException(status_code=403, detail="Ce projet ne t'appartient pas.")
-            if project["status"] != "pending_review":
+
+            # iter240f — Boost works as long as the project hasn't started
+            # collecting votes yet. Two valid states:
+            #   • status='pending_review'  → priority in admin queue
+            #   • status='active' BEFORE votes_open → priority in public list
+            # Disqualified / suspended / winner / expired / closed cycles
+            # cannot be boosted.
+            if project["status"] not in ("pending_review", "active"):
                 raise HTTPException(
                     status_code=409,
-                    detail={"code": "not_pending",
-                            "message": "Seuls les projets en attente de modération peuvent être boostés."}
+                    detail={"code": "not_eligible_status",
+                            "message": "Ce projet ne peut plus être boosté dans son état actuel."}
+                )
+            if project["status"] == "active":
+                # Make sure the cycle hasn't opened votes yet — once people
+                # start voting, paying for visibility would feel like
+                # tampering with the leaderboard.
+                cycle_row = await conn.fetchrow(
+                    "SELECT votes_open FROM crowdfunding_cycles WHERE cycle_id = $1",
+                    project["cycle_id"],
+                )
+                if cycle_row and cycle_row["votes_open"]:
+                    raise HTTPException(
+                        status_code=409,
+                        detail={"code": "votes_already_open",
+                                "message": "Les votes sont déjà ouverts — boost indisponible."}
+                    )
+            if int(project["votes_count"]) > 0:
+                raise HTTPException(
+                    status_code=409,
+                    detail={"code": "votes_already_cast",
+                            "message": "Des votes ont déjà été émis — boost indisponible."}
                 )
             if project["is_priority"]:
                 raise HTTPException(

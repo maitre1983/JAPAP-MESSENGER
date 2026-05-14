@@ -671,7 +671,13 @@
     "fast_track_admin_section": "تعزيز الإشراف (مدفوع)",
     "fast_track_admin_enabled": "تفعيل التعزيز المدفوع",
     "fast_track_admin_price": "سعر التعزيز",
-    "fast_track_admin_currency": "العملة"
+    "fast_track_admin_currency": "العملة",
+    "fast_track_title_pending": "تعزيز مراجعتي",
+    "fast_track_title_visibility": "تعزيز الظهور",
+    "fast_track_pitch_pending": "مشروعك قيد المراجعة. تجاوز إلى أعلى قائمة الإشراف مقابل {{n}} {{c}} (خصم من محفظة Japap).",
+    "fast_track_pitch_visibility": "مشروعك معتمد. ثبّته في أعلى القائمة العامة قبل بدء التصويت مقابل {{n}} {{c}}.",
+    "fast_track_votes_started": "بدأ التصويت — التعزيز غير متاح.",
+    "fast_track_not_eligible": "لا يمكن تعزيز هذا المشروع بعد الآن."
   },
   "pwa": {
     "update_available": "إصدار جديد من JAPAP متاح. سيتم تطبيقه تلقائياً.",

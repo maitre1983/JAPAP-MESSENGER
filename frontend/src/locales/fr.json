@@ -699,7 +699,13 @@
     "fast_track_admin_section": "Boost de modération (payant)",
     "fast_track_admin_enabled": "Activer le boost payant",
     "fast_track_admin_price": "Tarif boost",
-    "fast_track_admin_currency": "Devise"
+    "fast_track_admin_currency": "Devise",
+    "fast_track_title_pending": "Boost ma modération",
+    "fast_track_title_visibility": "Boost de visibilité",
+    "fast_track_pitch_pending": "Ton projet est en attente. Passe en tête de la file admin pour {{n}} {{c}} (débit du wallet Japap).",
+    "fast_track_pitch_visibility": "Ton projet est validé. Épingle-le en tête de la liste publique avant l'ouverture des votes pour {{n}} {{c}}.",
+    "fast_track_votes_started": "Les votes ont commencé — boost indisponible.",
+    "fast_track_not_eligible": "Ce projet ne peut plus être boosté."
   },
   "pwa": {
     "refresh_btn": "Actualiser",

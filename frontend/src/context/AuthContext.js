@@ -12,8 +12,12 @@ const API = process.env.REACT_APP_BACKEND_URL;
  *  React was mid-rendering with the old language while i18next was still
  *  loading the new bundle synchronously. The deferred listener still
  *  applies the change once i18next signals 'initialized'. */
-function syncUiLang(preferred) {
-  const lang = String(preferred || '').toLowerCase().slice(0, 2);
+function syncUiLang(preferred, fallbackLang) {
+  // iter240f — Order of preference: preferred_lang (explicit user choice) →
+  // language (legacy field still used by some flows). If both are empty,
+  // i18next keeps its detector result (localStorage/browser/htmlTag).
+  const candidate = preferred || fallbackLang || '';
+  const lang = String(candidate).toLowerCase().slice(0, 2);
   if (!SUPPORTED_CODES.includes(lang)) return;
   if (i18n.language === lang) return;
   if (i18n.isInitialized) {
@@ -65,7 +69,7 @@ export function AuthProvider({ children }) {
         const data = await tryOnce();
         if (data && data.user_id) {
           setUser(data);
-          syncUiLang(data?.preferred_lang);
+          syncUiLang(data?.preferred_lang, data?.language);
           break;
         }
         // 401/403 path → not authenticated. Stop retrying.
@@ -133,7 +137,7 @@ export function AuthProvider({ children }) {
     // switch to the 2FA step.
     if (data?.user) {
       setUser(data.user);
-      syncUiLang(data.user?.preferred_lang);
+      syncUiLang(data.user?.preferred_lang, data.user?.language);
     }
     return data;
   };
@@ -146,7 +150,7 @@ export function AuthProvider({ children }) {
     );
     if (data?.user) {
       setUser(data.user);
-      syncUiLang(data.user?.preferred_lang);
+      syncUiLang(data.user?.preferred_lang, data.user?.language);
     }
     return data;
   };
@@ -193,7 +197,7 @@ export function AuthProvider({ children }) {
   const verifyOtp = async (email, code) => {
     const { data } = await axios.post(`${API}/api/auth/verify-otp`, { email, code }, { withCredentials: true });
     setUser(data.user);
-    syncUiLang(data.user?.preferred_lang);
+    syncUiLang(data.user?.preferred_lang, data.user?.language);
     return data;
   };
 
@@ -205,7 +209,7 @@ export function AuthProvider({ children }) {
   const googleLogin = async (sessionId) => {
     const { data } = await axios.post(`${API}/api/auth/google/session`, { session_id: sessionId }, { withCredentials: true });
     setUser(data.user);
-    syncUiLang(data.user?.preferred_lang);
+    syncUiLang(data.user?.preferred_lang, data.user?.language);
     return data;
   };
 

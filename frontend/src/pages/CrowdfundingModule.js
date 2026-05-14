@@ -496,7 +496,7 @@ function CreateProjectModal({ open, onClose, onCreated, eligibility, termsAccept
 }
 
 // ─── My Dashboard panel ──────────────────────────────────────────────────
-function MyDashboard({ me, engagement, onCreate, onEdit, onDelete }) {
+function MyDashboard({ me, engagement, votesOpen, onCreate, onEdit, onDelete }) {
   const { t } = useTranslation();
   if (!me) return null;
   if (me.between_cycles) {
@@ -533,7 +533,11 @@ function MyDashboard({ me, engagement, onCreate, onEdit, onDelete }) {
   const p = me.project;
   const sp = engagement?.share_performance;
   const velocity = engagement?.vote_velocity_10m || 0;
-  const canEdit = !p.votes_started && p.votes_count === 0;
+  // iter240f — Fix: previously read p.votes_started which never existed on
+  // the project payload (the flag lives on the cycle as votes_open). The
+  // bug silently allowed edit/delete after votes opened. Now correctly
+  // gated by the cycle's votes_open AND zero votes received.
+  const canEdit = !votesOpen && p.votes_count === 0;
 
   return (
     <div className="bg-white border border-rose-300 rounded-xl p-4 shadow-sm" data-testid="cf-my-project">
@@ -572,9 +576,13 @@ function MyDashboard({ me, engagement, onCreate, onEdit, onDelete }) {
         <div className="bg-gradient-to-r from-rose-500 to-amber-500 h-full" style={{ width: `${p.progress_pct || 0}%` }} />
       </div>
 
-      {/* iter240e — Fast-track moderation: paid priority bump for pending projects */}
-      {p.status === 'pending_review' && (
-        <FastTrackCta project={p} onChanged={() => window.dispatchEvent(new Event('japap:refresh'))} />
+      {/* iter240f — Boost visible aussi pendant la phase 'active' avant
+          ouverture des votes : devient un boost de visibilité publique
+          (le projet est trié en tête de la liste publique + de la queue
+          admin via ORDER BY is_priority DESC côté backend). */}
+      {!p.is_priority &&
+        (p.status === 'pending_review' || (p.status === 'active' && !votesOpen && (p.votes_count || 0) === 0)) && (
+        <FastTrackCta project={p} status={p.status} onChanged={() => window.dispatchEvent(new Event('japap:refresh'))} />
       )}
 
       {/* iter240e — Priority badge for already-boosted projects */}
@@ -611,12 +619,24 @@ function MyDashboard({ me, engagement, onCreate, onEdit, onDelete }) {
   );
 }
 
-// ─── iter240e — Fast-track moderation paid CTA ───────────────────────────
-function FastTrackCta({ project, onChanged }) {
+// ─── iter240e/f — Fast-track moderation / visibility paid CTA ────────────
+function FastTrackCta({ project, status, onChanged }) {
   const { t } = useTranslation();
   const [info, setInfo] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // iter240f — Wording adapts to whether the project is still in moderation
+  // (pending_review) or already approved and waiting for votes (active).
+  const isPending = (status || project?.status) === 'pending_review';
+  const titleKey = isPending ? 'fast_track_title_pending' : 'fast_track_title_visibility';
+  const titleFallback = isPending
+    ? 'Boost ma modération'
+    : 'Boost de visibilité';
+  const pitchKey = isPending ? 'fast_track_pitch_pending' : 'fast_track_pitch_visibility';
+  const pitchFallback = isPending
+    ? 'Ton projet est en attente. Passe en tête de la file admin pour {{n}} {{c}} (débit du wallet Japap).'
+    : 'Ton projet est validé. Épingle-le en tête de la liste publique avant l\'ouverture des votes pour {{n}} {{c}}.';
 
   useEffect(() => {
     let alive = true;
@@ -651,6 +671,10 @@ function FastTrackCta({ project, onChanged }) {
         }));
       } else if (code === 'already_priority') {
         toast.error(t('crowdfunding.fast_track_already', { defaultValue: 'Déjà boosté.' }));
+      } else if (code === 'votes_already_open' || code === 'votes_already_cast') {
+        toast.error(t('crowdfunding.fast_track_votes_started', { defaultValue: 'Les votes ont commencé — boost indisponible.' }));
+      } else if (code === 'not_eligible_status') {
+        toast.error(t('crowdfunding.fast_track_not_eligible', { defaultValue: 'Ce projet ne peut plus être boosté.' }));
       } else {
         toast.error(extractErrorMessage(e, t('crowdfunding.fast_track_failed', { defaultValue: 'Boost impossible.' })));
       }
@@ -666,11 +690,11 @@ function FastTrackCta({ project, onChanged }) {
         <Lightning weight="fill" size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
         <div className="flex-1">
           <div className="text-sm font-bold text-slate-900">
-            {t('crowdfunding.fast_track_title', { defaultValue: 'Boost ma modération' })}
+            {t(`crowdfunding.${titleKey}`, { defaultValue: titleFallback })}
           </div>
           <div className="text-xs text-slate-700 mt-0.5">
-            {t('crowdfunding.fast_track_pitch', {
-              defaultValue: 'Ton projet est en attente. Passe en tête de la file admin pour {{n}} {{c}} (débit du wallet Japap).',
+            {t(`crowdfunding.${pitchKey}`, {
+              defaultValue: pitchFallback,
               n: priceLabel, c: info.currency,
             })}
           </div>
@@ -1134,6 +1158,7 @@ export default function CrowdfundingModule({ onBack }) {
         {user && <MyDashboard
           me={me}
           engagement={engagement}
+          votesOpen={state?.cycle?.votes_open}
           onCreate={() => {
             // iter239w — Si conditions non acceptées dans cette session, on
             // affiche le modal Terms d'abord. Sinon on ouvre directement Create.

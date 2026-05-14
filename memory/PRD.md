@@ -7,6 +7,41 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240f — 3 bugs utilisateur + extension Boost visibilité (14/05/2026)
+
+**Règles respectées** : zéro paiement externe touché, 100% additif, SW bumpé, 5 langues, zéro hardcode.
+
+### Bugs reportés par l'utilisateur (WhatsApp screenshots)
+1. **Bouton boost introuvable** — son projet était `status='active'` (déjà approuvé), le bouton ne s'affichait que pour `pending_review` → **étendu** : boost dispo aussi pour `active` AVANT ouverture des votes (devient "Boost de visibilité"). Sémantique adaptative via clés `fast_track_title_pending` vs `fast_track_title_visibility`.
+2. **UI mixte FR/EN** — clés Jury Hall of Fame affichées en EN alors que le reste était en FR. Root cause : `user.preferred_lang=NULL` + `user.language='fr'` → `syncUiLang()` ne lisait QUE `preferred_lang` et laissait i18next utiliser la détection navigateur (EN). **Fix** : `syncUiLang(preferred, fallbackLang)` prend désormais 2 args, fallback ordonné `preferred ?? user.language ?? détection`.
+3. **Bug edit/delete pas bloqué après ouverture des votes** — backend déjà OK (409), **mais frontend** lisait `p.votes_started` (jamais présent dans le payload `_project_dict`) → `!undefined = true` → boutons toujours visibles. **Fix** : `canEdit = !votesOpen && p.votes_count === 0`, avec `votesOpen` passé en prop depuis `state.cycle.votes_open`.
+
+### Implémenté
+- Backend `fast_track_project` : autorise `status IN ('pending_review','active')`, ajoute 3 codes d'erreur (`votes_already_open`, `votes_already_cast`, `not_eligible_status`).
+- Backend `list_projects` (public) : `ORDER BY p.is_priority DESC, ...` pour que les projets boostés `active` apparaissent en tête de la liste publique.
+- Frontend `MyDashboard({ votesOpen })`, condition d'affichage `FastTrackCta` élargie à `active && !votesOpen && votes_count===0`.
+- Frontend `FastTrackCta` : titre/pitch adaptatifs selon `isPending`. Nouveaux toasts pour `votes_already_open/cast`.
+- `AuthContext.syncUiLang(preferred, fallbackLang)` : 5 sites d'appel mis à jour.
+- 6 nouvelles clés i18n × 5 langues : `fast_track_title_pending/visibility`, `fast_track_pitch_pending/visibility`, `fast_track_votes_started`, `fast_track_not_eligible`.
+- SW_VERSION → v23-iter240f.
+- Suite pytest `/app/backend/tests/test_iter240f_boost_lifecycle.py` (8 cas).
+
+### Validation
+- ✅ Code review testing_agent_v3_fork iter258 : tous les fixes correctement implémentés (file + line refs vérifiés).
+- ✅ Tests pytest happy-path : K (SW), E (price endpoint), D (`/auth/me.language` exposé), C1 (PATCH OK quand votes_open=false). 
+- 🟡 Tests qui ouvrent `votes_open=true` via DB direct : `test_iter240f_boost_lifecycle.py` final version corrigée (asyncpg toggle) — à re-run quand le preview URL est stable (intermittent HTTP:000 observé).
+- ✅ Pollution test nettoyée : `crowdfunding_fast_track_price`=500, `_currency`='XAF'. Aucun projet `TEST_iter240f` résiduel.
+
+### Fichiers
+- MOD : `backend/routes/crowdfunding.py` (fast_track_project status gate + public ORDER BY)
+- MOD : `frontend/src/pages/CrowdfundingModule.js` (MyDashboard prop, canEdit fix, FastTrackCta visibility + titres adaptatifs + toasts)
+- MOD : `frontend/src/context/AuthContext.js` (syncUiLang signature 2 args + 5 call sites)
+- MOD : `frontend/src/locales/{fr,en,es,ar,ru}.json` (+6 clés)
+- MOD : `frontend/public/sw.js` (v23-iter240f)
+- NEW : `backend/tests/test_iter240f_boost_lifecycle.py`
+
+
+
 ## iter240e — Fast-track modération payante + finitions Jury (14/05/2026)
 
 **Règles respectées** : zéro paiement externe touché (Hubtel/Paystack/USDT/MoMo/Wave intouchés), 100% additif, SW bumpé, 5 langues, zéro hardcode (tout admin-configurable).

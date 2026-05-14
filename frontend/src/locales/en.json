@@ -699,7 +699,13 @@
     "fast_track_admin_section": "Moderation boost (paid)",
     "fast_track_admin_enabled": "Enable paid boost",
     "fast_track_admin_price": "Boost price",
-    "fast_track_admin_currency": "Currency"
+    "fast_track_admin_currency": "Currency",
+    "fast_track_title_pending": "Boost my moderation",
+    "fast_track_title_visibility": "Visibility boost",
+    "fast_track_pitch_pending": "Your project is pending review. Jump to the top of the admin queue for {{n}} {{c}} (Japap wallet debit).",
+    "fast_track_pitch_visibility": "Your project is approved. Pin it to the top of the public list before votes open for {{n}} {{c}}.",
+    "fast_track_votes_started": "Votes have started — boost unavailable.",
+    "fast_track_not_eligible": "This project can no longer be boosted."
   },
   "pwa": {
     "update_available": "A new version of JAPAP is available. It will be applied automatically.",

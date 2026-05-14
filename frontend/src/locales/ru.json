@@ -215,6 +215,12 @@
     "fast_track_admin_section": "Ускорение модерации (платное)",
     "fast_track_admin_enabled": "Включить платный буст",
     "fast_track_admin_price": "Цена буста",
-    "fast_track_admin_currency": "Валюта"
+    "fast_track_admin_currency": "Валюта",
+    "fast_track_title_pending": "Ускорить модерацию",
+    "fast_track_title_visibility": "Буст видимости",
+    "fast_track_pitch_pending": "Ваш проект на модерации. Перейти в начало очереди администратора за {{n}} {{c}} (списание с кошелька Japap).",
+    "fast_track_pitch_visibility": "Ваш проект одобрен. Закрепите его в верху публичного списка до начала голосования за {{n}} {{c}}.",
+    "fast_track_votes_started": "Голосование началось — буст недоступен.",
+    "fast_track_not_eligible": "Этот проект больше нельзя ускорить."
   }
 }

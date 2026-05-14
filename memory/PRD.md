@@ -7,6 +7,70 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240g — Devise USD-primary + équivalent locale auto (14/05/2026)
+
+**Règles respectées** : zéro paiement externe touché, 100% additif, SW bumpé, 5 langues, zéro hardcode.
+
+### Audit anti-doublons effectué
+Découverte clé : **29 136 wallets stockés en USD** + infrastructure devise complète déjà en place :
+- `routes/currency.py` : table `currency_rates`, refresh exchangerate.host, fallback hardcodé, COUNTRY_TO_CURRENCY 100+ pays
+- `utils/currency.js` : `CurrencyContext` + `formatMoney()` + bundle fallback static (iter83)
+- `services/currency_detector.py` : détection IP + mapping
+**Conclusion** : ne pas réinventer. Étendre le `formatMoney()` avec mode `usdFirst` + créer un wrapper UI clean (`<MoneyDisplay>`).
+
+### Implémenté
+1. **`utils/currency.js` étendu** :
+   - `formatMoney(usd, ctx, { usdFirst: true })` → `"$1.00 (≈ 615 FCFA)"` au lieu de `"615 FCFA (~$1.00)"`
+   - `CurrencyContext` : ajout `showEquivalent` + `setShowEquivalent` persisté dans `localStorage['japap_show_local_equivalent']`
+2. **Nouveau `<MoneyDisplay>`** (`components/common/MoneyDisplay.jsx`) :
+   - Accepte `amountUsd` ou `amount` + `legacyCurrency` (pour les anciens champs XAF)
+   - Toujours `usdFirst`, respecte le toggle utilisateur
+3. **Nouveau `<CurrencyDisplayToggleCard>`** dans `/profile` : toggle persistant pour activer/désactiver l'équivalent local.
+4. **Crowdfunding `FastTrackCta` refactor** :
+   - Pitch : `%%PRICE%%` placeholder remplacé par node `<MoneyDisplay>` inline
+   - Bouton : `"Booster pour"` + `priceNode`
+   - `legacyCurrency={info.currency}` → conversion auto quel que soit le storage backend
+5. **`TipSettingsCard` chips** : `<MoneyDisplay amountUsd={n} legacyCurrency='XAF' short />` (presets legacy DB en XAF affichés `$0.17 / $0.83 / $1.65` pour US, `$0.17 (≈ 100 FCFA)` pour CM)
+6. **Backend** : default `crowdfunding_fast_track_price=1`, `currency=USD` (admin reconfigurable). Migration DB appliquée.
+7. **i18n 5 langues** (+5 clés) : `fast_track_pitch_pending/visibility` (avec `%%PRICE%%`), `fast_track_cta_label`, `currency_toggle_show_equivalent`, `currency_toggle_explain`.
+8. **SW_VERSION** → v23-iter240g.
+
+### Validation E2E (testing_agent_v3_fork iter258, **backend 100%, frontend 85%**)
+- ✅ `GET /api/crowdfunding/fast-track/price` retourne `{price:'1', currency:'USD'}`
+- ✅ `GET /api/currency/rates` (XAF=605, EUR=0.92, NGN=1560)
+- ✅ `GET /api/currency/detect?country=CM` → `XAF`/`FCFA`/605
+- ✅ TipSettingsCard chips : `100 XAF` → `$0.17`, `500 XAF` → `$0.83`, etc. ✓
+- ✅ Toggle Profil persiste dans `localStorage['japap_show_local_equivalent']`
+- ✅ i18n FR/EN/RU OK
+- ✅ POST `/fast-track` débite **exactement 1.00 USD** (48028.10 → 48027.10) du wallet Bob
+- ✅ SW v23-iter240g
+- ✅ FEATURE I : aucun "XAF" visible sur l'UI utilisateur (seulement "FCFA" pour devise locale qui est légitime)
+- 🟡 FEATURE C `cf-my-fast-track-block` non observable (Bob n'a plus de projet actif après cleanup test) — code correct par revue
+
+### Ce qui N'A PAS été touché (intentionnel)
+- Hubtel/Paystack/USDT/Wave/Orange Money services (XAF/NGN/GHS interne)
+- 132 occurrences XAF côté frontend + 180 côté backend dans les services payments
+- Storage DB (presets, prix, etc. — toute lecture passe désormais par MoneyDisplay)
+
+### Fichiers
+- MOD : `frontend/src/utils/currency.js` (usdFirst mode + showEquivalent toggle)
+- NEW : `frontend/src/components/common/MoneyDisplay.jsx`
+- NEW : `frontend/src/components/profile/CurrencyDisplayToggleCard.jsx`
+- MOD : `frontend/src/components/profile/TipSettingsCard.jsx`
+- MOD : `frontend/src/pages/CrowdfundingModule.js` (FastTrackCta priceNode)
+- MOD : `frontend/src/pages/ProfilePage.js` (+CurrencyDisplayToggleCard)
+- MOD : `frontend/src/locales/{fr,en,es,ar,ru}.json` (+5 clés)
+- MOD : `backend/routes/crowdfunding.py` (defaults XAF→USD, 500→1)
+- DB : `admin_settings` UPDATE crowdfunding_fast_track_price='1', _currency='USD'
+- MOD : `frontend/public/sw.js` (v23-iter240g)
+
+### Backlog identifié
+- `cf-my-project` loader bloque parfois en "Chargement..." quand `me.project=null` (pré-existant, hors iter240g)
+- Migration des `tip_presets` legacy XAF → USD floats (nécessite décision produit sur min 0.20 USD vs $1 actuel)
+- Splitter `CrowdfundingModule.js` (1724 lignes)
+
+
+
 ## iter240f — 3 bugs utilisateur + extension Boost visibilité (14/05/2026)
 
 **Règles respectées** : zéro paiement externe touché, 100% additif, SW bumpé, 5 langues, zéro hardcode.

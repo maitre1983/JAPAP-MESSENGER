@@ -649,7 +649,15 @@
       "no_notes": "No notes for this user.",
       "notif_placeholder": "Message to send to the user…",
       "send_notif": "Send",
-      "notif_sent": "Notification sent"
+      "notif_sent": "Notification sent",
+      "won_usd": "Won (USD)",
+      "won_pts": "Won (PTS)",
+      "refunded": "Refunded",
+      "debug_tx_breakdown": "Transaction breakdown (admin)",
+      "debug_no_tx": "No transactions for this user.",
+      "debug_count": "Count",
+      "debug_sum": "Total",
+      "debug_last": "Last"
     }
   },
   "kyc": {

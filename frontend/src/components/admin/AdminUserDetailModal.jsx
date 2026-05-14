@@ -148,18 +148,11 @@ function OverviewTab({ data, t }) {
 /* ──────────────── GAMES ──────────────── */
 function GamesTab({ data, t, userId, reload }) {
   const g = data.game_activity || {};
-  const row = (key, total, won, last) => (
-    <div className="jp-card" style={{ padding:12 }}>
-      <div className="flex items-center justify-between">
-        <h4 className="font-medium">{t(`admin.user_detail.game_${key}`)}</h4>
-        <span className="text-[11px]" style={{ color:'var(--jp-text-muted)' }}>{fmtDate(last)}</span>
-      </div>
-      <div className="flex gap-6 mt-2 text-sm">
-        <div><span style={{ color:'var(--jp-text-muted)' }}>{t('admin.user_detail.played')}: </span><b>{fmtNum(total)}</b></div>
-        <div><span style={{ color:'var(--jp-text-muted)' }}>{t('admin.user_detail.won')}: </span><b>{fmtNum(won)}</b></div>
-      </div>
-    </div>
-  );
+  const q = g.quiz || {};
+  const w = g.fortune_wheel || {};
+  const s = g.mini_spin || {};
+  const allTx = g.all_transaction_types || [];
+
   const onReset = async () => {
     if (!window.confirm(t('admin.user_detail.confirm_reset_limits'))) return;
     try {
@@ -168,13 +161,60 @@ function GamesTab({ data, t, userId, reload }) {
       reload();
     } catch { toast.error(t('admin.user_detail.action_failed')); }
   };
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-testid="aud-games-tab">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {row('quiz', g.quiz?.total_played, g.quiz?.total_won, g.quiz?.last_played_at)}
-        {row('fortune_wheel', g.fortune_wheel?.total_played, g.fortune_wheel?.total_won, g.fortune_wheel?.last_played_at)}
-        {row('mini_spin', g.mini_spin?.total_played, g.mini_spin?.total_won, g.mini_spin?.last_played_at)}
-        <div className="jp-card" style={{ padding:12 }}>
+        {/* Quiz — dual currency display (USD + PTS) */}
+        <div className="jp-card" style={{ padding:12 }} data-testid="aud-game-quiz">
+          <div className="flex items-center justify-between">
+            <h4 className="font-medium">{t('admin.user_detail.game_quiz')}</h4>
+            <span className="text-[11px]" style={{ color:'var(--jp-text-muted)' }}>{fmtDate(q.last_played_at)}</span>
+          </div>
+          <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-sm">
+            <div><span style={{ color:'var(--jp-text-muted)' }}>{t('admin.user_detail.played')}: </span>
+              <b data-testid="aud-quiz-played">{fmtNum(q.total_played)}</b></div>
+            <div><span style={{ color:'var(--jp-text-muted)' }}>{t('admin.user_detail.won_usd')}: </span>
+              <b data-testid="aud-quiz-won-usd">{fmtNum(q.total_won_usd)} USD</b></div>
+            <div><span style={{ color:'var(--jp-text-muted)' }}>{t('admin.user_detail.won_pts')}: </span>
+              <b data-testid="aud-quiz-won-pts">{fmtNum(q.total_won_pts)} PTS</b></div>
+            {Number(q.total_refunded_usd) > 0 && (
+              <div><span style={{ color:'var(--jp-text-muted)' }}>{t('admin.user_detail.refunded')}: </span>
+                <b>{fmtNum(q.total_refunded_usd)} USD</b></div>
+            )}
+          </div>
+        </div>
+
+        {/* Fortune Wheel */}
+        <div className="jp-card" style={{ padding:12 }} data-testid="aud-game-wheel">
+          <div className="flex items-center justify-between">
+            <h4 className="font-medium">{t('admin.user_detail.game_fortune_wheel')}</h4>
+            <span className="text-[11px]" style={{ color:'var(--jp-text-muted)' }}>{fmtDate(w.last_played_at)}</span>
+          </div>
+          <div className="flex gap-6 mt-2 text-sm">
+            <div><span style={{ color:'var(--jp-text-muted)' }}>{t('admin.user_detail.played')}: </span>
+              <b data-testid="aud-wheel-played">{fmtNum(w.total_played)}</b></div>
+            <div><span style={{ color:'var(--jp-text-muted)' }}>{t('admin.user_detail.won')}: </span>
+              <b data-testid="aud-wheel-won">{fmtNum(w.total_won)}</b></div>
+          </div>
+        </div>
+
+        {/* Mini Spin */}
+        <div className="jp-card" style={{ padding:12 }} data-testid="aud-game-spin">
+          <div className="flex items-center justify-between">
+            <h4 className="font-medium">{t('admin.user_detail.game_mini_spin')}</h4>
+            <span className="text-[11px]" style={{ color:'var(--jp-text-muted)' }}>{fmtDate(s.last_played_at)}</span>
+          </div>
+          <div className="flex gap-6 mt-2 text-sm">
+            <div><span style={{ color:'var(--jp-text-muted)' }}>{t('admin.user_detail.played')}: </span>
+              <b data-testid="aud-spin-played">{fmtNum(s.total_played)}</b></div>
+            <div><span style={{ color:'var(--jp-text-muted)' }}>{t('admin.user_detail.won')}: </span>
+              <b data-testid="aud-spin-won">{fmtNum(s.total_won)}</b></div>
+          </div>
+        </div>
+
+        {/* Staking */}
+        <div className="jp-card" style={{ padding:12 }} data-testid="aud-game-staking">
           <h4 className="font-medium">{t('admin.user_detail.game_staking')}</h4>
           <div className="flex gap-6 mt-2 text-sm">
             <div><span style={{ color:'var(--jp-text-muted)' }}>{t('admin.user_detail.active_stakes')}: </span><b>{fmtNum(g.staking?.active_stakes)}</b></div>
@@ -182,6 +222,42 @@ function GamesTab({ data, t, userId, reload }) {
           </div>
         </div>
       </div>
+
+      {/* Debug — collapsible breakdown of raw transaction types (admin only) */}
+      <details className="admin-tx-debug jp-card" style={{ padding:10 }} data-testid="aud-tx-debug">
+        <summary style={{ cursor:'pointer', fontSize:13, fontWeight:600 }}>
+          {t('admin.user_detail.debug_tx_breakdown')} ({allTx.length})
+        </summary>
+        {allTx.length === 0 ? (
+          <p className="text-xs mt-2" style={{ color:'var(--jp-text-muted)' }}>
+            {t('admin.user_detail.debug_no_tx')}
+          </p>
+        ) : (
+          <div className="overflow-x-auto mt-2">
+            <table className="jp-table text-xs w-full" data-testid="aud-tx-debug-table">
+              <thead><tr>
+                <th>{t('admin.user_detail.tx_type')}</th>
+                <th>{t('admin.user_detail.tx_amount')}</th>
+                <th>{t('admin.user_detail.debug_count')}</th>
+                <th>{t('admin.user_detail.debug_sum')}</th>
+                <th>{t('admin.user_detail.debug_last')}</th>
+              </tr></thead>
+              <tbody>
+                {allTx.map((row, i) => (
+                  <tr key={`${row.type}-${row.currency}-${i}`} data-testid={`aud-tx-row-${row.type}-${row.currency}`}>
+                    <td><code>{row.type}</code></td>
+                    <td>{row.currency || '—'}</td>
+                    <td>{fmtNum(row.n)}</td>
+                    <td>{fmtNum(row.sum_amount)}</td>
+                    <td className="text-[11px]" style={{ color:'var(--jp-text-muted)' }}>{fmtDate(row.last_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </details>
+
       <button className="jp-btn jp-btn-secondary jp-btn-sm" onClick={onReset} data-testid="aud-reset-limits">
         {t('admin.user_detail.reset_limits')}
       </button>

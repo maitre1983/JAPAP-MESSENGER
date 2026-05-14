@@ -621,7 +621,15 @@
       "no_notes": "Sin notas para este usuario.",
       "notif_placeholder": "Mensaje para enviar al usuario…",
       "send_notif": "Enviar",
-      "notif_sent": "Notificación enviada"
+      "notif_sent": "Notificación enviada",
+      "won_usd": "Ganado (USD)",
+      "won_pts": "Ganado (PTS)",
+      "refunded": "Reembolsado",
+      "debug_tx_breakdown": "Detalle de transacciones (admin)",
+      "debug_no_tx": "Sin transacciones para este usuario.",
+      "debug_count": "Cantidad",
+      "debug_sum": "Total",
+      "debug_last": "Última"
     }
   },
   "kyc": {

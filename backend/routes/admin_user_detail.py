@@ -80,6 +80,137 @@ def _serialize(obj):
     return obj
 
 
+# iter240l-gamefix — Game activity rebuilt from `transactions` (source of truth).
+# Mapping (verified against prod DB, Feb 2026):
+#   quiz_challenge_lock         → quiz play (USD bet locked)
+#   quiz_challenge_lock_double  → quiz play (USD bet locked, double mode)
+#   quiz_challenge_release      → quiz won (USD prize released to winner)
+#   quiz_challenge_refund       → quiz refunded (tie / cancelled — counted as played)
+#   quiz_challenge_bonus        → quiz won (PTS bonus, daily / solo)
+#   game_bet                    → wheel / spin play (XAF, distinguished via notes)
+#   game_reward                 → wheel / spin / quiz win (XAF, distinguished via notes)
+#   referral_bonus / send / …   → ignored (not games)
+async def _build_game_activity_from_tx(conn, user_id: str) -> dict:
+    """Aggregate complete game stats from the `transactions` table.
+
+    Returns a dict with sections for quiz / fortune_wheel / mini_spin / staking,
+    plus an `all_transaction_types` debug breakdown that lists every type the
+    user is involved in (for admin troubleshooting)."""
+    sql = """
+        WITH user_tx AS (
+            SELECT type, currency, amount, notes, created_at
+            FROM transactions
+            WHERE (from_user_id = $1 OR to_user_id = $1)
+              AND COALESCE(status, 'completed') IN
+                  ('completed','success','SUCCESS','COMPLETED','paid','released','done','ok')
+        ),
+        quiz_plays AS (
+            SELECT * FROM user_tx
+            WHERE type IN ('quiz_challenge_lock','quiz_challenge_lock_double','quiz_challenge_bonus')
+               OR (type = 'game_bet'    AND COALESCE(notes,'') ILIKE '%quiz%')
+               OR (type = 'game_reward' AND COALESCE(notes,'') ILIKE '%quiz%')
+        ),
+        wheel_plays AS (
+            SELECT * FROM user_tx
+            WHERE (type = 'game_bet'    AND COALESCE(notes,'') ~* '(wheel|roue|fortune)')
+               OR (type = 'game_reward' AND COALESCE(notes,'') ~* '(wheel|roue|fortune)')
+        ),
+        spin_plays AS (
+            SELECT * FROM user_tx
+            WHERE  type IN ('game_bet','game_reward')
+              AND  COALESCE(notes,'') ILIKE '%spin%'
+              AND  COALESCE(notes,'') NOT ILIKE '%quiz%'
+              AND  COALESCE(notes,'') !~* '(wheel|roue|fortune)'
+        )
+        SELECT json_build_object(
+            'quiz', json_build_object(
+                'total_played',
+                    (SELECT COUNT(*) FROM quiz_plays
+                       WHERE type IN ('quiz_challenge_lock','quiz_challenge_lock_double',
+                                      'quiz_challenge_bonus','game_bet')),
+                'total_won_usd',
+                    (SELECT COALESCE(SUM(amount),0) FROM user_tx
+                       WHERE type = 'quiz_challenge_release' AND currency = 'USD'),
+                'total_won_pts',
+                    (SELECT COALESCE(SUM(amount),0) FROM user_tx
+                       WHERE type = 'quiz_challenge_bonus' AND currency = 'PTS'),
+                'total_refunded_usd',
+                    (SELECT COALESCE(SUM(amount),0) FROM user_tx
+                       WHERE type = 'quiz_challenge_refund' AND currency = 'USD'),
+                'last_played_at',
+                    (SELECT MAX(created_at) FROM quiz_plays)
+            ),
+            'fortune_wheel', json_build_object(
+                'total_played',
+                    (SELECT COUNT(*) FROM wheel_plays WHERE type = 'game_bet'),
+                'total_won',
+                    (SELECT COALESCE(SUM(amount),0) FROM wheel_plays WHERE type = 'game_reward'),
+                'last_played_at',
+                    (SELECT MAX(created_at) FROM wheel_plays)
+            ),
+            'mini_spin', json_build_object(
+                'total_played',
+                    (SELECT COUNT(*) FROM spin_plays WHERE type = 'game_bet'),
+                'total_won',
+                    (SELECT COALESCE(SUM(amount),0) FROM spin_plays WHERE type = 'game_reward'),
+                'last_played_at',
+                    (SELECT MAX(created_at) FROM spin_plays)
+            ),
+            'all_transaction_types', (
+                SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t.n DESC), '[]'::json)
+                FROM (
+                    SELECT type, currency,
+                           COUNT(*)::int AS n,
+                           COALESCE(SUM(amount),0)::float AS sum_amount,
+                           MAX(created_at)                AS last_at
+                    FROM user_tx
+                    GROUP BY type, currency
+                ) t
+            )
+        ) AS payload
+    """
+    try:
+        payload = await conn.fetchval(sql, user_id)
+    except Exception:
+        payload = None
+
+    # Staking — still pulled from staking_positions (no tx type for stakes).
+    stake_active = await _safe_fetch(conn,
+        "SELECT COUNT(*) FROM staking_positions WHERE user_id = $1 AND status = 'active'",
+        user_id, default=0) or 0
+    stake_total = await _safe_fetch(conn,
+        "SELECT COALESCE(SUM(amount_mir), 0) FROM staking_positions WHERE user_id = $1",
+        user_id, default=0) or 0
+
+    # asyncpg returns JSON as str sometimes — normalise.
+    import json as _json
+    if isinstance(payload, str):
+        try:
+            payload = _json.loads(payload)
+        except Exception:
+            payload = None
+    if not isinstance(payload, dict):
+        payload = {
+            "quiz":          {"total_played": 0, "total_won_usd": 0, "total_won_pts": 0,
+                              "total_refunded_usd": 0, "last_played_at": None},
+            "fortune_wheel": {"total_played": 0, "total_won": 0, "last_played_at": None},
+            "mini_spin":     {"total_played": 0, "total_won": 0, "last_played_at": None},
+            "all_transaction_types": [],
+        }
+
+    # Back-compat field expected by older UI versions.
+    payload["quiz"]["total_won"] = float(
+        (payload["quiz"].get("total_won_usd") or 0)
+        + (payload["quiz"].get("total_won_pts") or 0)
+    )
+
+    payload["staking"] = {
+        "active_stakes": int(stake_active),
+        "total_staked":  float(stake_total),
+    }
+    return payload
+
+
 # ─── Endpoints ───────────────────────────────────────────────────────────
 @router.get("/{user_id}/detail")
 async def get_user_detail(user_id: str, request: Request):
@@ -118,34 +249,10 @@ async def get_user_detail(user_id: str, request: Request):
         )
         kyc_row = kyc[0] if kyc else {"status": "not_submitted"}
 
-        # Game activity — graceful if tables don't exist
-        quiz_total = await _safe_fetch(conn,
-            "SELECT COUNT(*) FROM quiz_game_history WHERE user_id = $1", user_id, default=0) or 0
-        quiz_won = await _safe_fetch(conn,
-            "SELECT COALESCE(SUM(prize_amount), 0) FROM quiz_game_history WHERE user_id = $1", user_id, default=0) or 0
-        quiz_last = await _safe_fetch(conn,
-            "SELECT MAX(created_at) FROM quiz_game_history WHERE user_id = $1", user_id)
-
-        wheel_total = await _safe_fetch(conn,
-            "SELECT COUNT(*) FROM fortune_wheel_spins WHERE user_id = $1", user_id, default=0) or 0
-        wheel_won = await _safe_fetch(conn,
-            "SELECT COALESCE(SUM(prize_amount), 0) FROM fortune_wheel_spins WHERE user_id = $1", user_id, default=0) or 0
-        wheel_last = await _safe_fetch(conn,
-            "SELECT MAX(created_at) FROM fortune_wheel_spins WHERE user_id = $1", user_id)
-
-        spin_total = await _safe_fetch(conn,
-            "SELECT COUNT(*) FROM mini_spin_history WHERE user_id = $1", user_id, default=0) or 0
-        spin_won = await _safe_fetch(conn,
-            "SELECT COALESCE(SUM(prize_amount), 0) FROM mini_spin_history WHERE user_id = $1", user_id, default=0) or 0
-        spin_last = await _safe_fetch(conn,
-            "SELECT MAX(created_at) FROM mini_spin_history WHERE user_id = $1", user_id)
-
-        stake_active = await _safe_fetch(conn,
-            "SELECT COUNT(*) FROM staking_positions WHERE user_id = $1 AND status = 'active'",
-            user_id, default=0) or 0
-        stake_total = await _safe_fetch(conn,
-            "SELECT COALESCE(SUM(amount_mir), 0) FROM staking_positions WHERE user_id = $1",
-            user_id, default=0) or 0
+        # iter240l-gamefix — game_activity rebuilt from the `transactions` table
+        # (single source of truth). Old tables (quiz_game_history, fortune_wheel_spins,
+        # mini_spin_history) are unreliable / partially populated → ignored on purpose.
+        game_activity = await _build_game_activity_from_tx(conn, user_id)
 
         # Restrictions
         restrictions = await _safe_fetch_rows(
@@ -207,12 +314,7 @@ async def get_user_detail(user_id: str, request: Request):
         "kyc": kyc_row,
         "wallet": wallet_d,
         "transactions": transactions,
-        "game_activity": {
-            "quiz":          {"total_played": int(quiz_total), "total_won": float(quiz_won), "last_played_at": quiz_last},
-            "fortune_wheel": {"total_played": int(wheel_total), "total_won": float(wheel_won), "last_played_at": wheel_last},
-            "mini_spin":     {"total_played": int(spin_total), "total_won": float(spin_won), "last_played_at": spin_last},
-            "staking":       {"active_stakes": int(stake_active), "total_staked": float(stake_total)},
-        },
+        "game_activity": game_activity,
         "restrictions": restrictions,
         "posts":        {"total_posts": int(posts_total), "total_likes_received": int(posts_likes), "last_post_at": posts_last},
         "crowdfunding": {"projects_submitted": int(cf_projects), "votes_cast": int(cf_votes)},

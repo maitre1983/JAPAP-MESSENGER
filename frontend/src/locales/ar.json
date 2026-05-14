@@ -621,7 +621,15 @@
       "no_notes": "لا توجد ملاحظات لهذا المستخدم.",
       "notif_placeholder": "رسالة لإرسالها إلى المستخدم…",
       "send_notif": "إرسال",
-      "notif_sent": "تم إرسال الإشعار"
+      "notif_sent": "تم إرسال الإشعار",
+      "won_usd": "ربح (USD)",
+      "won_pts": "ربح (PTS)",
+      "refunded": "مُستردّ",
+      "debug_tx_breakdown": "تفاصيل المعاملات (للمسؤول)",
+      "debug_no_tx": "لا توجد معاملات لهذا المستخدم.",
+      "debug_count": "العدد",
+      "debug_sum": "الإجمالي",
+      "debug_last": "آخر معاملة"
     }
   },
   "kyc": {

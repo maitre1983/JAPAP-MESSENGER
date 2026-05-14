@@ -649,7 +649,15 @@
       "no_notes": "Aucune note pour cet utilisateur.",
       "notif_placeholder": "Message à envoyer à l'utilisateur…",
       "send_notif": "Envoyer",
-      "notif_sent": "Notification envoyée"
+      "notif_sent": "Notification envoyée",
+      "won_usd": "Gagné (USD)",
+      "won_pts": "Gagné (PTS)",
+      "refunded": "Remboursé",
+      "debug_tx_breakdown": "Détail des transactions (admin)",
+      "debug_no_tx": "Aucune transaction pour cet utilisateur.",
+      "debug_count": "Occurrences",
+      "debug_sum": "Total",
+      "debug_last": "Dernière"
     }
   },
   "kyc": {

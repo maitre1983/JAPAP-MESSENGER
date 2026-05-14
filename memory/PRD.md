@@ -7,6 +7,46 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240l — Jury complet (badge inline + page publique + admin tab) (14/05/2026)
+
+**Audit anti-doublons** : 95% du système Jury existait déjà depuis iter239x (table DB, 8 endpoints, certificat PNG PIL, vote pondéré, refus self-vote, JuryHallOfFame, ProfileJuryBadge, 14 clés i18n). User a confirmé Q1=table globale conservée, Q2=PNG conservé, Q3=fetch unique cache 5min, Q4=route dédiée.
+
+### Backend INTOUCHÉ
+La logique de victoire `close_cycle_and_determine_winner` (L2224) reste exactement comme en iter239w/x : winner = projet avec votes_count max ET ≥ `votes_to_win`, atomique, grant Jury auto au gagnant via `_grant_jury_membership`, worker APScheduler `crowdfunding_cycle_close_worker` toutes les 60s. **Aucune modification.**
+
+### Implémenté (4 pièces additives)
+1. **`JuryBadgeInline.jsx`** — Hook `useJuryIds()` + composant badge ⚖️ pill doré. Singleton module-level (Set + inflight dedup + listener `japap:refresh`). Cache 5min, 1 seul appel `GET /jury/members?limit=500` partagé entre tous les rendus. Injecté à 4 sites : `FeedPage` (auteur post), `ReelsPage` (auteur reel + auteur commentaire), `CommentSection` (auteur commentaire feed), `CrowdfundingModule` (card "par {owner}").
+2. **Route publique `/crowdfunding/jury`** — Nouvelle page `CrowdfundingJuryPage.jsx` qui réutilise le composant `JuryHallOfFame` existant. data-testid `cf-jury-page` + `cf-jury-page-title`. Lazy-loaded.
+3. **Onglet "Jurés" dans Admin CF panel** — Nouveau composant `CrowdfundingAdminJuryTab.jsx`. Liste des jurés (data-testid `cf-admin-jury-<uid>`), formulaire nomination manuelle (grant), checkbox "Inclure révoqués", boutons "Certificat" (lien PNG existant) + "Révoquer" avec prompt motif. Utilise UNIQUEMENT les endpoints backend existants.
+4. **i18n 5 langues** — 21 clés `crowdfunding.*` ajoutées (`jury_short`, `admin_tab_jury`, `admin_jury_*`) × 5 locales (FR/EN/ES/AR/RU). RTL Arabe confirmé sur `/crowdfunding/jury`.
+
+### SW
+`v25-iter240k-ext` → `v25-iter240l`.
+
+### Validation E2E (testing_agent_v3_fork iter263, **95% PASS**)
+- ✅ Page `/crowdfunding/jury` : Bob rendu avec "🏆 JURY MEMBER", "1 win", "+50", date 14/05/2026
+- ✅ Badge ⚖️ inline : 1 occurrence rendue sur `/feed` (data-testid `jury-badge-user_a1b203440a53`), 1 sur `/reels`
+- ✅ Cache : 1 seul appel `/jury/members?limit=500` sur `/feed` (pas d'appel par user)
+- ✅ Admin panel : nouvel onglet `cf-admin-tab-jury` → `cf-admin-jury-tab` avec grant + revoke + certificat
+- ✅ RTL Arabe : `/crowdfunding/jury` rendu en `dir='rtl'` lang='ar', titre `⚖️ قاعة مشاهير أعضاء هيئة المحلفين`
+- ✅ Aucune régression projets/cycles/settings/history du panel admin
+- ✅ `SW_VERSION = v25-iter240l` confirmé via fetch `/sw.js`
+- 🟡 LOW — `JuryHallOfFame` double-fetch (pré-existant React StrictMode)
+- 🟡 LOW — LanguageSwitcher menu sous le z-index du admin modal (UX papercut)
+
+### Fichiers
+- NEW : `frontend/src/components/common/JuryBadgeInline.jsx`
+- NEW : `frontend/src/pages/CrowdfundingJuryPage.jsx`
+- NEW : `frontend/src/components/crowdfunding/CrowdfundingAdminJuryTab.jsx`
+- MOD : `frontend/src/App.js` (+lazy import + route /crowdfunding/jury)
+- MOD : `frontend/src/pages/CrowdfundingModule.js` (+import +onglet jury +badge inline)
+- MOD : `frontend/src/pages/FeedPage.js` (+badge inline auteur post)
+- MOD : `frontend/src/pages/ReelsPage.js` (+badge inline reel + commentaire)
+- MOD : `frontend/src/components/feed/CommentSection.jsx` (+badge inline)
+- MOD : `frontend/src/locales/{fr,en,es,ar,ru}.json` (+21 clés × 5)
+- MOD : `frontend/public/sw.js` (v25-iter240l)
+
+
 ## iter240k — Fiche Admin complète (7 onglets) + iter240j-ext UserNameLink global (14/05/2026)
 
 **Règles respectées** : 100% additif, zéro touche aux paiements, 5 langues (FR/EN/ES/AR RTL/RU), SW bumpé v25-iter240k-ext.

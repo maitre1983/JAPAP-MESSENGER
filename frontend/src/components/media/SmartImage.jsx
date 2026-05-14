@@ -156,7 +156,14 @@ export default function SmartImage({
             style={{
               position: 'absolute', inset: 0,
               width: '100%', height: '100%',
-              objectFit: 'cover',
+              // iter240h — Portrait/Square sources stay un-cropped on a black
+              // letterbox; landscape uses cover so it fills the 16/9 slot.
+              // This kills the "tall photo rendered as a tiny landscape strip"
+              // bug reported by users on iOS.
+              objectFit: orientation === 'portrait' || orientation === 'square'
+                ? 'contain' : 'cover',
+              objectPosition: 'center',
+              background: orientation === 'portrait' ? '#000' : 'transparent',
               display: 'block',
               transition: 'opacity 0.3s ease',
               opacity: loaded ? 1 : 0,

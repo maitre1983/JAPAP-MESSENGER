@@ -153,7 +153,10 @@
     "photo_de_profil": "Photo de profil",
     "photo_de_couverture": "Photo de couverture",
     "modifier_la_photo_de_profil": "Modifier la photo de profil",
-    "camera": "Caméra"
+    "camera": "Caméra",
+    "uploading": "Publication en cours…",
+    "post_failed": "Échec de la publication. Réessayez.",
+    "post_success": "Publié !"
   },
   "chat": {
     "title": "Messages",
@@ -1007,7 +1010,10 @@
     "mute": "Couper le son",
     "unmute": "Activer le son",
     "comment_aria": "Voir les commentaires",
-    "share_aria": "Partager"
+    "share_aria": "Partager",
+    "like": "J'aime",
+    "comment": "Commenter",
+    "share": "Partager"
   },
   "quiz_j_a_p_a_p": {
     "bonne_reponse": "Bonne réponse !",

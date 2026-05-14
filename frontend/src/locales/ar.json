@@ -150,7 +150,10 @@
     "photo_de_profil": "صورة الملف الشخصي",
     "photo_de_couverture": "صورة الغلاف",
     "modifier_la_photo_de_profil": "تعديل صورة الملف الشخصي",
-    "camera": "الكاميرا"
+    "camera": "الكاميرا",
+    "uploading": "جارٍ النشر…",
+    "post_failed": "فشل النشر. حاول مرة أخرى.",
+    "post_success": "تم النشر!"
   },
   "chat": {
     "title": "الرسائل",
@@ -979,7 +982,10 @@
     "mute": "كتم الصوت",
     "unmute": "تفعيل الصوت",
     "comment_aria": "عرض التعليقات",
-    "share_aria": "مشاركة"
+    "share_aria": "مشاركة",
+    "like": "إعجاب",
+    "comment": "تعليق",
+    "share": "مشاركة"
   },
   "quiz_j_a_p_a_p": {
     "bonne_reponse": "إجابة صحيحة!",

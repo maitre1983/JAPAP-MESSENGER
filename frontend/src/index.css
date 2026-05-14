@@ -482,3 +482,9 @@ code {
     z-index: 5;
 }
 
+
+/* iter240h — Live upload pulse dot (FeedPage optimistic post badge). */
+@keyframes jpFeedPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.4; transform: scale(0.85); }
+}

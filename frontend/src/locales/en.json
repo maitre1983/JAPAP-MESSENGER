@@ -153,7 +153,10 @@
     "photo_de_profil": "Profile picture",
     "photo_de_couverture": "Cover photo",
     "modifier_la_photo_de_profil": "Edit profile picture",
-    "camera": "Camera"
+    "camera": "Camera",
+    "uploading": "Uploading…",
+    "post_failed": "Post failed. Please try again.",
+    "post_success": "Posted!"
   },
   "chat": {
     "title": "Messages",
@@ -1007,7 +1010,10 @@
     "mute": "Mute",
     "unmute": "Unmute",
     "comment_aria": "View comments",
-    "share_aria": "Share"
+    "share_aria": "Share",
+    "like": "Like",
+    "comment": "Comment",
+    "share": "Share"
   },
   "quiz_j_a_p_a_p": {
     "bonne_reponse": "Good answer!",

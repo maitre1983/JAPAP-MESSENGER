@@ -731,10 +731,16 @@ export default function FeedPage() {
             <div key={post.post_id} className="rounded-2xl overflow-hidden relative" style={{ background: 'white', border: '1px solid var(--jp-border)' }}
               data-testid={`post-${post.post_id}`}>
               {post._optimistic && (
-                <div className="absolute top-2 right-2 z-10 text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                <div className="absolute top-2 right-2 z-10 text-[10px] px-2 py-1 rounded-full font-semibold flex items-center gap-1.5"
                   data-testid={`post-${post.post_id}-uploading`}
                   style={{ background: 'rgba(15,5,107,0.92)', color: 'white' }}>
-                  ⏳ Envoi en cours…
+                  {/* iter240h — Live pulse dot + i18n label. */}
+                  <span style={{
+                    width: 6, height: 6, borderRadius: '50%',
+                    background: '#4ade80',
+                    animation: 'jpFeedPulse 1s infinite',
+                  }} />
+                  {t('feed.uploading', { defaultValue: 'Publication en cours…' })}
                 </div>
               )}
               <div className="flex items-center gap-3 p-4 pb-2">

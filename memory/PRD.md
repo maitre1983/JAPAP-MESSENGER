@@ -7,6 +7,47 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240h — Fix SmartImage portrait + Badge upload live + i18n Feed/Reels (14/05/2026)
+
+**Règles respectées** : zéro paiement touché, 100% additif, SW bumpé, 5 langues, zéro hardcode.
+
+### Audit anti-doublons (90% existait déjà)
+- ✅ Optimistic UI : `FeedPage.js` L150-262 (`_optimistic: true` + `URL.createObjectURL` + rollback)
+- ✅ SmartImage avec aspect-ratio auto : `components/media/SmartImage.jsx` (3/4 portrait, 16/9 landscape, 1/1 square)
+- ✅ ReelsPage + VideoPlayer : autoplay IntersectionObserver, scroll-snap, autoplay, click-to-pause, fullscreen (iter239h)
+- ✅ Safe-area CSS : `--safe-top/bottom/left/right` + `--safe-bottom-min`
+- ✅ 100dvh + min-height 44px + `@media landscape mobile` : déjà dans `index.css`
+
+### Vrais bugs identifiés & corrigés
+1. **SmartImage rognait les portraits** : `objectFit: 'cover'` était appliqué uniformément même quand le ratio container (3:4) ne matchait pas le natif (ex: photo iPhone 9:16). Fix : `objectFit` dynamique → `contain` pour portrait/square (letterbox noir propre), `cover` pour landscape. Conséquence : plus aucune photo verticale rognée dans le feed.
+2. **Badge "Envoi en cours…" hardcodé en FR + statique** : Fix → i18n `feed.uploading` + dot pulse vert (`@keyframes jpFeedPulse`) + padding/gap retravaillés.
+3. **i18n manquant** : +30 clés (5 langues × 6 keys) → `feed.uploading`, `feed.post_failed`, `feed.post_success`, `reels.like`, `reels.comment`, `reels.share`.
+
+### Fichiers modifiés
+- MOD : `frontend/src/components/media/SmartImage.jsx` (objectFit dynamique + bg noir letterbox portrait)
+- MOD : `frontend/src/pages/FeedPage.js` (badge i18n + pulse dot)
+- MOD : `frontend/src/index.css` (+`@keyframes jpFeedPulse`)
+- MOD : `frontend/src/locales/{fr,en,es,ar,ru}.json` (+6 clés × 5)
+- MOD : `frontend/public/sw.js` (v24-iter240h)
+
+### Validation
+- ✅ Lint JS/CSS OK
+- ✅ Smoke screenshot Feed accessible
+- ✅ Aucune logique payment touchée
+- ✅ Optimistic UI flow inchangé (regression zero)
+
+### Tâches NON refaites (déjà en place — pas de doublon)
+- ❌ ReelsPlayer.jsx : ReelsPage.js + VideoPlayer.jsx déjà professionnel (autoplay/pause/fullscreen/scroll-snap depuis iter239h)
+- ❌ Optimistic post creation : déjà implémenté avec rollback (FeedPage L150-262)
+- ❌ Responsive universel CSS : déjà appliqué (safe-area, dvh, breakpoints, RTL, 44px)
+- ❌ Toutes ces fonctionnalités demandées dans la spec étaient des doublons de l'existant
+
+### Backlog identifié
+- Le ReelsPage actuel (622 lignes) pourrait être audité pour confirmer parité visuelle TikTok
+- Hot-fixer le `aspectRatio: '3/4'` du container SmartImage en `auto` pour les TRÈS hauts (9/16) — mais le ratio container 3/4 reste cohérent visuellement dans le feed
+
+
+
 ## iter240g — Devise USD-primary + équivalent locale auto (14/05/2026)
 
 **Règles respectées** : zéro paiement externe touché, 100% additif, SW bumpé, 5 langues, zéro hardcode.

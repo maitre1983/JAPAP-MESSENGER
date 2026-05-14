@@ -7,6 +7,55 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240l-gamefix — Admin "Activité Jeux" corrigée (14/05/2026)
+
+**Demande user** : l'onglet "Activité Jeux" du Fiche Admin affichait 0 partout pour Quiz / Roue / Spin / Staking, car il interrogeait des tables vides ou inexistantes (`quiz_game_history`, `fortune_wheel_spins`, `mini_spin_history`). Réécrire en utilisant **`transactions`** comme source de vérité.
+
+### Backend (`/app/backend/routes/admin_user_detail.py`)
+- Nouvelle fonction **`_build_game_activity_from_tx(conn, user_id)`** qui :
+  - Filtre les transactions du user (`from_user_id OR to_user_id`) avec status complétés (`completed/success/paid/released/done/ok`).
+  - **Quiz** : plays = COUNT(`quiz_challenge_lock` + `_lock_double` + `_bonus` + `game_bet WHERE notes ILIKE '%quiz%'`) — won_usd = SUM(`quiz_challenge_release` USD) — won_pts = SUM(`quiz_challenge_bonus` PTS) — refunded_usd = SUM(`quiz_challenge_refund`).
+  - **Fortune Wheel** : `game_bet/game_reward WHERE notes ~* '(wheel|roue|fortune)'`.
+  - **Mini Spin** : `game_bet/game_reward WHERE notes ILIKE '%spin%' AND NOT quiz/wheel`.
+  - **Staking** : fallback sur `staking_positions` (pas de tx dédié).
+  - Retourne aussi **`all_transaction_types`** : breakdown brut par `(type, currency)` avec count, sum, last_at — exposé en collapsible debug côté admin.
+- Single SQL avec CTEs → 1 round-trip seulement.
+- Champ legacy `quiz.total_won` conservé (= `won_usd + won_pts`) pour compat ascendante.
+
+### Frontend (`/app/frontend/src/components/admin/AdminUserDetailModal.jsx`)
+- `GamesTab` réécrit : Quiz affiche `Played / Won (USD) / Won (PTS) / Refunded` (USD si > 0).
+- Roue / Spin / Staking : `Played / Won` ou `Active stakes / Total staked`.
+- **`<details className="admin-tx-debug">`** repliable avec table de tous les types de tx (5 colonnes : Type · Devise · Count · Total · Dernière).
+- 14 data-testid ajoutés (`aud-quiz-played`, `aud-quiz-won-usd`, `aud-quiz-won-pts`, `aud-tx-debug`, etc.).
+
+### i18n (5 langues — FR/EN/ES/AR/RU)
+Nouvelles clés sous `admin.user_detail` : `won_usd`, `won_pts`, `refunded`, `debug_tx_breakdown`, `debug_no_tx`, `debug_count`, `debug_sum`, `debug_last`. RTL Arabic preservé.
+
+### PWA
+- `SW_VERSION = "v25-iter240l-gamefix"` (bump pour invalidation cache).
+
+### Validation live (curl admin + bypass captcha)
+- **@JMGHOMSI** (`usr_mig_3d84c1905fe5`) : Quiz `played=2`, `won_pts=100` ✅
+- **@balebasimb04da** (`user_7d622b644231`) : Quiz `played=11`, `won_usd=36`, `won_pts=100`, `refunded=32` ✅
+- Tous les seuils demandés par l'utilisateur (≥ 2 / ≥ 100 / ≥ 4 / ≥ 18 / ≥ 100) **dépassés**.
+
+### Tests automatisés
+- Testing agent v3 → **100% pass** (backend 6/6, frontend flow vérifié).
+- Pytest régression : `/app/backend/tests/test_admin_user_detail_iter240l.py`.
+
+### Fichiers
+- MOD : `backend/routes/admin_user_detail.py` (helper `_build_game_activity_from_tx` ajouté, ancien block supprimé).
+- MOD : `frontend/src/components/admin/AdminUserDetailModal.jsx` (`GamesTab` réécrit).
+- MOD : `frontend/src/locales/{fr,en,es,ar,ru}.json` (8 nouvelles clés × 5 langues).
+- MOD : `frontend/public/sw.js` (SW_VERSION bump).
+- NEW : `backend/tests/test_admin_user_detail_iter240l.py` (créé par testing agent).
+
+### Garanties non-régression
+- Aucun route de paiement (Hubtel MoMo, Paystack, USDT TRC20/BEP20, Orange Money, Wave) touché.
+- Autres onglets de la fiche admin (KYC, Transactions, Posts, Restrictions, Notes) intacts.
+
+
+
 ## iter240l-cert-fix v2 — Logos JAPAP OFFICIELS embarqués (14/05/2026)
 
 **Demande user** : remplacer les SVG paths que j'avais dessinés à la main par les VRAIES images du brand JAPAP (j rouge + dot bleu en mark, "japap" wordmark en background).

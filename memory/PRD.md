@@ -7,6 +7,53 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240l-pdf — Certificat PDF imprimable + viralité LinkedIn (14/05/2026)
+
+**Demande user** : transformer le SVG en PDF imprimable via Puppeteer/wkhtmltopdf. Choix technique : **cairosvg** (lib Python pure, ~5MB, conversion SVG→PDF vectorielle native, pas de Chrome/binaire externe, parfait pour un worker FastAPI).
+
+### Backend additif
+- **NEW dependency** `CairoSVG==2.9.0` (+ `cairocffi==1.7.1`) installé via `pip install cairosvg`, ajouté à `requirements.txt` via `pip freeze`.
+- **NEW fonction** `render_jury_certificate_pdf(svg)` dans `services/jury_certificate_svg.py` — convertit le SVG existant en PDF vectoriel (61KB, format A4 paysage 1200×850 mm).
+- **NEW endpoint** `GET /api/crowdfunding/jury/certificate/{user_id}.pdf?lang=` — génère + upload R2 best-effort + retourne le PDF avec `Content-Disposition: inline; filename="japap-jury-certificate-{user_id}-{lang}.pdf"`.
+- **`upload_certificate_to_r2`** étendu avec param `fmt="svg"|"pdf"` — clé déterministe `certificates/{user_id}_{lang}.{fmt}` permet d'avoir les 2 formats côte à côte sur R2 sans collision.
+- **`generate_and_upload_jury_certificate`** retourne désormais `{"svg_url": ..., "pdf_url": ...}` au lieu d'une str — auto-upload des 2 formats au grant. Callers (3 sites) adaptés.
+
+### Frontend
+- **Admin tab** : ajout d'un 4ème bouton **PDF** (FilePdf icon Phosphor) en première position (le plus mis en avant). 4 boutons par juré : `PDF / SVG / PNG / Régénérer / Révoquer`.
+- **JuryHallOfFame** : le bouton de téléchargement est remplacé par **2 boutons côte à côte** : `📄 PDF` (rouge JAPAP, mis en avant — pour impression + partage LinkedIn) et `🔍 SVG` (sombre, secondaire — preview navigateur). `downloadCert(userId, fmt='pdf')` paramétré.
+- 1 nouvelle clé i18n `crowdfunding.jury_certificate_pdf` × 5 langues.
+
+### Tests
+- **pytest 7/7 PASS** (1 nouveau test `test_render_pdf_from_svg` valide le header `%PDF-` + taille > 5KB + version Arabic).
+- **E2E manuel** : 
+  - `GET .pdf?lang=fr` → 200 OK, `application/pdf`, 61563 bytes, header `%PDF-1.5`
+  - R2 URL publique `https://media.japapmessenger.com/certificates/user_a1b203440a53_fr.pdf` → 200 OK, téléchargeable
+  - Bouton PDF dans l'admin tab + dans le Hall of Fame opérationnels (Playwright confirme presence)
+
+### Pourquoi cairosvg plutôt que Puppeteer/wkhtmltopdf
+- **Pas de Chrome** à embarquer (~150MB économisés)
+- **Conversion vectorielle native** (qualité d'impression parfaite à toute taille)
+- **Pure Python** (déploiement K8s simplifié, pas de binaire système)
+- **Latence** : ~50ms pour une page A4 vs 2-5s pour Puppeteer cold start
+- **Stateless** : peut être appelé en parallèle dans un thread executor sans contention
+
+### Cas d'usage business
+- **Impression physique** : encadrer le certificat chez soi
+- **Partage LinkedIn** : un PDF "Member of the JAPAP Crowdfunding Jury — Cycle #X" partageable en pièce jointe ou en post
+- **Email signature** : lien direct vers le PDF R2 dans la signature
+- **Boost viralité** : chaque juré partage son certificat = visibilité organique du programme Crowdfunding
+
+### Fichiers
+- MOD : `backend/services/jury_certificate_svg.py` (+`render_jury_certificate_pdf`, +`fmt` param sur upload, return dict)
+- MOD : `backend/routes/crowdfunding.py` (+endpoint `.pdf`, +adaptation 3 callers)
+- MOD : `backend/requirements.txt` (+CairoSVG, +cairocffi)
+- MOD : `backend/tests/test_iter240l_jury_certificate_svg.py` (+1 test PDF)
+- MOD : `frontend/src/components/crowdfunding/CrowdfundingAdminJuryTab.jsx` (+bouton PDF)
+- MOD : `frontend/src/components/JuryHallOfFame.jsx` (PDF primary + SVG secondary)
+- MOD : `frontend/src/locales/{fr,en,es,ar,ru}.json` (+1 clé × 5)
+- MOD : `frontend/public/sw.js` → `v25-iter240l-pdf`
+
+
 ## iter240l-svg — Certificat Jury SVG premium + R2 + 5 langues (14/05/2026)
 
 **Demande user post-iter240l** : voir le certificat actuel → décision de passer au SVG premium spécifié (Q1=R2 oui, Q2=multilingue 5 langues oui).

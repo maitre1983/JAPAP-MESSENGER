@@ -55,11 +55,12 @@ export default function JuryHallOfFame() {
   // a small encouraging empty-state so newcomers see this exists.
   if (members === null) return null;
 
-  const downloadCert = (userId) => {
-    // iter240l — Préférer le SVG premium (multilingue, R2 cached). Le PNG legacy
-    // reste accessible pour rétrocompatibilité.
+  const downloadCert = (userId, fmt = 'pdf') => {
+    // iter240l-pdf — Préférer le PDF imprimable (vectoriel, partageable LinkedIn).
+    // 'svg' reste accessible (preview navigateur), PNG legacy via .png.
     const lang = (i18n.language || 'fr').slice(0, 2);
-    const url = `${API}/api/crowdfunding/jury/certificate/${userId}.svg?lang=${lang}`;
+    const ext = fmt === 'svg' ? 'svg' : 'pdf';
+    const url = `${API}/api/crowdfunding/jury/certificate/${userId}.${ext}?lang=${lang}`;
     window.open(url, '_blank', 'noopener');
   };
 
@@ -185,14 +186,24 @@ export default function JuryHallOfFame() {
                   )}
                 </div>
               </div>
-              <button
-                onClick={() => downloadCert(m.user_id)}
-                title={t('crowdfunding.jury_certificate_download', { defaultValue: 'Télécharger le certificat' })}
-                data-testid={`cf-jury-cert-btn-${m.user_id}`}
-                className="flex-shrink-0 bg-slate-900 hover:bg-slate-700 text-white rounded-full w-10 h-10 flex items-center justify-center transition"
-                aria-label={t('crowdfunding.jury_certificate_download', { defaultValue: 'Télécharger le certificat' })}>
-                <span aria-hidden style={{ fontSize: 16 }}>📜</span>
-              </button>
+              <div className="flex flex-col gap-1 flex-shrink-0">
+                <button
+                  onClick={() => downloadCert(m.user_id, 'pdf')}
+                  title={t('crowdfunding.jury_certificate_pdf', { defaultValue: 'Télécharger le PDF' })}
+                  data-testid={`cf-jury-cert-pdf-${m.user_id}`}
+                  className="bg-rose-700 hover:bg-rose-600 text-white rounded-full px-3 h-9 text-xs font-semibold flex items-center gap-1 transition"
+                  aria-label={t('crowdfunding.jury_certificate_pdf', { defaultValue: 'Télécharger le PDF' })}>
+                  <span aria-hidden style={{ fontSize: 13 }}>📄</span> PDF
+                </button>
+                <button
+                  onClick={() => downloadCert(m.user_id, 'svg')}
+                  title={t('crowdfunding.jury_certificate_svg', { defaultValue: 'Voir le SVG' })}
+                  data-testid={`cf-jury-cert-btn-${m.user_id}`}
+                  className="bg-slate-800 hover:bg-slate-700 text-white rounded-full px-3 h-7 text-[10px] font-medium flex items-center gap-1 transition"
+                  aria-label={t('crowdfunding.jury_certificate_svg', { defaultValue: 'Voir le SVG' })}>
+                  <span aria-hidden style={{ fontSize: 11 }}>🔍</span> SVG
+                </button>
+              </div>
             </article>
           );
         })}

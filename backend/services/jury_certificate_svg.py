@@ -313,24 +313,40 @@ def render_jury_certificate_svg(
 
 
 # ── R2 upload (deterministic key) ───────────────────────────────────────────
-def upload_certificate_to_r2(svg_bytes: bytes, user_id: str, lang: str) -> str:
-    """Upload a certificate SVG to R2 at a deterministic key, returns public URL.
+def upload_certificate_to_r2(svg_bytes: bytes, user_id: str, lang: str,
+                              fmt: str = "svg") -> str:
+    """Upload a certificate (SVG or PDF) to R2 at a deterministic key.
 
-    Key pattern: `certificates/{user_id}_{lang}.svg`
+    Key pattern: `certificates/{user_id}_{lang}.{fmt}`
     Overwrites on regenerate. Returns the public URL.
-    Raises R2ConfigError if credentials missing.
+    `fmt` must be 'svg' or 'pdf'. Raises R2ConfigError if credentials missing.
     """
     lang = lang if lang in SUPPORTED_LANGS else DEFAULT_LANG
-    key = f"certificates/{user_id}_{lang}.svg"
+    fmt = fmt if fmt in ("svg", "pdf") else "svg"
+    key = f"certificates/{user_id}_{lang}.{fmt}"
+    ctype = "image/svg+xml; charset=utf-8" if fmt == "svg" else "application/pdf"
     client = _get_r2_media_client()
     client.put_object(
         Bucket=R2_MEDIA_BUCKET,
         Key=key,
         Body=svg_bytes,
-        ContentType="image/svg+xml; charset=utf-8",
-        CacheControl="public, max-age=3600",  # short cache so regenerate is visible quickly
+        ContentType=ctype,
+        CacheControl="public, max-age=3600",
     )
     return f"{R2_MEDIA_PUBLIC_URL}/{key}"
+
+
+def render_jury_certificate_pdf(svg: str) -> bytes:
+    """iter240l-pdf — Convert an SVG certificate to a printable PDF using cairosvg.
+
+    The output preserves vector quality so users can print at any size or share
+    on LinkedIn. Raises ImportError if cairosvg is not installed."""
+    try:
+        import cairosvg  # type: ignore
+    except ImportError as e:
+        raise ImportError("cairosvg required for PDF certificate generation. "
+                          "Run: pip install cairosvg") from e
+    return cairosvg.svg2pdf(bytestring=svg.encode("utf-8"))
 
 
 def generate_and_upload_jury_certificate(
@@ -344,11 +360,13 @@ def generate_and_upload_jury_certificate(
     issued_at: Optional[datetime] = None,
     lang: str = DEFAULT_LANG,
     certificate_id: Optional[str] = None,
-) -> Optional[str]:
-    """High-level helper. Generates SVG and tries to upload to R2.
+    also_pdf: bool = True,
+) -> Optional[dict]:
+    """High-level helper. Generates SVG (+ PDF) and uploads to R2.
 
-    Returns the R2 public URL on success, None on failure (best-effort, never raises).
-    Callers should persist the returned URL in `crowdfunding_jury_members.certificate_url`."""
+    Returns a dict {"svg_url": ..., "pdf_url": ...} on success, None on failure
+    (best-effort, never raises). Callers should persist svg_url in
+    `crowdfunding_jury_members.certificate_url`."""
     try:
         svg = render_jury_certificate_svg(
             full_name=full_name, username=username,
@@ -356,9 +374,18 @@ def generate_and_upload_jury_certificate(
             prize_currency=prize_currency, issued_at=issued_at,
             lang=lang, certificate_id=certificate_id,
         )
-        url = upload_certificate_to_r2(svg.encode("utf-8"), user_id, lang)
-        logger.info(f"[jury_cert] uploaded R2 cert user={user_id} lang={lang} url={url}")
-        return url
+        svg_bytes = svg.encode("utf-8")
+        svg_url = upload_certificate_to_r2(svg_bytes, user_id, lang, fmt="svg")
+        pdf_url = None
+        if also_pdf:
+            try:
+                pdf_bytes = render_jury_certificate_pdf(svg)
+                pdf_url = upload_certificate_to_r2(pdf_bytes, user_id, lang, fmt="pdf")
+            except Exception as pe:
+                logger.warning(f"[jury_cert] PDF generation failed user={user_id} lang={lang}: {pe}")
+        logger.info(f"[jury_cert] uploaded R2 cert user={user_id} lang={lang} "
+                    f"svg={svg_url} pdf={pdf_url}")
+        return {"svg_url": svg_url, "pdf_url": pdf_url}
     except R2ConfigError as e:
         logger.warning(f"[jury_cert] R2 not configured, skipping upload: {e}")
         return None

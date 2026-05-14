@@ -827,7 +827,8 @@
     "admin_jury_regen_cert": "Regenerar",
     "admin_jury_cert_regen_ok": "Certificado regenerado y subido a R2",
     "admin_jury_cert_regen_partial": "SVG regenerado pero R2 no configurado",
-    "admin_jury_cert_regen_failed": "Regeneración fallida"
+    "admin_jury_cert_regen_failed": "Regeneración fallida",
+    "jury_certificate_pdf": "Descargar PDF imprimible"
   },
   "pwa": {
     "update_available": "Una nueva versión de JAPAP está disponible. Se aplicará automáticamente.",

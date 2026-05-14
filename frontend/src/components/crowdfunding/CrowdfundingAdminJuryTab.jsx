@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { Crown, Trash, Download, ArrowsClockwise, UserPlus, FileText } from '@phosphor-icons/react';
+import { Crown, Trash, Download, ArrowsClockwise, UserPlus, FileText, FilePdf } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const fmtDate = (s) => { try { return s ? new Date(s).toLocaleDateString() : '—'; } catch { return '—'; } };
@@ -147,10 +147,15 @@ export default function CrowdfundingAdminJuryTab() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
+                  <a href={`${API}/api/crowdfunding/jury/certificate/${m.user_id}.pdf?lang=fr`} target="_blank" rel="noreferrer"
+                    className="jp-btn jp-btn-ghost jp-btn-sm" data-testid={`cf-admin-jury-cert-pdf-${m.user_id}`}
+                    style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <FilePdf size={14} /> PDF
+                  </a>
                   <a href={`${API}/api/crowdfunding/jury/certificate/${m.user_id}.svg?lang=fr`} target="_blank" rel="noreferrer"
                     className="jp-btn jp-btn-ghost jp-btn-sm" data-testid={`cf-admin-jury-cert-svg-${m.user_id}`}
                     style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <FileText size={14} /> {t('crowdfunding.admin_jury_certificate_svg', { defaultValue: 'Certificat SVG' })}
+                    <FileText size={14} /> SVG
                   </a>
                   <a href={certHref} target="_blank" rel="noreferrer"
                     className="jp-btn jp-btn-ghost jp-btn-sm" data-testid={`cf-admin-jury-cert-${m.user_id}`}

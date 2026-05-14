@@ -82,3 +82,22 @@ def test_render_svg_xml_escape():
     )
     assert "<script>" not in svg
     assert "&lt;script&gt;" in svg
+
+
+def test_render_pdf_from_svg():
+    """iter240l-pdf — cairosvg should convert our SVG to valid PDF bytes."""
+    from services.jury_certificate_svg import (
+        render_jury_certificate_svg, render_jury_certificate_pdf,
+    )
+    svg = render_jury_certificate_svg(
+        full_name="Test PDF User", cycle_number=1, prize_amount=42, lang="fr",
+    )
+    pdf = render_jury_certificate_pdf(svg)
+    assert pdf.startswith(b"%PDF-"), f"Invalid PDF header: {pdf[:8]!r}"
+    assert len(pdf) > 5000, "PDF suspiciously small"
+    # Should also work for RTL Arabic
+    svg_ar = render_jury_certificate_svg(
+        full_name="Test", cycle_number=1, prize_amount=42, lang="ar",
+    )
+    pdf_ar = render_jury_certificate_pdf(svg_ar)
+    assert pdf_ar.startswith(b"%PDF-")

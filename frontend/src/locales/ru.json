@@ -332,7 +332,8 @@
     "admin_jury_regen_cert": "Регенерировать",
     "admin_jury_cert_regen_ok": "Сертификат регенерирован и загружен в R2",
     "admin_jury_cert_regen_partial": "SVG регенерирован, но R2 не настроен",
-    "admin_jury_cert_regen_failed": "Ошибка регенерации"
+    "admin_jury_cert_regen_failed": "Ошибка регенерации",
+    "jury_certificate_pdf": "Скачать PDF для печати"
   },
   "feed": {
     "uploading": "Публикация…",

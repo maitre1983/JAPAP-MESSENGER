@@ -7,6 +7,47 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240l-msgfix — Bug envoi message admin → utilisateur corrigé (14/05/2026)
+
+**Demande user** : depuis la Fiche Admin, le bouton "Envoyer" sous "Message à envoyer à l'utilisateur..." affichait toast rouge **"Action échouée"** sans détail (testé sur @JMGHOMSI).
+
+### Root Cause
+- **Frontend** : `catch { toast.error(...) }` sans paramètre → mangeait l'erreur réelle (status, detail backend). Affichait toujours le même libellé générique peu importe la cause (CSRF, 422, 500…).
+- **Backend** : pas de validation sur message vide / user inexistant → renvoyait 500 opaque au lieu de 422/404 clairs.
+
+### Fix
+- **Backend** (`admin_user_detail.py::send_notification`) :
+  - Validation `message.strip() == ''` → **422 "Message vide"**.
+  - Vérif `SELECT 1 FROM users WHERE user_id=$1` → **404 "Utilisateur introuvable"**.
+  - Insert dans `notifications` + audit best-effort dans `admin_user_notes` (`[MESSAGE ENVOYÉ — info] <txt>`) pour traçabilité (n'échoue jamais la notif user si l'audit insert plante).
+- **Frontend** (`AdminUserDetailModal.jsx::SendNotifFooter`) :
+  - `catch (e)` → `console.error('[admin send-notification] failed:', status, detail, e)` + toast = `"<base> (<status> · <detail>)"` ex. `"Envoi échoué (404 · Utilisateur introuvable)"`.
+
+### Tests (live curl + testing agent — 100% pass)
+| Cas | HTTP | Body |
+|---|---|---|
+| Message valide @JMGHOMSI | 200 | `{ok:true, notif_id:"notif_..."}` |
+| Message vide ou whitespace | 422 | `{detail:"Message vide"}` |
+| User inexistant | 404 | `{detail:"Utilisateur introuvable"}` |
+| Pas d'auth | 401 | `{detail:"Not authenticated"}` |
+
+DB persisté ✅ : ligne `notifications` (type=`admin_message`, is_read=false) + ligne `admin_user_notes` (`[MESSAGE ENVOYÉ — info] ...`).
+
+### i18n + PWA
+- Nouvelle clé `admin.user_detail.notif_failed` × 5 langues (FR/EN/ES/AR/RU).
+- `SW_VERSION = "v25-iter240l-msgfix"`.
+
+### Fichiers
+- MOD : `backend/routes/admin_user_detail.py` (`send_notification` durci, audit trail ajouté).
+- MOD : `frontend/src/components/admin/AdminUserDetailModal.jsx` (`SendNotifFooter` catch corrigé).
+- MOD : `frontend/src/locales/{fr,en,es,ar,ru}.json` (+ `notif_failed`).
+- MOD : `frontend/public/sw.js` (SW_VERSION).
+
+### Garanties
+Aucune route de paiement touchée (Hubtel, Paystack, USDT, Orange Money, Wave). iter240l-gamefix toujours vert (regression confirmée).
+
+
+
 ## iter240l-gamefix — Admin "Activité Jeux" corrigée (14/05/2026)
 
 **Demande user** : l'onglet "Activité Jeux" du Fiche Admin affichait 0 partout pour Quiz / Roue / Spin / Staking, car il interrogeait des tables vides ou inexistantes (`quiz_game_history`, `fortune_wheel_spins`, `mini_spin_history`). Réécrire en utilisant **`transactions`** comme source de vérité.

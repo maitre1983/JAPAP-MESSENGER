@@ -1276,12 +1276,12 @@ async def fast_track_project(slug: str, request: Request):
 
     # Price + currency (admin-configurable, zéro hardcode)
     try:
-        price = Decimal(str(await get_setting("crowdfunding_fast_track_price") or "500"))
+        price = Decimal(str(await get_setting("crowdfunding_fast_track_price") or "1"))
     except Exception:
-        price = Decimal("500")
+        price = Decimal("1")
     if price <= 0:
         raise HTTPException(status_code=500, detail="Prix fast-track invalide.")
-    currency = (await get_setting("crowdfunding_fast_track_currency") or "XAF").upper()[:8]
+    currency = (await get_setting("crowdfunding_fast_track_currency") or "USD").upper()[:8]
 
     pool = await get_pool()
     async with pool.acquire() as conn:
@@ -1398,10 +1398,10 @@ async def get_fast_track_price(request: Request):
         raise HTTPException(status_code=401, detail="Authentification requise.")
     enabled = await get_bool("crowdfunding_fast_track_enabled", True)
     try:
-        price = Decimal(str(await get_setting("crowdfunding_fast_track_price") or "500"))
+        price = Decimal(str(await get_setting("crowdfunding_fast_track_price") or "1"))
     except Exception:
-        price = Decimal("500")
-    currency = (await get_setting("crowdfunding_fast_track_currency") or "XAF").upper()[:8]
+        price = Decimal("1")
+    currency = (await get_setting("crowdfunding_fast_track_currency") or "USD").upper()[:8]
     return {
         "enabled": enabled,
         "price": str(price),
@@ -1629,8 +1629,8 @@ async def admin_get_settings(request: Request):
         "jury_membership_duration_cycles": await _get_jury_duration_cycles(),
         # iter240e — Fast-track moderation (admin-configurable price + toggle)
         "fast_track_enabled": await get_bool("crowdfunding_fast_track_enabled", True),
-        "fast_track_price": str(await get_setting("crowdfunding_fast_track_price") or "500"),
-        "fast_track_currency": str(await get_setting("crowdfunding_fast_track_currency") or "XAF"),
+        "fast_track_price": str(await get_setting("crowdfunding_fast_track_price") or "1"),
+        "fast_track_currency": str(await get_setting("crowdfunding_fast_track_currency") or "USD"),
     }
 
 

@@ -15,6 +15,7 @@ import JuryHallOfFame from '@/components/JuryHallOfFame';
 import { useEngagementState, trackEngagementEvent } from '@/hooks/useEngagementState';
 import RecruiterPanel from '@/components/crowdfunding/RecruiterPanel';
 import CrowdfundingAdminProjectsTab, { usePendingReviewBadge } from '@/components/crowdfunding/CrowdfundingAdminProjectsTab';
+import MoneyDisplay from '@/components/common/MoneyDisplay';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -635,8 +636,8 @@ function FastTrackCta({ project, status, onChanged }) {
     : 'Boost de visibilité';
   const pitchKey = isPending ? 'fast_track_pitch_pending' : 'fast_track_pitch_visibility';
   const pitchFallback = isPending
-    ? 'Ton projet est en attente. Passe en tête de la file admin pour {{n}} {{c}} (débit du wallet Japap).'
-    : 'Ton projet est validé. Épingle-le en tête de la liste publique avant l\'ouverture des votes pour {{n}} {{c}}.';
+    ? 'Ton projet est en attente. Passe en tête de la file admin pour %%PRICE%% (débit du wallet Japap).'
+    : 'Ton projet est validé. Épingle-le en tête de la liste publique avant l\'ouverture des votes pour %%PRICE%%.';
 
   useEffect(() => {
     let alive = true;
@@ -648,8 +649,18 @@ function FastTrackCta({ project, status, onChanged }) {
 
   if (!info || !info.enabled) return null;
 
-  // iter240e — Strip trailing ".0" so '500.0 XAF' renders as '500 XAF'.
-  const priceLabel = String(info.price || '').replace(/\.0+$/, '');
+  // iter240g — Convert info.price into USD (the new app-wide display
+  // currency). Backend still stores admin-configured raw price+currency
+  // (e.g. legacy XAF). We always show USD primary + local equivalent on
+  // the screen via <MoneyDisplay>.
+
+  const priceNode = (
+    <MoneyDisplay
+      amountUsd={Number(info.price || 0)}
+      legacyCurrency={info.currency}
+      data-testid="cf-my-fast-track-price"
+    />
+  );
 
   const submit = async () => {
     setBusy(true);
@@ -693,10 +704,16 @@ function FastTrackCta({ project, status, onChanged }) {
             {t(`crowdfunding.${titleKey}`, { defaultValue: titleFallback })}
           </div>
           <div className="text-xs text-slate-700 mt-0.5">
-            {t(`crowdfunding.${pitchKey}`, {
-              defaultValue: pitchFallback,
-              n: priceLabel, c: info.currency,
-            })}
+            {/* iter240g — Pitch keys with placeholder %%PRICE%% replaced by
+                <MoneyDisplay>. Trans component handles inline React node
+                interpolation while keeping i18n discipline. */}
+            {(t(`crowdfunding.${pitchKey}`, { defaultValue: pitchFallback })
+              .split('%%PRICE%%')
+              .reduce((acc, chunk, i, arr) => {
+                acc.push(<span key={`t-${i}`}>{chunk}</span>);
+                if (i < arr.length - 1) acc.push(<span key={`p-${i}`} className="font-bold whitespace-nowrap">{priceNode}</span>);
+                return acc;
+              }, []))}
           </div>
         </div>
       </div>
@@ -706,7 +723,7 @@ function FastTrackCta({ project, status, onChanged }) {
           onClick={() => setConfirming(true)}
           data-testid="cf-my-fast-track-btn"
           className="w-full bg-gradient-to-r from-amber-500 to-rose-600 text-white py-2 rounded-full text-sm font-bold hover:opacity-90">
-          🚀 {t('crowdfunding.fast_track_cta', { defaultValue: 'Booster pour {{n}} {{c}}', n: priceLabel, c: info.currency })}
+          🚀 {t('crowdfunding.fast_track_cta_label', { defaultValue: 'Booster pour' })} {priceNode}
         </button>
       ) : (
         <div className="flex gap-2">

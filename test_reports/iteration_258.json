@@ -1,0 +1,40 @@
+{
+  "summary": "iter240g — USD-primary display with optional local FCFA equivalent. Backend (FEATURES A/B/G/H) all PASS. Frontend (FEATURES D/E/F) PASS. FEATURE C (cf-my-fast-track-block) could not be observed because Bob's auto-created test project triggered the boost path (already is_priority=true) and the CTA hides post-boost; page still showed 'Chargement...' for the my-project panel. FEATURE I has a minor leak: 'XAF'/'XOF' strings appear in the DisplayCurrencySelector dropdown options (legitimate, not amount display). One pre-existing hydration warning in DisplayCurrencySelector (<span> inside <option>).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "DisplayCurrencySelector", "issue": "React hydration warning: <span> cannot be a child of <option>. Pre-existing but flag for fix.", "selector": "[data-testid='display-currency-selector'] option", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Crowdfunding /services?view=crowdfunding 'my project' panel", "issue": "Panel shows 'Chargement...' indefinitely for Bob even though /api/crowdfunding/projects returns his active project. cf-my-fast-track-block did not render during test window (~7s wait). May be a separate /my-project loader that requires a different endpoint or filter. Could not validate FEATURE C UI directly.", "affected_selectors": ["[data-testid='cf-my-fast-track-block']", "[data-testid='cf-my-fast-track-price']", "[data-testid='cf-my-fast-track-btn']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/tmp/test_iter240g.py", "/tmp/test_iter240g_boost.py", "/tmp/test_boost_g.py"],
+  "action_items": [
+    "Investigate why FastTrackCta block (cf-my-fast-track-block) does not render on /services?view=crowdfunding for Bob even though his active project is returned by /api/crowdfunding/projects. The my-projects panel stays in 'Chargement...' state. Either: (a) verify the loader endpoint actually receives the project, or (b) loosen the hide-when-priority condition so the boosted state is shown with priceNode + 'déjà boosté' label as designed.",
+    "Optional: fix DisplayCurrencySelector to put currency name inside text(option) rather than wrap in <span> to suppress hydration warning."
+  ],
+  "critical_code_review_comments": [
+    "FEATURE A confirmed: GET /api/crowdfunding/admin/settings returns fast_track_price='1', fast_track_currency='USD'. GET /api/crowdfunding/fast-track/price (Bob) returns {price:'1', currency:'USD', enabled:true}.",
+    "FEATURE B confirmed: /api/currency/rates returns base=USD with XAF=605, EUR=0.92. /api/currency/detect?country=CM returns {currency:'XAF',symbol:'FCFA',rate_vs_usd:605}.",
+    "FEATURE D confirmed: TipSettingsCard chips render '$0.17 / $0.83 / $1.65 / $4.13' — converted from legacy XAF presets 100/500/1000/2500 via 605 rate. No 'XAF' amount text leak on chips.",
+    "FEATURE E confirmed: [data-testid='currency-toggle-card'] visible, [data-testid='currency-toggle-show-equivalent'] checkbox present and checked by default. Toggling persists '0'/'true' in localStorage 'japap_show_local_equivalent'.",
+    "FEATURE F confirmed: FR locale rendering correct strings ('Tes posts deviennent des tip-jars', 'Devise d'affichage', 'Devise active', 'Enregistrer').",
+    "FEATURE G confirmed: POST /api/crowdfunding/projects/<slug>/fast-track debits exactly 1.00 USD from Bob wallet (48028.10 → 48027.10). Response: priority_paid_amount='1', priority_currency='USD'.",
+    "FEATURE H confirmed: /sw.js contains SW_VERSION='v23-iter240g'.",
+    "FEATURE I partial: No XAF amount text leaks on tip presets or profile main body; 'XAF'/'XOF' strings appear ONLY as labels inside DisplayCurrencySelector dropdown (legitimate). Could not assert on crowdfunding page (FEATURE C UI did not surface).",
+    "Note: Bob had no active crowdfunding project in DB (all status deleted/cancelled/disqualified) — testing-agent created one (slug=e2e-iter240g-3f3879) to exercise FEATURE G. Project remains in DB with is_priority=true."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "85%"},
+  "test_credentials": "Bob bob@japap.com/Test1234! ; Admin admin@japap.com/JapapAdmin2024! ; Bypass JAPAP_E2E_BYPASS_2026/0",
+  "seed_data_creation": "Created active crowdfunding project for Bob: slug='e2e-iter240g-3f3879', project_id=prj_7e753aa7fd2e41, cycle_id=cycle_96082b64d2df, status=active, is_priority=true (post-boost).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All backend contracts (price=1 USD, currency=USD) and the 1 USD debit are verified end-to-end. Frontend MoneyDisplay+CurrencyToggleCard work on /profile. Open item: FastTrackCta block did not visually surface on /services?view=crowdfunding — needs main-agent investigation. To reproduce FEATURE C: use Bob's project 'e2e-iter240g-3f3879' (or create a fresh non-priority active project) and observe whether cf-my-fast-track-block ever renders.",
+  "rca of the issue": "FEATURE C unobservable RCA: When Bob has an already-boosted project (is_priority=true), the FastTrackCta block may hide rather than render the 'déjà boosté' state. Need to confirm by viewing CrowdfundingModule.js FastTrackCta render guard."
+}

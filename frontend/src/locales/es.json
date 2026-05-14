@@ -22,7 +22,9 @@
     "required": "requerido",
     "change_language": "Cambiar idioma",
     "language": "Idioma",
-    "reload": "Recargar"
+    "reload": "Recargar",
+    "currency_toggle_show_equivalent": "Mostrar equivalente en moneda local",
+    "currency_toggle_explain": "Los importes se muestran en $ (USD). Actívalo para ver también el valor en tu moneda local (p. ej. «≈ 615 FCFA»)."
   },
   "nav": {
     "home": "Inicio",
@@ -674,10 +676,11 @@
     "fast_track_admin_currency": "Moneda",
     "fast_track_title_pending": "Acelerar mi moderación",
     "fast_track_title_visibility": "Boost de visibilidad",
-    "fast_track_pitch_pending": "Tu proyecto está pendiente. Salta al inicio de la cola admin por {{n}} {{c}} (débito del wallet Japap).",
-    "fast_track_pitch_visibility": "Tu proyecto está aprobado. Fíjalo arriba de la lista pública antes de que abran los votos por {{n}} {{c}}.",
+    "fast_track_pitch_pending": "Tu proyecto está pendiente. Salta al inicio de la cola admin por %%PRICE%% (débito del wallet Japap).",
+    "fast_track_pitch_visibility": "Tu proyecto está aprobado. Fíjalo arriba de la lista pública antes de que abran los votos por %%PRICE%%.",
     "fast_track_votes_started": "Los votos han comenzado — boost no disponible.",
-    "fast_track_not_eligible": "Este proyecto ya no puede ser acelerado."
+    "fast_track_not_eligible": "Este proyecto ya no puede ser acelerado.",
+    "fast_track_cta_label": "Acelerar por"
   },
   "pwa": {
     "update_available": "Una nueva versión de JAPAP está disponible. Se aplicará automáticamente.",

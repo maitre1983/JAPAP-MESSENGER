@@ -3,7 +3,9 @@
     "back": "Назад",
     "cancel": "Отмена",
     "loading": "Загрузка…",
-    "reload": "Обновить"
+    "reload": "Обновить",
+    "currency_toggle_show_equivalent": "Показывать эквивалент в местной валюте",
+    "currency_toggle_explain": "Суммы отображаются в $ (USD). Включите, чтобы также видеть значение в вашей валюте (напр. «≈ 615 FCFA»)."
   },
   "paystack": {
     "method_label": "Карта / Mobile Money",
@@ -218,9 +220,10 @@
     "fast_track_admin_currency": "Валюта",
     "fast_track_title_pending": "Ускорить модерацию",
     "fast_track_title_visibility": "Буст видимости",
-    "fast_track_pitch_pending": "Ваш проект на модерации. Перейти в начало очереди администратора за {{n}} {{c}} (списание с кошелька Japap).",
-    "fast_track_pitch_visibility": "Ваш проект одобрен. Закрепите его в верху публичного списка до начала голосования за {{n}} {{c}}.",
+    "fast_track_pitch_pending": "Ваш проект на модерации. Перейти в начало очереди администратора за %%PRICE%% (списание с кошелька Japap).",
+    "fast_track_pitch_visibility": "Ваш проект одобрен. Закрепите его в верху публичного списка до начала голосования за %%PRICE%%.",
     "fast_track_votes_started": "Голосование началось — буст недоступен.",
-    "fast_track_not_eligible": "Этот проект больше нельзя ускорить."
+    "fast_track_not_eligible": "Этот проект больше нельзя ускорить.",
+    "fast_track_cta_label": "Ускорить за"
   }
 }

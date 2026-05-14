@@ -25,8 +25,10 @@ const CurrencyContext = createContext({
   symbols: RATES_FALLBACK.symbols,
   rateVsUsd: 1,
   country: null,
+  showEquivalent: true,
   refresh: () => {},
   setForcedCurrency: () => {},
+  setShowEquivalent: () => {},
 });
 
 export const useCurrency = () => useContext(CurrencyContext);
@@ -42,6 +44,17 @@ export function CurrencyProvider({ children, userCountry }) {
     rateVsUsd: 1, country: null,
   });
   const [forced, setForced] = useState(null);
+
+  // iter240g — Explicit user toggle in Profile. When set, overrides the
+  // default "hide if same currency" logic globally for this user.
+  const [showEquivalent, setShowEquivalent] = useState(() => {
+    try { return localStorage.getItem('japap_show_local_equivalent') !== '0'; }
+    catch { return true; }
+  });
+  const persistShowEquivalent = useCallback((v) => {
+    setShowEquivalent(!!v);
+    try { localStorage.setItem('japap_show_local_equivalent', v ? '1' : '0'); } catch { /* ignore */ }
+  }, []);
 
   // iter74: if the authenticated user has a `preferred_currency` stored
   // server-side (auto-detected at signup or manually set in Profile), it
@@ -82,7 +95,8 @@ export function CurrencyProvider({ children, userCountry }) {
 
   return (
     <CurrencyContext.Provider
-      value={{ ...state, refresh: loadRates, setForcedCurrency: setForced }}
+      value={{ ...state, refresh: loadRates, setForcedCurrency: setForced,
+               showEquivalent, setShowEquivalent: persistShowEquivalent }}
     >
       {children}
     </CurrencyContext.Provider>
@@ -91,15 +105,23 @@ export function CurrencyProvider({ children, userCountry }) {
 
 /**
  * Format a USD amount into the user's local currency.
- * Returns "₦12,500 (~$8.02)" style string.
+ *
+ * Default behavior (iter83): "₦12,500 (~$8.02)" — locale-first, USD hint.
+ * iter240g: opt `usdFirst: true` inverts to "$8.02 (~₦12,500)" so amounts
+ * stay readable globally while showing the regional equivalent inline.
  *
  * @param amountUsd number — amount stored in USD
  * @param ctx       result of useCurrency()
- * @param opts      { showUsdHint?: boolean, short?: boolean }
+ * @param opts      { showUsdHint?: boolean, short?: boolean, usdFirst?: boolean,
+ *                    showLocalEquivalent?: boolean }
  */
 export function formatMoney(amountUsd, ctx, opts = {}) {
   const { local = 'USD', symbol = '$', rateVsUsd = 1 } = ctx || {};
-  const { showUsdHint = true, short = false } = opts;
+  const {
+    showUsdHint = true, short = false, usdFirst = false,
+    // iter240g — explicit override. Defaults to: hide equivalent if local===USD.
+    showLocalEquivalent = local !== 'USD',
+  } = opts;
   const usd = Number(amountUsd) || 0;
   const localAmt = usd * (Number(rateVsUsd) || 1);
   const decimals = localAmt >= 1000 ? 0 : 2;
@@ -109,10 +131,19 @@ export function formatMoney(amountUsd, ctx, opts = {}) {
   // Most African symbols are suffix (FCFA, CFA, KSh, ₦, etc.), USD/EUR/GBP are prefix.
   const prefixSymbols = new Set(['$', '€', '£', 'C$', 'A$', 'S$', 'R$', '₹', '¥', '₩', '₱', '₫', '₺', '₽', '₪', '₴', '₮', '₦']);
   const isPrefix = prefixSymbols.has(symbol);
-  const main = isPrefix ? `${symbol}${formatted}` : `${formatted} ${symbol}`;
-  if (short || local === 'USD' || !showUsdHint) return main;
+  const mainLocal = isPrefix ? `${symbol}${formatted}` : `${formatted} ${symbol}`;
   const usdFormatted = usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return `${main} (~$${usdFormatted})`;
+  const mainUsd = `$${usdFormatted}`;
+
+  // iter240g — USD-first mode (the "$1.00 (≈ 615 FCFA)" pattern requested
+  // by product). When the user's local currency IS USD, just return $X.
+  if (usdFirst) {
+    if (short || !showLocalEquivalent) return mainUsd;
+    return `${mainUsd} (≈ ${mainLocal})`;
+  }
+
+  if (short || local === 'USD' || !showUsdHint) return mainLocal;
+  return `${mainLocal} (~$${usdFormatted})`;
 }
 
 export function formatLocal(amountUsd, ctx) {

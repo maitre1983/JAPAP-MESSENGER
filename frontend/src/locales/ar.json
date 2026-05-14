@@ -22,7 +22,9 @@
     "required": "إلزامي",
     "change_language": "تغيير اللغة",
     "language": "اللغة",
-    "reload": "تحديث"
+    "reload": "تحديث",
+    "currency_toggle_show_equivalent": "إظهار المعادل بالعملة المحلية",
+    "currency_toggle_explain": "يتم عرض المبالغ بالدولار ($). فعّل لرؤية القيمة بعملتك المحلية أيضاً (مثل « ≈ 615 FCFA »)."
   },
   "nav": {
     "home": "الرئيسية",
@@ -674,10 +676,11 @@
     "fast_track_admin_currency": "العملة",
     "fast_track_title_pending": "تعزيز مراجعتي",
     "fast_track_title_visibility": "تعزيز الظهور",
-    "fast_track_pitch_pending": "مشروعك قيد المراجعة. تجاوز إلى أعلى قائمة الإشراف مقابل {{n}} {{c}} (خصم من محفظة Japap).",
-    "fast_track_pitch_visibility": "مشروعك معتمد. ثبّته في أعلى القائمة العامة قبل بدء التصويت مقابل {{n}} {{c}}.",
+    "fast_track_pitch_pending": "مشروعك قيد المراجعة. تجاوز إلى أعلى قائمة الإشراف مقابل %%PRICE%% (خصم من محفظة Japap).",
+    "fast_track_pitch_visibility": "مشروعك معتمد. ثبّته في أعلى القائمة العامة قبل بدء التصويت مقابل %%PRICE%%.",
     "fast_track_votes_started": "بدأ التصويت — التعزيز غير متاح.",
-    "fast_track_not_eligible": "لا يمكن تعزيز هذا المشروع بعد الآن."
+    "fast_track_not_eligible": "لا يمكن تعزيز هذا المشروع بعد الآن.",
+    "fast_track_cta_label": "تعزيز مقابل"
   },
   "pwa": {
     "update_available": "إصدار جديد من JAPAP متاح. سيتم تطبيقه تلقائياً.",

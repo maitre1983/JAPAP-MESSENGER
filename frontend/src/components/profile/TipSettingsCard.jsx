@@ -3,6 +3,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { HandCoins, Plus, X, FloppyDisk } from '@phosphor-icons/react';
 import { useTranslation } from 'react-i18next';
+import MoneyDisplay from '@/components/common/MoneyDisplay';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -130,7 +131,9 @@ export default function TipSettingsCard({ userId }) {
                   className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold"
                   style={{ background: 'var(--jp-surface-secondary)', color: 'var(--jp-text)' }}
                 >
-                  {n.toLocaleString('fr-FR')} XAF
+                  {/* iter240g — presets stored as legacy XAF integers;
+                      MoneyDisplay converts to USD-first with local hint. */}
+                  <MoneyDisplay amountUsd={n} legacyCurrency="XAF" short />
                   <button
                     onClick={() => removePreset(n)}
                     data-testid={`tip-preset-remove-${n}`}

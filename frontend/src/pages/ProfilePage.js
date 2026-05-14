@@ -14,6 +14,7 @@ import MediaFilterEditor from '@/components/media/MediaFilterEditor';
 import PhotoGallery from '@/components/profile/PhotoGallery';
 import { uploadAvatar, uploadCover } from '@/utils/imageUpload';
 import TipSettingsCard from '@/components/profile/TipSettingsCard';
+import CurrencyDisplayToggleCard from '@/components/profile/CurrencyDisplayToggleCard';
 import DisplayCurrencySelector from '@/components/profile/DisplayCurrencySelector';
 import ScholarshipDigestPref from '@/components/profile/ScholarshipDigestPref';
 import KycVerifiedBadge from '@/components/KycVerifiedBadge';
@@ -452,6 +453,11 @@ export default function ProfilePage() {
 
               {/* ══ iter141nineF — Pay-as-you-Tip settings ══ */}
               <TipSettingsCard userId={user?.user_id} />
+
+              {/* ══ iter240g — Currency display preferences ══ */}
+              <div className="mt-3">
+                <CurrencyDisplayToggleCard />
+              </div>
 
               {/* ══ UI LANGUAGE PREFERENCES ══ */}
               <div className="mt-3 p-4 rounded-xl" data-testid="ui-lang-card"

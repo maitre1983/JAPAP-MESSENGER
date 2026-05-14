@@ -22,7 +22,9 @@
     "required": "requis",
     "change_language": "Changer la langue",
     "language": "Langue",
-    "reload": "Actualiser"
+    "reload": "Actualiser",
+    "currency_toggle_show_equivalent": "Afficher l'équivalent en devise locale",
+    "currency_toggle_explain": "Les montants sont affichés en $ (USD). Activez pour voir aussi la valeur dans votre monnaie locale (ex : « ≈ 615 FCFA »)."
   },
   "nav": {
     "home": "Accueil",
@@ -702,10 +704,11 @@
     "fast_track_admin_currency": "Devise",
     "fast_track_title_pending": "Boost ma modération",
     "fast_track_title_visibility": "Boost de visibilité",
-    "fast_track_pitch_pending": "Ton projet est en attente. Passe en tête de la file admin pour {{n}} {{c}} (débit du wallet Japap).",
-    "fast_track_pitch_visibility": "Ton projet est validé. Épingle-le en tête de la liste publique avant l'ouverture des votes pour {{n}} {{c}}.",
+    "fast_track_pitch_pending": "Ton projet est en attente. Passe en tête de la file admin pour %%PRICE%% (débit du wallet Japap).",
+    "fast_track_pitch_visibility": "Ton projet est validé. Épingle-le en tête de la liste publique avant l'ouverture des votes pour %%PRICE%%.",
     "fast_track_votes_started": "Les votes ont commencé — boost indisponible.",
-    "fast_track_not_eligible": "Ce projet ne peut plus être boosté."
+    "fast_track_not_eligible": "Ce projet ne peut plus être boosté.",
+    "fast_track_cta_label": "Booster pour"
   },
   "pwa": {
     "refresh_btn": "Actualiser",

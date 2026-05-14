@@ -24,6 +24,7 @@ import ImageCropper from '@/components/ImageCropper';
 import VideoPlayer from '@/components/VideoPlayer';
 import MediaFilterEditor from '@/components/media/MediaFilterEditor';
 import UserNameLink from '@/components/common/UserNameLink';
+import JuryBadgeInline from '@/components/common/JuryBadgeInline';
 import ZoomableImage from '@/components/media/ZoomableImage';
 // iter239o — SmartImage: orientation-aware feed thumbnail (portrait→3/4,
 // landscape→16/9, square→1/1). ZoomableImage stays for fullscreen zoom.
@@ -760,6 +761,7 @@ export default function FeedPage() {
                                   data-testid={`post-${post.post_id}-author-name`}>
                       {post.first_name} {post.last_name}
                     </UserNameLink>
+                    <JuryBadgeInline userId={post.user_id} size="xs" />
                     {post.is_pinned && (
                       <span className="text-[9px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5 font-bold"
                         style={{ background: '#FEF3C7', color: '#B45309' }}

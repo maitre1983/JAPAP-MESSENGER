@@ -87,6 +87,7 @@ const PayPage = lazy(() => import('@/pages/PayPage'));
 const ConnectHotspotLanding = lazy(() => import('@/pages/ConnectHotspotLanding'));
 const CrowdfundingProjectPage = lazy(() => import('@/pages/CrowdfundingProjectPage'));
 const CrowdfundingLeaderboardPage = lazy(() => import('@/pages/CrowdfundingLeaderboardPage'));
+const CrowdfundingJuryPage = lazy(() => import('@/pages/CrowdfundingJuryPage'));
 const MarketplaceProductPage = lazy(() => import('@/pages/MarketplaceProductPage'));
 const MarketplaceAdsPage = lazy(() => import('@/pages/MarketplaceAdsPage'));
 
@@ -241,6 +242,7 @@ function AppRouter() {
       <Route path="/connect/h/:hotspotId" element={<ConnectHotspotLanding />} />
       <Route path="/crowdfunding/p/:slug" element={<CrowdfundingProjectPage />} />
       <Route path="/crowdfunding/leaderboard" element={<CrowdfundingLeaderboardPage />} />
+      <Route path="/crowdfunding/jury" element={<CrowdfundingJuryPage />} />
       <Route path="/crowdfunding" element={<Navigate to="/services?view=crowdfunding" replace />} />
       <Route path="/marketplace/p/:product_id" element={<ProtectedRoute><MarketplaceProductPage /></ProtectedRoute>} />
       <Route path="/marketplace/ads" element={<ProtectedRoute><MarketplaceAdsPage /></ProtectedRoute>} />

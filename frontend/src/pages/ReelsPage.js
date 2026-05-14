@@ -12,6 +12,7 @@ import uploadErrorMessage from '@/utils/uploadErrorMessage';
 import UploadProgressButton from '@/components/UploadProgressButton';
 import { useTranslation } from 'react-i18next';
 import UserNameLink from '@/components/common/UserNameLink';
+import JuryBadgeInline from '@/components/common/JuryBadgeInline';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -107,6 +108,7 @@ function ReelCommentsDrawer({ reelId, onClose, onNewCount, currentUser }) {
               <div className="flex-1 min-w-0">
                 <div className="text-xs">
                   <UserNameLink username={c.username} userId={c.user_id} className="font-bold">@{c.username || c.first_name}</UserNameLink>
+                  <JuryBadgeInline userId={c.user_id} size="xs" className="ml-1" />
                   <span className="ml-2 text-[10px] text-[var(--jp-text-muted)]">{timeAgo(c.created_at)}</span>
                 </div>
                 <p className="text-sm break-words mt-0.5">{c.text}</p>
@@ -495,6 +497,7 @@ export default function ReelsPage() {
                               data-testid={`reel-${r.reel_id || r.id}-author`}>
                   @{r.user.username || r.user.name}
                 </UserNameLink>
+                <JuryBadgeInline userId={r.user.user_id || r.user.id} size="xs" />
               </div>
               {r.caption && <p className="text-xs font-['Manrope'] leading-relaxed line-clamp-3">{r.caption}</p>}
             </div>

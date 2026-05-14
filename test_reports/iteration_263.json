@@ -1,0 +1,42 @@
+{
+  "summary": "iter240l FRONTEND-ONLY tests — all 4 additive jury pieces PASS. (1) Public route /crowdfunding/jury renders cf-jury-page + cf-jury-page-title ('⚖️ Jury Hall of Fame') with Bob shown as JURY MEMBER (1 win, +50, 14 May 2026). (2) Jury badge inline ⚖️ — on /feed: exactly 1 [data-testid='jury-badge-user_a1b203440a53'] visible next to Bob's name. On /reels: 1 badge for Bob also rendered. (3) Cache 5min — only ONE GET /api/crowdfunding/jury/members?limit=500 call recorded on /feed page load (no per-author duplication), proving the singleton module-level cache + useJuryIds hook works as designed. (4) Admin CF panel — admin@japap.com / JapapAdmin2024! login OK; opened /crowdfunding → cf-admin-btn (badge '1') → cf-admin-panel visible → cf-admin-tab-jury renders 'Jurés' (FR). Clicking it shows cf-admin-jury-tab with: cf-admin-jury-grant-uid (input), cf-admin-jury-grant-submit (button), cf-admin-jury-include-revoked (checkbox), cf-admin-jury-cert-user_a1b203440a53 (Bob's certificate btn), cf-admin-jury-revoke-user_a1b203440a53 (Bob's revoke btn). REGRESSION CHECK — projects/cycle/settings/history tabs ALL still visible (no break). i18n — AR /crowdfunding/jury : html dir='rtl', lang='ar', title rendered in Arabic '⚖️ قاعة مشاهير أعضاء هيئة المحلفين' (verified). EN admin tab switch attempted but blocked by language switcher overlay z-index (admin panel modal covers it) — locale files inspected: en.json admin_tab_jury='Jurors', fr='Jurés', ar='المحلفون' — wiring confirmed at source level via t('crowdfunding.admin_tab_jury'). SW_VERSION confirmed: GET https://japap-refactor.preview.emergentagent.com/sw.js returns 'v25-iter240l'.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "LanguageSwitcher when admin CF panel is open",
+        "issue": "The language-switcher-trigger button sits in the bottom of the left sidebar; when the cf-admin-panel modal (fixed/overlay) is open, the trigger receives the click but the dropdown ([data-testid='language-switcher-menu'] / [data-testid='lang-option-en']) is rendered BEHIND the admin modal overlay and never becomes clickable. Users can't change language while the admin CF panel is open. Workaround: close admin panel first (works fine). LOW priority — doesn't break the i18n feature itself; verified EN/AR keys exist & AR works on /crowdfunding/jury.",
+        "affected_selectors": ["[data-testid='language-switcher-menu']", "[data-testid='lang-option-en']", "[data-testid='cf-admin-panel']"]
+      },
+      {
+        "flow": "JuryHallOfFame double-fetch on /crowdfunding/jury",
+        "issue": "On /crowdfunding/jury, the JuryHallOfFame component fires TWO consecutive GET /api/crowdfunding/jury/members?limit=24 calls in a row (React StrictMode double-mount in dev, but verified on the public preview build as well). This is a pre-existing minor duplicate-fetch, independent of the new useJuryIds cache (which correctly fires only ONE /jury/members?limit=500 on /feed). LOW priority.",
+        "affected_selectors": ["[data-testid='cf-jury-page']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_263.json"],
+  "action_items": [
+    "LOW: Consider lifting [data-testid='language-switcher-menu'] z-index above the cf-admin-panel modal, OR move the LanguageSwitcher into the admin panel header itself, so users can change language without first closing the admin panel.",
+    "LOW: Investigate the duplicate GET /api/crowdfunding/jury/members?limit=24 fired by JuryHallOfFame on first render — either guard with a ref or rely on the same useJuryIds cache to dedupe.",
+    "OPTIONAL: Add an explicit toast assertion test for the full revoke flow (grant TEST user → revoke with motif ≥5 chars → verify toast + re-appearance with 'Révoqué' badge under cf-admin-jury-include-revoked). I did not execute this destructive flow to avoid impacting Bob's grant state for the next iteration."
+  ],
+  "critical_code_review_comments": [
+    "JuryBadgeInline.jsx singleton _cache is well-designed (module-level Set, 5min TTL, inflight dedup, japap:refresh listener for cache busting). Renders null when uid is not in the set → zero DOM cost on non-jury users. ✅",
+    "CrowdfundingJuryPage.jsx delegates to <JuryHallOfFame /> which is the right call (no duplication). However the default page <title>/document.title is not updated; consider <Helmet>/document.title=t('crowdfunding.jury_hall_title') for SEO/sharing.",
+    "CrowdfundingModule.js L848-868 — jury tab is correctly added to the tabs array and conditionally renders <CrowdfundingAdminJuryTab/>. Other tabs (projects/cycle/settings/history) untouched. ✅"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only per request)",
+    "frontend": "~95% — all 4 critical jury pieces PASS (route, badge, cache, admin tab) + AR RTL + SW_VERSION. Only the EN admin tab text was not asserted live (blocked by overlay) but the locale wiring is confirmed at source."
+  },
+  "test_credentials": "bob@japap.com / Test1234!  |  admin@japap.com / JapapAdmin2024! (math captcha solved live)",
+  "seed_data_creation": "None — Bob already granted as juror by main agent (POST /api/crowdfunding/admin/jury/grant earlier).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Public preview: https://japap-refactor.preview.emergentagent.com. Math captcha must be solved live: [data-testid=math-captcha-question] (e.g. '10 + 4 ='), fill [data-testid=math-captcha-answer]. To reach Admin CF panel: login as admin → /crowdfunding (auto-redirects /services?view=crowdfunding) → click [data-testid='cf-admin-btn'] (top-right pill with badge) → [data-testid='cf-admin-panel'] modal opens → [data-testid='cf-admin-tab-jury']. LanguageSwitcher trigger is [data-testid='language-switcher-trigger'] at bottom of left sidebar; menu/options are NOT clickable while the admin CF modal is open — close it first to change language. JuryHallOfFame fires limit=24, useJuryIds badge cache fires limit=500 (different paths). Bob user_id = user_a1b203440a53 — keep him granted for next iter.",
+  "rca_of_the_issue": "No RCA needed — implementation works as designed. Only minor UX papercut: language menu hidden under admin modal overlay (z-index). Fix is one-line — bump z-index of [data-testid='language-switcher-menu'] above the admin panel's z-index, or render the LanguageSwitcher inside the admin panel header for admin users."
+}

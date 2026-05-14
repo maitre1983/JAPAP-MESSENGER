@@ -10,6 +10,7 @@ import axios from 'axios';
 import { PaperPlaneRight, User as UserIcon } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import UserNameLink from '@/components/common/UserNameLink';
+import JuryBadgeInline from '@/components/common/JuryBadgeInline';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -127,6 +128,7 @@ export default function CommentSection({ postId, autoFocus = false, onCountChang
                     <UserNameLink username={c.username} userId={c.user_id}>
                       {`${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Utilisateur'}
                     </UserNameLink>
+                    <JuryBadgeInline userId={c.user_id} size="xs" className="ml-1" />
                   </p>
                   <p className="text-xs font-['Manrope'] whitespace-pre-wrap break-words"
                     style={{ color: 'var(--jp-text)' }}>{c.text}</p>

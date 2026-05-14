@@ -15,8 +15,10 @@ import JuryHallOfFame from '@/components/JuryHallOfFame';
 import { useEngagementState, trackEngagementEvent } from '@/hooks/useEngagementState';
 import RecruiterPanel from '@/components/crowdfunding/RecruiterPanel';
 import CrowdfundingAdminProjectsTab, { usePendingReviewBadge } from '@/components/crowdfunding/CrowdfundingAdminProjectsTab';
+import CrowdfundingAdminJuryTab from '@/components/crowdfunding/CrowdfundingAdminJuryTab';
 import MoneyDisplay from '@/components/common/MoneyDisplay';
 import UserNameLink from '@/components/common/UserNameLink';
+import JuryBadgeInline from '@/components/common/JuryBadgeInline';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -179,7 +181,7 @@ function ProjectCard({ project, votesOpen, votesToWin, currentUserId, voting, on
             {project.country_code && <span>· {project.country_code}</span>}
           </div>
           <h3 className="font-bold text-slate-900 leading-tight mt-0.5 line-clamp-2">{project.title}</h3>
-          <div className="text-xs text-slate-500 mt-0.5">par <UserNameLink username={project.owner_username} userId={project.user_id}>{project.owner_name}</UserNameLink></div>
+          <div className="text-xs text-slate-500 mt-0.5">par <UserNameLink username={project.owner_username} userId={project.user_id}>{project.owner_name}</UserNameLink> <JuryBadgeInline userId={project.user_id} size="xs" /></div>
         </div>
       </div>
 
@@ -847,6 +849,7 @@ function AdminPanel({ open, onClose, onChanged, activeCycle }) {
           {[
             ['projects', t('crowdfunding.admin_tab_projects', { defaultValue: 'Projets' })],
             ['cycle', t('crowdfunding.admin_tab_cycles', { defaultValue: 'Cycles' })],
+            ['jury', t('crowdfunding.admin_tab_jury', { defaultValue: 'Jurés' })],
             ['settings', t('crowdfunding.admin_tab_settings', { defaultValue: 'Réglages' })],
             ['history', t('crowdfunding.admin_tab_history', { defaultValue: 'Historique' })],
           ].map(([k, v]) => (
@@ -862,6 +865,7 @@ function AdminPanel({ open, onClose, onChanged, activeCycle }) {
 
         <div className="p-5 space-y-5">
           {tab === 'projects' && <CrowdfundingAdminProjectsTab ActionsComponent={AdminProjectActions} />}
+          {tab === 'jury' && <CrowdfundingAdminJuryTab />}
           {tab === 'cycle' && (
             <>
               <section>

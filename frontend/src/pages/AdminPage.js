@@ -6,7 +6,7 @@ import {
   Users, CurrencyDollar, ShieldCheck, MagnifyingGlass, Check, X, ChartBar,
   Gear, GameController, IdentificationCard, Download, PencilSimple,
   LockKey, Prohibit, Receipt, Warning, Crown, Gift, Confetti, WifiHigh as Wifi,
-  Megaphone, Bank, EnvelopeOpen, Coins, Target, Headset, Car, Bug,
+  Megaphone, Bank, EnvelopeOpen, Coins, Target, Headset, Car, Bug, Eye,
 } from '@phosphor-icons/react';
 import AdsAdminTab from '@/pages/admin/AdsAdminTab';
 import AdminErrorMonitorTab from '@/pages/admin/AdminErrorMonitorTab';
@@ -29,6 +29,7 @@ import UsersByBalanceTab from '@/pages/admin/UsersByBalanceTab';
 import ReferralTiersEditor from '@/components/admin/referrals/ReferralTiersEditor';
 import CrowdfundingAdminProjectsTab from '@/components/crowdfunding/CrowdfundingAdminProjectsTab';
 import { AdminProjectActions } from '@/pages/CrowdfundingModule';
+import AdminUserDetailModal from '@/components/admin/AdminUserDetailModal';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -224,6 +225,7 @@ function UsersTab({ onAction, setMessage }) {
   const [search, setSearch] = useState('');
   const [editUser, setEditUser] = useState(null);
   const [suspendUser, setSuspendUser] = useState(null);
+  const [detailUserId, setDetailUserId] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -287,6 +289,10 @@ function UsersTab({ onAction, setMessage }) {
                 <td><span className={`jp-badge ${u.is_active ? 'jp-badge-success' : 'jp-badge-error'}`}>{u.is_active ? 'Actif' : 'Suspendu'}</span></td>
                 <td>
                   <div className="flex items-center gap-1">
+                    <button onClick={() => setDetailUserId(u.user_id)} data-testid={`view-user-${u.user_id}`}
+                      className="jp-btn jp-btn-sm jp-btn-icon" style={{ padding: 4, background: 'transparent', color: 'var(--jp-text)' }} title={t('admin.user_detail.open_dossier', { defaultValue: 'Voir la fiche complète' })}>
+                      <Eye size={14} />
+                    </button>
                     <button onClick={() => setEditUser(u)} data-testid={`edit-user-${u.user_id}`}
                       className="jp-btn jp-btn-sm jp-btn-icon" style={{ padding: 4, background: 'transparent', color: 'var(--jp-primary)' }} title="Modifier">
                       <PencilSimple size={14} />
@@ -326,6 +332,7 @@ function UsersTab({ onAction, setMessage }) {
 
       {editUser && <EditUserModal user={editUser} onClose={() => setEditUser(null)} onSaved={() => { load(); setEditUser(null); toast.success('Profil modifié'); }} />}
       {suspendUser && <SuspendUserModal user={suspendUser} onClose={() => setSuspendUser(null)} onSaved={() => { load(); setSuspendUser(null); toast.success('Utilisateur suspendu'); onAction && onAction(); }} />}
+      {detailUserId && <AdminUserDetailModal userId={detailUserId} onClose={() => setDetailUserId(null)} />}
     </div>
       )}
     </div>

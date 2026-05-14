@@ -20,7 +20,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from routes.auth import get_current_user
-from db import get_pool
+from database import get_pool
 
 router = APIRouter(prefix="/api/admin/users", tags=["admin-user-detail"])
 
@@ -95,10 +95,10 @@ async def get_user_detail(user_id: str, request: Request):
         u.pop("totp_secret", None)
 
         wallet = await conn.fetchrow(
-            "SELECT balance, currency, total_earned, total_withdrawn FROM wallets WHERE user_id = $1",
+            "SELECT balance, currency, is_locked FROM wallets WHERE user_id = $1",
             user_id,
         )
-        wallet_d = dict(wallet) if wallet else {"balance": 0, "currency": "USD"}
+        wallet_d = dict(wallet) if wallet else {"balance": 0, "currency": "USD", "is_locked": False}
 
         transactions = await _safe_fetch_rows(
             conn,
@@ -111,9 +111,9 @@ async def get_user_detail(user_id: str, request: Request):
         # KYC
         kyc = await _safe_fetch_rows(
             conn,
-            "SELECT status, submitted_at, validated_at, rejection_reason "
+            "SELECT status, created_at AS submitted_at, reviewed_at AS validated_at, rejection_reason "
             "FROM kyc_verifications WHERE user_id = $1 "
-            "ORDER BY submitted_at DESC LIMIT 1",
+            "ORDER BY created_at DESC LIMIT 1",
             user_id,
         )
         kyc_row = kyc[0] if kyc else {"status": "not_submitted"}
@@ -144,7 +144,7 @@ async def get_user_detail(user_id: str, request: Request):
             "SELECT COUNT(*) FROM staking_positions WHERE user_id = $1 AND status = 'active'",
             user_id, default=0) or 0
         stake_total = await _safe_fetch(conn,
-            "SELECT COALESCE(SUM(amount), 0) FROM staking_positions WHERE user_id = $1",
+            "SELECT COALESCE(SUM(amount_mir), 0) FROM staking_positions WHERE user_id = $1",
             user_id, default=0) or 0
 
         # Restrictions
@@ -282,23 +282,20 @@ async def reset_game_limits(user_id: str, request: Request):
 async def send_notification(user_id: str, req: NotificationRequest, request: Request):
     admin = await _require_admin(request)
     pool = await get_pool()
+    import uuid, json as _json
+    notif_id = f"notif_{uuid.uuid4().hex[:16]}"
+    data_payload = _json.dumps({"from_admin": admin["user_id"], "kind": req.type})
     async with pool.acquire() as conn:
         try:
             await conn.execute(
-                "INSERT INTO notifications (user_id, type, title, body, created_by) "
-                "VALUES ($1, $2, $3, $4, $5)",
-                user_id, req.type, "Message de l'administration", req.message, admin["user_id"],
+                "INSERT INTO notifications (notif_id, user_id, type, title, message, data) "
+                "VALUES ($1, $2, $3, $4, $5, $6)",
+                notif_id, user_id, "admin_message",
+                "Message de l'administration", req.message, data_payload,
             )
-        except Exception:
-            # Schema variant — best-effort fallback.
-            try:
-                await conn.execute(
-                    "INSERT INTO notifications (user_id, message, type) VALUES ($1, $2, $3)",
-                    user_id, req.message, req.type,
-                )
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"notification insert failed: {e}")
-    return {"ok": True}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"notification insert failed: {e}")
+    return {"ok": True, "notif_id": notif_id}
 
 
 @router.get("/{user_id}/notes")

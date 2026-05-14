@@ -25,6 +25,7 @@ from routes.wallet import router as wallet_router
 from routes.payments import router as payments_router
 from routes.messaging import router as messaging_router
 from routes.admin import router as admin_router
+from routes.admin_user_detail import router as admin_user_detail_router
 from routes.admin_super import router as admin_super_router
 from routes.notifications import router as notifications_router
 from routes.feed import router as feed_router
@@ -162,6 +163,7 @@ fastapi_app.include_router(wallet_router)
 fastapi_app.include_router(payments_router)
 fastapi_app.include_router(messaging_router)
 fastapi_app.include_router(admin_router)
+fastapi_app.include_router(admin_user_detail_router)  # iter240k — Admin User Detail dossier
 fastapi_app.include_router(admin_super_router)
 fastapi_app.include_router(notifications_router)
 fastapi_app.include_router(feed_router)

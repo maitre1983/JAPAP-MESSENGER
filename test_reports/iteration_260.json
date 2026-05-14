@@ -1,0 +1,37 @@
+{
+  "summary": "iter240k — Admin User Detail (7 endpoints + 7-tab modal). Backend: 12/12 pytest tests PASSED including auth/RBAC, GET /detail full dossier, POST notes round-trip with admin join, restrict→unrestrict lifecycle, reset-game-limits, send-notification, and SW_VERSION=v25-iter240k. Frontend: admin login worked, /admin Users tab opens, but the users TABLE renders EMPTY (no rows) even after searching 'bob' — blocking validation of the Eye button (view-user-*) and the modal flow. The admin user-listing API/state seems broken (likely pre-existing or regression in /api/admin/users listing) — cannot test data-testid `view-user-<id>`, `admin-user-detail-modal`, 7 tabs, notes, restrictions, notif footer, close button, or i18n EN switch via UI in this iteration.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminPage > Utilisateurs tab", "issue": "Users table renders empty (zero rows) on initial load AND when searching 'bob' — view-user-<id> Eye buttons cannot be reached, blocking AdminUserDetailModal UI validation end-to-end", "selector": "table tbody, [data-testid^='view-user-']", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Admin users listing", "issue": "GET admin users (listing endpoint feeding the Utilisateurs tab) appears to return no rows in UI, even though Bob exists (user_a1b203440a53) and /api/admin/users/{id}/detail returns 200 OK on the same admin session", "affected_selectors": ["[data-testid='admin-tab-users']", "input[placeholder*='Rechercher']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter240k_admin_user_detail.py",
+    "/app/test_reports/pytest/iter240k_results.xml"
+  ],
+  "action_items": [
+    "Investigate why /admin Utilisateurs tab table is empty — confirm which admin-users LIST endpoint is called by the table, check its response in admin session (cookies + CSRF), and fix the rendering or wiring so Eye buttons (view-user-<user_id>) are reachable.",
+    "After list fix: re-run frontend Playwright to validate: modal open, 7 aud-tab-* tabs present + clickable, aud-note-input/submit, aud-restrict-submit, aud-notif-input/send + toast, aud-close behaviour, EN i18n label switch (Overview vs Vue Générale).",
+    "Backend is good — no fix needed."
+  ],
+  "critical_code_review_comments": [
+    "admin_user_detail.py: line 260 returns lifted count as parsed from PG status string 'UPDATE n' — works but fragile; consider returning int explicitly.",
+    "send_notification inserts JSON via dumps for 'data' column — confirm column type is jsonb (the test passes, so it likely is).",
+    "_safe_fetch silently swallows ALL exceptions including DB outages; consider logging at least once per missing table to aid ops."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter240k_admin_user_detail.py"
+  ],
+  "success_rate": { "backend": "100% (12/12)", "frontend": "Blocked — users list empty; modal UI not reachable" },
+  "test_credentials": "admin@japap.com / JapapAdmin2024! ; bob@japap.com / Test1234! ; bypass captcha JAPAP_E2E_BYPASS_2026 / 0",
+  "seed_data_creation": "Tests insert TEST_iter240k notes/restrictions/notifications on user_a1b203440a53; restrictions are unrestricted in same run.",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Backend pytest covers all 7 iter240k endpoints + RBAC + SW version (test_iter240k_admin_user_detail.py). Uses BASE_URL=localhost:8001 to avoid ingress slowness and X-Requested-With header to bypass CSRF for cookie-authed POSTs. Public preview URL was returning 502 / very slow during this run; backend at localhost responded after a fresh supervisorctl restart (cold-start ~30s). Frontend modal flow remains unverified because the admin Users LISTING is empty — fix that before re-running Playwright.",
+  "rca_of_the_issue": "Frontend admin Users table is empty: most likely the list-users API call from AdminPage either fails silently, returns empty array, or is gated by a state that isn't initialized on tab switch. Detail endpoint /api/admin/users/{id}/detail works (200 with full dossier), so RBAC and admin session are fine. The bug is in the LIST flow only — likely AdminPage.js fetch on Users tab. Main agent should add a console.error/network panel check and verify the list endpoint and its rendering."
+}

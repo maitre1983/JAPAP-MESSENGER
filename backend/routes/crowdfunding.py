@@ -23,6 +23,7 @@ import json
 import hashlib
 import logging
 import random
+import asyncio
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Optional, Literal, List
@@ -2317,6 +2318,11 @@ async def close_cycle_and_determine_winner(cycle_id: str) -> dict:
                 f"[crowdfunding] cycle={cycle_id} CLOSED -- winner={winner['slug']} "
                 f"({winner['votes_count']} votes, reward={reward_amount} {cycle['reward_currency']})"
             )
+            # iter240l — Auto-generate SVG certificate + R2 upload (best-effort, async).
+            try:
+                asyncio.create_task(_auto_generate_jury_certificate(winner["user_id"]))
+            except Exception as ce:
+                logger.warning(f"[jury_cert] auto-task schedule failed: {ce}")
             return {
                 "result": "winner",
                 "cycle_id": cycle_id,
@@ -2576,7 +2582,53 @@ async def admin_grant_jury(req: GrantJuryRequest, request: Request):
         )
     logger.warning(f"[crowdfunding][ADMIN][JURY] admin={admin['user_id']} "
                    f"granted user={req.user_id} cycle={cycle_id}")
+    # iter240l — Fire-and-forget SVG certificate generation + R2 upload.
+    asyncio.create_task(_auto_generate_jury_certificate(req.user_id))
     return {"ok": True, "membership": membership}
+
+
+async def _auto_generate_jury_certificate(user_id: str, lang: str = "fr") -> None:
+    """iter240l — Background SVG cert + R2 upload. Best-effort, swallows errors."""
+    try:
+        from services.jury_certificate_svg import generate_and_upload_jury_certificate
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            j = await conn.fetchrow(
+                """SELECT j.*, u.first_name, u.last_name, u.username,
+                          c.reward_amount, c.reward_currency
+                     FROM crowdfunding_jury_members j
+                     JOIN users u ON u.user_id = j.user_id
+                     LEFT JOIN crowdfunding_cycles c ON c.cycle_id = j.awarded_cycle_id
+                    WHERE j.user_id = $1
+                    ORDER BY j.granted_at DESC
+                    LIMIT 1""", user_id,
+            )
+        if not j:
+            return
+        name = (f"{j.get('first_name','') or ''} {j.get('last_name','') or ''}".strip()
+                or j.get("username") or "Anonyme")
+        url = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: generate_and_upload_jury_certificate(
+                user_id=user_id, full_name=name, username=j.get("username"),
+                cycle_number=int(j.get("awarded_cycle_number") or 0),
+                prize_amount=float(j["reward_amount"]) if j.get("reward_amount") else None,
+                prize_currency=j["reward_currency"] if j.get("reward_currency") else "USD",
+                issued_at=j.get("granted_at"), lang=lang,
+                certificate_id=j.get("jury_id"),
+            ),
+        )
+        if url:
+            pool2 = await get_pool()
+            async with pool2.acquire() as conn2:
+                await conn2.execute(
+                    "UPDATE crowdfunding_jury_members SET certificate_url = $1 "
+                    "WHERE user_id = $2 AND certificate_url IS DISTINCT FROM $1",
+                    url, user_id,
+                )
+            logger.warning(f"[jury_cert] auto-uploaded R2 cert user={user_id} url={url}")
+    except Exception as e:
+        logger.warning(f"[jury_cert] auto-gen failed for user={user_id}: {e}")
 
 
 class RevokeJuryRequest(BaseModel):
@@ -2751,6 +2803,140 @@ async def get_jury_certificate(user_id: str, cycle_id: Optional[str] = None):
     from fastapi.responses import Response
     return Response(content=png, media_type="image/png",
                     headers={"Cache-Control": "public, max-age=3600"})
+
+
+# ─── iter240l — SVG premium certificate (multilingual + R2) ─────────────────
+@router.get("/jury/certificate/{user_id}.svg")
+async def get_jury_certificate_svg(user_id: str,
+                                   lang: str = "fr",
+                                   cycle_id: Optional[str] = None):
+    """iter240l — Certificat SVG premium, 5 langues (FR/EN/ES/AR-RTL/RU).
+
+    Si une URL R2 existe déjà pour la combinaison (user_id, lang) on la sert
+    en redirect (cache CDN). Sinon on génère à la volée et on essaie de
+    l'uploader sur R2 en best-effort."""
+    from services.jury_certificate_svg import (
+        render_jury_certificate_svg,
+        generate_and_upload_jury_certificate,
+        SUPPORTED_LANGS, DEFAULT_LANG,
+    )
+    lang = lang if lang in SUPPORTED_LANGS else DEFAULT_LANG
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        if cycle_id:
+            j = await conn.fetchrow(
+                """SELECT j.*, u.first_name, u.last_name, u.username,
+                          c.reward_amount, c.reward_currency
+                     FROM crowdfunding_jury_members j
+                     JOIN users u ON u.user_id = j.user_id
+                     LEFT JOIN crowdfunding_cycles c ON c.cycle_id = j.awarded_cycle_id
+                    WHERE j.user_id = $1 AND j.awarded_cycle_id = $2
+                    LIMIT 1""", user_id, cycle_id,
+            )
+        else:
+            j = await conn.fetchrow(
+                """SELECT j.*, u.first_name, u.last_name, u.username,
+                          c.reward_amount, c.reward_currency
+                     FROM crowdfunding_jury_members j
+                     JOIN users u ON u.user_id = j.user_id
+                     LEFT JOIN crowdfunding_cycles c ON c.cycle_id = j.awarded_cycle_id
+                    WHERE j.user_id = $1
+                    ORDER BY j.granted_at DESC
+                    LIMIT 1""", user_id,
+            )
+    if not j:
+        raise HTTPException(status_code=404, detail="Aucun certificat pour cet utilisateur.")
+    name = (f"{j.get('first_name','') or ''} {j.get('last_name','') or ''}".strip()
+            or j.get("username") or "Anonyme")
+    cycle_n = int(j["awarded_cycle_number"]) if j.get("awarded_cycle_number") else 0
+    prize_amt = float(j["reward_amount"]) if j.get("reward_amount") else None
+    prize_cur = j["reward_currency"] if j.get("reward_currency") else "USD"
+    granted_at = j.get("granted_at")
+    svg = render_jury_certificate_svg(
+        full_name=name, username=j.get("username"),
+        cycle_number=cycle_n, prize_amount=prize_amt,
+        prize_currency=prize_cur, issued_at=granted_at,
+        lang=lang, certificate_id=j.get("jury_id"),
+    )
+    # Best-effort R2 upload (non-blocking-ish, fire and forget via asyncio.create_task
+    # but we want to keep the response synchronous so we await briefly with a tight try).
+    try:
+        url = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: generate_and_upload_jury_certificate(
+                user_id=user_id, full_name=name, username=j.get("username"),
+                cycle_number=cycle_n, prize_amount=prize_amt,
+                prize_currency=prize_cur, issued_at=granted_at,
+                lang=lang, certificate_id=j.get("jury_id"),
+            ),
+        )
+        if url:
+            # Persist URL only for the default language (avoid clobbering with each lang variant)
+            if lang == DEFAULT_LANG:
+                pool2 = await get_pool()
+                async with pool2.acquire() as conn2:
+                    await conn2.execute(
+                        "UPDATE crowdfunding_jury_members SET certificate_url = $1 "
+                        "WHERE user_id = $2 AND certificate_url IS DISTINCT FROM $1",
+                        url, user_id,
+                    )
+    except Exception as e:
+        logger.warning(f"[jury_cert] background upload best-effort failed: {e}")
+    from fastapi.responses import Response
+    return Response(content=svg, media_type="image/svg+xml; charset=utf-8",
+                    headers={"Cache-Control": "public, max-age=3600"})
+
+
+@router.post("/admin/jury/{user_id}/regenerate-certificate")
+async def admin_regenerate_jury_certificate(user_id: str, request: Request,
+                                            lang: str = "fr"):
+    """iter240l — Force la régénération du certificat SVG et son upload R2.
+
+    Admin only. Persiste l'URL R2 dans `certificate_url` pour la langue par défaut."""
+    user = await get_current_user(request)
+    if not user or user.get("role") not in ("admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Admin only.")
+    from services.jury_certificate_svg import (
+        generate_and_upload_jury_certificate,
+        SUPPORTED_LANGS, DEFAULT_LANG,
+    )
+    lang = lang if lang in SUPPORTED_LANGS else DEFAULT_LANG
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        j = await conn.fetchrow(
+            """SELECT j.*, u.first_name, u.last_name, u.username,
+                      c.reward_amount, c.reward_currency
+                 FROM crowdfunding_jury_members j
+                 JOIN users u ON u.user_id = j.user_id
+                 LEFT JOIN crowdfunding_cycles c ON c.cycle_id = j.awarded_cycle_id
+                WHERE j.user_id = $1
+                ORDER BY j.granted_at DESC
+                LIMIT 1""", user_id,
+        )
+    if not j:
+        raise HTTPException(status_code=404, detail="Aucun juré pour cet utilisateur.")
+    name = (f"{j.get('first_name','') or ''} {j.get('last_name','') or ''}".strip()
+            or j.get("username") or "Anonyme")
+    url = await asyncio.get_event_loop().run_in_executor(
+        None,
+        lambda: generate_and_upload_jury_certificate(
+            user_id=user_id, full_name=name, username=j.get("username"),
+            cycle_number=int(j.get("awarded_cycle_number") or 0),
+            prize_amount=float(j["reward_amount"]) if j.get("reward_amount") else None,
+            prize_currency=j["reward_currency"] if j.get("reward_currency") else "USD",
+            issued_at=j.get("granted_at"),
+            lang=lang, certificate_id=j.get("jury_id"),
+        ),
+    )
+    if not url:
+        return {"ok": False, "reason": "R2 non configuré ou erreur d'upload — le SVG reste disponible à la volée via GET .svg"}
+    pool2 = await get_pool()
+    async with pool2.acquire() as conn2:
+        await conn2.execute(
+            "UPDATE crowdfunding_jury_members SET certificate_url = $1 WHERE user_id = $2",
+            url, user_id,
+        )
+    return {"ok": True, "certificate_url": url, "lang": lang}
 
 
 # ──────────────────────────────────────────────────────────────────────────

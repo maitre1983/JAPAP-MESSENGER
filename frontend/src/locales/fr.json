@@ -850,7 +850,12 @@
     "admin_jury_expires": "Expire au cycle #{{n}}",
     "admin_jury_certificate": "Certificat",
     "admin_jury_revoke_reason": "Motif : {{r}}",
-    "admin_jury_load_failed": "Échec du chargement"
+    "admin_jury_load_failed": "Échec du chargement",
+    "admin_jury_certificate_svg": "Certificat SVG",
+    "admin_jury_regen_cert": "Régénérer",
+    "admin_jury_cert_regen_ok": "Certificat régénéré et publié sur R2",
+    "admin_jury_cert_regen_partial": "SVG régénéré mais R2 non configuré",
+    "admin_jury_cert_regen_failed": "Échec de la régénération"
   },
   "pwa": {
     "refresh_btn": "Actualiser",

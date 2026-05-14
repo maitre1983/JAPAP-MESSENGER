@@ -56,8 +56,10 @@ export default function JuryHallOfFame() {
   if (members === null) return null;
 
   const downloadCert = (userId) => {
-    // Direct browser navigation (server returns image/png).
-    const url = `${API}/api/crowdfunding/jury/certificate/${userId}.png`;
+    // iter240l — Préférer le SVG premium (multilingue, R2 cached). Le PNG legacy
+    // reste accessible pour rétrocompatibilité.
+    const lang = (i18n.language || 'fr').slice(0, 2);
+    const url = `${API}/api/crowdfunding/jury/certificate/${userId}.svg?lang=${lang}`;
     window.open(url, '_blank', 'noopener');
   };
 

@@ -7,6 +7,67 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240l-svg — Certificat Jury SVG premium + R2 + 5 langues (14/05/2026)
+
+**Demande user post-iter240l** : voir le certificat actuel → décision de passer au SVG premium spécifié (Q1=R2 oui, Q2=multilingue 5 langues oui).
+
+### Backend additif
+- **NEW `services/jury_certificate_svg.py`** (~280 lignes) — Générateur SVG premium 1200×850 :
+  - Dégradé bleu-nuit `#1a1a2e → #16213e → #0f3460`
+  - Double bordure dorée (4px or + 2px orange, coins arrondis 16px)
+  - 4 ornements aux coins (losanges + lignes dorées)
+  - Logo JAPAP rouge cerclé (`#E63946`) + "JAPAP MESSENGER" lettres-espacé
+  - Titre serif doré "CERTIFICAT D'EXCELLENCE" + sous-titre + 3 étoiles ★★★
+  - Nom 48px blanc shimmered + @username mono gris
+  - Cycle # · Prix doré · Date
+  - Watermark "JAPAP" 180px opacity 0.06
+  - Signature stylisée "Admin JAPAP" + sceau circulaire "✓ Certifié JAPAP"
+  - Domaine + ID certificat en footer
+  - 12 particules dorées décoratives
+  - 5 langues complètes : FR/EN/ES/AR(RTL)/RU avec `direction="rtl"` pour AR
+  - XML escape sécurisé (anti-XSS sur le nom utilisateur)
+- **NEW endpoint** `GET /api/crowdfunding/jury/certificate/{user_id}.svg?lang=fr|en|es|ar|ru` (best-effort R2 upload en arrière-plan)
+- **NEW endpoint admin** `POST /api/crowdfunding/admin/jury/{user_id}/regenerate-certificate?lang=`
+- **Auto-upload R2** : hook `_auto_generate_jury_certificate` fire-and-forget via `asyncio.create_task` après :
+  - `_grant_jury_membership` (déclenché au moment de la victoire dans `close_cycle_and_determine_winner`)
+  - `POST /admin/jury/grant` (octroi manuel admin)
+- Clé R2 déterministe `certificates/{user_id}_{lang}.svg` → overwrite à la régénération (pas de junk accumulé).
+- URL persistée dans `crowdfunding_jury_members.certificate_url` (lang par défaut uniquement pour éviter clobbering).
+
+### Frontend
+- Admin tab : ajout des boutons **Certificat SVG** (lecture), **PNG** (legacy), **Régénérer** (force R2 re-upload). Toast success/partial/failure.
+- `JuryHallOfFame` : bouton "Télécharger le certificat" pointe maintenant vers `.svg?lang=<i18n_active>` (PNG legacy reste accessible).
+- 5 nouvelles clés i18n `crowdfunding.admin_jury_certificate_svg`, `admin_jury_regen_cert`, `admin_jury_cert_regen_ok/partial/failed` × 5 locales.
+
+### Tests
+- **NEW `backend/tests/test_iter240l_jury_certificate_svg.py`** : 6/6 PASS
+  - render FR de base (texte, accents, cycle, prix, date, id)
+  - render Arabic RTL (`direction="rtl"`, "شهادة التميز", "500 دولار")
+  - render toutes les 5 langues
+  - mode honorifique (sans prix monétaire)
+  - fallback langue inconnue
+  - XML escape anti-XSS
+- **E2E manuel** :
+  - GET .svg FR 200 OK (7188 bytes)
+  - GET .svg AR 200 OK (7418 bytes)
+  - POST regenerate-certificate → 200 + URL R2 retournée
+  - URL R2 publique reachable (HTTP 200, `cf-cache-status: MISS` → HIT)
+  - DB `certificate_url` persistée
+  - revoke + re-grant → background task auto → cert R2 + DB en ~1s (vu dans les logs)
+
+### Fichiers
+- NEW : `backend/services/jury_certificate_svg.py`
+- MOD : `backend/routes/crowdfunding.py` (+`asyncio` import, +2 endpoints, +`_auto_generate_jury_certificate`, +hooks dans close_cycle + admin grant)
+- NEW : `backend/tests/test_iter240l_jury_certificate_svg.py` (6 tests)
+- MOD : `frontend/src/components/crowdfunding/CrowdfundingAdminJuryTab.jsx` (3 nouveaux boutons)
+- MOD : `frontend/src/components/JuryHallOfFame.jsx` (lien SVG multilingue)
+- MOD : `frontend/src/locales/{fr,en,es,ar,ru}.json` (+5 clés × 5 = 25)
+- MOD : `frontend/public/sw.js` → `v25-iter240l-svg`
+
+### Backlog mineur
+- AR rendering : caractères arabes apparaissent espacés caractère par caractère sous Playwright/Chromium (font Arabic shaping absente du sandbox). Sur navigateurs utilisateur avec polices Arabic standard installées (iOS/Android/Windows/macOS), le rendu sera correct.
+
+
 ## iter240l — Jury complet (badge inline + page publique + admin tab) (14/05/2026)
 
 **Audit anti-doublons** : 95% du système Jury existait déjà depuis iter239x (table DB, 8 endpoints, certificat PNG PIL, vote pondéré, refus self-vote, JuryHallOfFame, ProfileJuryBadge, 14 clés i18n). User a confirmé Q1=table globale conservée, Q2=PNG conservé, Q3=fetch unique cache 5min, Q4=route dédiée.

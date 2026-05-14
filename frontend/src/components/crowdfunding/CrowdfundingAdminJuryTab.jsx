@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { Crown, Trash, Download, ArrowsClockwise, UserPlus } from '@phosphor-icons/react';
+import { Crown, Trash, Download, ArrowsClockwise, UserPlus, FileText } from '@phosphor-icons/react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 const fmtDate = (s) => { try { return s ? new Date(s).toLocaleDateString() : '—'; } catch { return '—'; } };
@@ -55,6 +55,23 @@ export default function CrowdfundingAdminJuryTab() {
       load();
     } catch (e) {
       toast.error(e?.response?.data?.detail || t('crowdfunding.admin_jury_revoke_failed', { defaultValue: 'Échec de la révocation' }));
+    } finally { setBusy(false); }
+  };
+
+  const regenCert = async (uid) => {
+    setBusy(true);
+    try {
+      const { data } = await axios.post(
+        `${API}/api/crowdfunding/admin/jury/${uid}/regenerate-certificate?lang=fr`,
+        null, { withCredentials: true });
+      if (data?.ok) {
+        toast.success(t('crowdfunding.admin_jury_cert_regen_ok', { defaultValue: 'Certificat régénéré et publié sur R2' }));
+        load();
+      } else {
+        toast.warning(data?.reason || t('crowdfunding.admin_jury_cert_regen_partial', { defaultValue: 'SVG régénéré mais R2 non configuré' }));
+      }
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || t('crowdfunding.admin_jury_cert_regen_failed', { defaultValue: 'Échec de la régénération' }));
     } finally { setBusy(false); }
   };
 
@@ -129,12 +146,24 @@ export default function CrowdfundingAdminJuryTab() {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <a href={`${API}/api/crowdfunding/jury/certificate/${m.user_id}.svg?lang=fr`} target="_blank" rel="noreferrer"
+                    className="jp-btn jp-btn-ghost jp-btn-sm" data-testid={`cf-admin-jury-cert-svg-${m.user_id}`}
+                    style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <FileText size={14} /> {t('crowdfunding.admin_jury_certificate_svg', { defaultValue: 'Certificat SVG' })}
+                  </a>
                   <a href={certHref} target="_blank" rel="noreferrer"
                     className="jp-btn jp-btn-ghost jp-btn-sm" data-testid={`cf-admin-jury-cert-${m.user_id}`}
                     style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Download size={14} /> {t('crowdfunding.admin_jury_certificate', { defaultValue: 'Certificat' })}
+                    <Download size={14} /> PNG
                   </a>
+                  {!revoked && (
+                    <button className="jp-btn jp-btn-ghost jp-btn-sm" onClick={() => regenCert(m.user_id)} disabled={busy}
+                      style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                      data-testid={`cf-admin-jury-regen-${m.user_id}`}>
+                      <ArrowsClockwise size={14} /> {t('crowdfunding.admin_jury_regen_cert', { defaultValue: 'Régénérer' })}
+                    </button>
+                  )}
                   {!revoked && (
                     <button className="jp-btn jp-btn-ghost jp-btn-sm" onClick={() => revoke(m.user_id)} disabled={busy}
                       style={{ color: 'var(--jp-error)', display: 'flex', alignItems: 'center', gap: 4 }}

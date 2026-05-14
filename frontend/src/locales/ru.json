@@ -327,7 +327,12 @@
     "admin_jury_expires": "Истекает в цикле #{{n}}",
     "admin_jury_certificate": "Сертификат",
     "admin_jury_revoke_reason": "Причина: {{r}}",
-    "admin_jury_load_failed": "Ошибка загрузки"
+    "admin_jury_load_failed": "Ошибка загрузки",
+    "admin_jury_certificate_svg": "Сертификат SVG",
+    "admin_jury_regen_cert": "Регенерировать",
+    "admin_jury_cert_regen_ok": "Сертификат регенерирован и загружен в R2",
+    "admin_jury_cert_regen_partial": "SVG регенерирован, но R2 не настроен",
+    "admin_jury_cert_regen_failed": "Ошибка регенерации"
   },
   "feed": {
     "uploading": "Публикация…",

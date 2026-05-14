@@ -822,7 +822,12 @@
     "admin_jury_expires": "ينتهي في الدورة رقم {{n}}",
     "admin_jury_certificate": "الشهادة",
     "admin_jury_revoke_reason": "السبب: {{r}}",
-    "admin_jury_load_failed": "فشل التحميل"
+    "admin_jury_load_failed": "فشل التحميل",
+    "admin_jury_certificate_svg": "شهادة SVG",
+    "admin_jury_regen_cert": "إعادة التوليد",
+    "admin_jury_cert_regen_ok": "تم إعادة توليد الشهادة ورفعها إلى R2",
+    "admin_jury_cert_regen_partial": "تم إعادة توليد SVG لكن R2 غير مهيأ",
+    "admin_jury_cert_regen_failed": "فشل إعادة التوليد"
   },
   "pwa": {
     "update_available": "إصدار جديد من JAPAP متاح. سيتم تطبيقه تلقائياً.",

@@ -822,7 +822,12 @@
     "admin_jury_expires": "Expira en el ciclo #{{n}}",
     "admin_jury_certificate": "Certificado",
     "admin_jury_revoke_reason": "Motivo: {{r}}",
-    "admin_jury_load_failed": "Error de carga"
+    "admin_jury_load_failed": "Error de carga",
+    "admin_jury_certificate_svg": "Certificado SVG",
+    "admin_jury_regen_cert": "Regenerar",
+    "admin_jury_cert_regen_ok": "Certificado regenerado y subido a R2",
+    "admin_jury_cert_regen_partial": "SVG regenerado pero R2 no configurado",
+    "admin_jury_cert_regen_failed": "Regeneración fallida"
   },
   "pwa": {
     "update_available": "Una nueva versión de JAPAP está disponible. Se aplicará automáticamente.",

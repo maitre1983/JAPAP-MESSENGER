@@ -586,3 +586,64 @@ async def photo_gallery(user_id: str, request: Request,
             "created_at": r["created_at"].isoformat() if r["created_at"] else None,
         })
     return {"items": items, "total": len(items), "private": False}
+
+
+
+# ── iter240l-fix — Public recent posts for the public profile page ──────────
+@router.get("/{user_id}/public-posts")
+async def public_posts(user_id: str, request: Request,
+                       limit: int = Query(10, ge=1, le=30)):
+    """Return only PUBLIC posts of a user.
+
+    Mirrors the visibility rules of the global feed (post.visibility='public'
+    AND author.account_visibility='public'). Returns empty list when author
+    is private; never 404 — keeps the profile page resilient."""
+    # Anonymous viewers allowed (public route). Don't raise on missing auth.
+    try:
+        viewer = await get_current_user(request)
+    except HTTPException:
+        viewer = None
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        author = await conn.fetchrow(
+            "SELECT user_id, account_visibility FROM users WHERE user_id = $1",
+            user_id,
+        )
+        if not author:
+            return {"posts": [], "total": 0}
+        is_self = bool(viewer and viewer.get("user_id") == author["user_id"])
+        # Private accounts: only expose their public posts to themselves
+        # (the feed already shows accepted-followers posts via /api/feed/posts).
+        if author["account_visibility"] != "public" and not is_self:
+            return {"posts": [], "total": 0}
+
+        rows = await conn.fetch(
+            """SELECT p.post_id, p.text AS content, p.media,
+                      p.visibility, p.likes_count, p.comments_count,
+                      p.created_at
+                 FROM posts p
+                WHERE p.user_id = $1
+                  AND p.visibility = 'public'
+                ORDER BY p.created_at DESC
+                LIMIT $2""", user_id, limit,
+        )
+    out = []
+    for r in rows:
+        media = r["media"]
+        # `media` is JSONB; asyncpg returns it as parsed list/dict already
+        urls = []
+        if isinstance(media, list):
+            for m in media:
+                if isinstance(m, dict) and m.get("url"):
+                    urls.append(m["url"])
+                elif isinstance(m, str):
+                    urls.append(m)
+        out.append({
+            "post_id": r["post_id"],
+            "content": r["content"],
+            "media_urls": urls,
+            "likes_count": r["likes_count"] or 0,
+            "comments_count": r["comments_count"] or 0,
+            "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+        })
+    return {"posts": out, "total": len(out)}

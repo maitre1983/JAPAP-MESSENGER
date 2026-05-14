@@ -345,6 +345,15 @@ code {
     }
 }
 
+
+/* iter240l-fix Bug 1 — Hide PWA refresh floating button on pages that opt-in
+   (currently PublicProfilePage). Add `hide-pwa-refresh` class on document.body
+   via useEffect to opt in/out without unmounting the global component. */
+body.hide-pwa-refresh [data-testid="pwa-refresh-floating"],
+body.hide-pwa-refresh [data-testid="pwa-refresh-btn"] {
+  display: none !important;
+}
+
 /* iter239x — Spin animation for PwaRefreshButton */
 @keyframes japap-spin {
     from { transform: rotate(0deg); }

@@ -411,7 +411,11 @@
     "kyc_verified": "Identity verified",
     "visibility_set_public": "Profile is now public.",
     "visibility_set_private": "Profile is now private.",
-    "visibility_failed": "Failed to change visibility."
+    "visibility_failed": "Failed to change visibility.",
+    "about": "About",
+    "no_info": "No information yet",
+    "recent_posts": "Recent posts",
+    "social_links": "Social links"
   },
   "admin": {
     "title": "Admin Dashboard",

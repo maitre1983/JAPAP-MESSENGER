@@ -47,6 +47,26 @@ export default function PublicProfilePage() {
     return () => { alive = false; };
   }, [username, t]);
 
+  // iter240l-fix Bug 1 — Masquer le bouton flottant PWA refresh sur cette route.
+  // Il est ajouté/retiré via une classe body pour ne pas démonter le composant
+  // global et ne pas affecter les autres pages.
+  useEffect(() => {
+    document.body.classList.add('hide-pwa-refresh');
+    return () => document.body.classList.remove('hide-pwa-refresh');
+  }, []);
+
+  // iter240l-fix Bug 2 — Fetch des publications récentes (publiques uniquement).
+  const [recentPosts, setRecentPosts] = useState(null);
+  useEffect(() => {
+    if (!profile?.user_id) return;
+    let alive = true;
+    axios
+      .get(`${API}/api/users/${profile.user_id}/public-posts?limit=10`, { withCredentials: true })
+      .then(({ data }) => { if (alive) setRecentPosts(Array.isArray(data?.posts) ? data.posts : []); })
+      .catch(() => { if (alive) setRecentPosts([]); });
+    return () => { alive = false; };
+  }, [profile?.user_id]);
+
   const isRtl = i18n.language === 'ar';
 
   if (loading) {
@@ -209,48 +229,93 @@ export default function PublicProfilePage() {
       {!isPrivate && (
         <main className="px-4 mt-4 pb-12 grid gap-4 md:grid-cols-3">
           <div className="md:col-span-2 space-y-4">
-            {profile.bio && (
-              <ProfileCard title={t('profile.bio', { defaultValue: 'À propos' })} testId="public-profile-bio-card">
-                <p className="text-sm whitespace-pre-wrap break-words">{profile.bio}</p>
-              </ProfileCard>
-            )}
-            {Array.isArray(profile.experience) && profile.experience.length > 0 && (
-              <ProfileCard title={t('profile.experience', { defaultValue: 'Expériences' })} testId="public-profile-experience-card">
-                {profile.experience.map((e, i) => (
+            {/* iter240l-fix — Toutes les sections affichées avec placeholder
+                quand vides. L'API retourne `about` (textarea longue) ET `bio`
+                (legacy). On préfère `about`, fallback `bio`. */}
+            <ProfileCard title={t('profile.about', { defaultValue: 'À propos' })} testId="public-profile-bio-card">
+              {(profile.about || profile.bio) ? (
+                <p className="text-sm whitespace-pre-wrap break-words">{profile.about || profile.bio}</p>
+              ) : (
+                <EmptyPlaceholder t={t} />
+              )}
+            </ProfileCard>
+
+            <ProfileCard title={t('profile.experience', { defaultValue: 'Expériences' })} testId="public-profile-experience-card">
+              {Array.isArray(profile.experience) && profile.experience.length > 0 ? (
+                profile.experience.map((e, i) => (
                   <ItemRow key={i} icon={<Briefcase size={14}/>}
                     title={`${e.title || ''}${e.company ? ' · ' + e.company : ''}`}
                     subtitle={e.period} description={e.description} />
-                ))}
-              </ProfileCard>
-            )}
-            {Array.isArray(profile.education) && profile.education.length > 0 && (
-              <ProfileCard title={t('profile.education', { defaultValue: 'Formation' })} testId="public-profile-education-card">
-                {profile.education.map((e, i) => (
+                ))
+              ) : <EmptyPlaceholder t={t} />}
+            </ProfileCard>
+
+            <ProfileCard title={t('profile.education', { defaultValue: 'Formation' })} testId="public-profile-education-card">
+              {Array.isArray(profile.education) && profile.education.length > 0 ? (
+                profile.education.map((e, i) => (
                   <ItemRow key={i} icon={<GraduationCap size={14}/>}
                     title={`${e.degree || ''}${e.school ? ' · ' + e.school : ''}`}
                     subtitle={e.year} description={e.description} />
-                ))}
-              </ProfileCard>
-            )}
-            {Array.isArray(profile.achievements) && profile.achievements.length > 0 && (
-              <ProfileCard title={t('profile.achievements', { defaultValue: 'Réalisations' })} testId="public-profile-achievements-card">
-                {profile.achievements.map((a, i) => (
+                ))
+              ) : <EmptyPlaceholder t={t} />}
+            </ProfileCard>
+
+            <ProfileCard title={t('profile.achievements', { defaultValue: 'Réalisations' })} testId="public-profile-achievements-card">
+              {Array.isArray(profile.achievements) && profile.achievements.length > 0 ? (
+                profile.achievements.map((a, i) => (
                   <ItemRow key={i} icon={<Crown size={14}/>}
                     title={a.title} subtitle={a.date} description={a.description} />
-                ))}
-              </ProfileCard>
-            )}
+                ))
+              ) : <EmptyPlaceholder t={t} />}
+            </ProfileCard>
+
+            {/* iter240l-fix — Publications récentes (public posts only). */}
+            <ProfileCard title={t('profile.recent_posts', { defaultValue: 'Publications récentes' })} testId="public-profile-posts-card">
+              {recentPosts === null ? (
+                <p className="text-xs text-slate-400 italic text-center py-3">
+                  {t('profile.loading', { defaultValue: 'Chargement…' })}
+                </p>
+              ) : recentPosts.length === 0 ? (
+                <EmptyPlaceholder t={t} />
+              ) : (
+                <div className="space-y-2">
+                  {recentPosts.map((p) => (
+                    <a key={p.post_id} href={`/feed?post=${p.post_id}`}
+                       data-testid={`public-profile-post-${p.post_id}`}
+                       className="block p-2 rounded-lg hover:bg-slate-50 transition no-underline text-slate-800">
+                      {p.content && (
+                        <p className="text-sm line-clamp-2 break-words">{p.content}</p>
+                      )}
+                      {Array.isArray(p.media_urls) && p.media_urls.length > 0 && (
+                        <div className="flex gap-1 mt-1 overflow-hidden">
+                          {p.media_urls.slice(0, 3).map((u, i) => (
+                            <img key={i} src={u} alt="" loading="lazy"
+                                 className="h-16 w-16 object-cover rounded-md" />
+                          ))}
+                        </div>
+                      )}
+                      <div className="text-[10px] text-slate-400 mt-1">
+                        {fmtRelTime(p.created_at, i18n.language)}
+                        {(p.likes_count ?? 0) > 0 && <> · ❤ {p.likes_count}</>}
+                        {(p.comments_count ?? 0) > 0 && <> · 💬 {p.comments_count}</>}
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </ProfileCard>
           </div>
           <aside className="space-y-4">
-            {Array.isArray(profile.skills) && profile.skills.length > 0 && (
-              <ProfileCard title={t('profile.skills', { defaultValue: 'Compétences' })} testId="public-profile-skills-card">
+            <ProfileCard title={t('profile.skills', { defaultValue: 'Compétences' })} testId="public-profile-skills-card">
+              {Array.isArray(profile.skills) && profile.skills.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
                   {profile.skills.map((s, i) => (
                     <span key={i} className="px-2 py-0.5 rounded-full bg-slate-100 text-xs font-semibold text-slate-700">{s}</span>
                   ))}
                 </div>
-              </ProfileCard>
-            )}
+              ) : <EmptyPlaceholder t={t} />}
+            </ProfileCard>
+
             {Array.isArray(profile.languages_spoken) && profile.languages_spoken.length > 0 && (
               <ProfileCard title={t('profile.languages', { defaultValue: 'Langues parlées' })} testId="public-profile-languages-card">
                 <div className="flex flex-wrap gap-1.5">
@@ -260,8 +325,9 @@ export default function PublicProfilePage() {
                 </div>
               </ProfileCard>
             )}
-            {(profile.website_url || profile.linkedin_url || profile.twitter_url) && (
-              <ProfileCard title={t('profile.links', { defaultValue: 'Liens' })} testId="public-profile-links-card">
+
+            <ProfileCard title={t('profile.social_links', { defaultValue: 'Réseaux sociaux' })} testId="public-profile-links-card">
+              {(profile.website_url || profile.linkedin_url || profile.twitter_url) ? (
                 <div className="flex flex-col gap-2 text-sm">
                   {profile.website_url && (
                     <a href={profile.website_url} target="_blank" rel="noopener noreferrer"
@@ -282,13 +348,34 @@ export default function PublicProfilePage() {
                     </a>
                   )}
                 </div>
-              </ProfileCard>
-            )}
+              ) : <EmptyPlaceholder t={t} />}
+            </ProfileCard>
           </aside>
         </main>
       )}
     </div>
   );
+}
+
+function EmptyPlaceholder({ t }) {
+  return (
+    <p className="text-xs text-slate-400 italic text-center py-3" data-testid="public-profile-empty">
+      {t('profile.no_info', { defaultValue: 'Aucune information renseignée' })}
+    </p>
+  );
+}
+
+function fmtRelTime(iso, lang) {
+  if (!iso) return '';
+  try {
+    const dt = new Date(iso);
+    const diff = (Date.now() - dt.getTime()) / 1000;
+    if (diff < 60) return `${Math.round(diff)}s`;
+    if (diff < 3600) return `${Math.round(diff/60)}m`;
+    if (diff < 86400) return `${Math.round(diff/3600)}h`;
+    if (diff < 604800) return `${Math.round(diff/86400)}d`;
+    return dt.toLocaleDateString(lang || 'fr-FR', { day: '2-digit', month: 'short' });
+  } catch { return ''; }
 }
 
 function ProfileCard({ title, children, testId }) {

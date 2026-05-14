@@ -383,7 +383,11 @@
     "kyc_verified": "Identidad verificada",
     "visibility_set_public": "Perfil ahora es público.",
     "visibility_set_private": "Perfil ahora es privado.",
-    "visibility_failed": "Error al cambiar la visibilidad."
+    "visibility_failed": "Error al cambiar la visibilidad.",
+    "about": "Acerca de",
+    "no_info": "Sin información todavía",
+    "recent_posts": "Publicaciones recientes",
+    "social_links": "Redes sociales"
   },
   "admin": {
     "title": "Panel de Admin",

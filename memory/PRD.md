@@ -7,6 +7,30 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240l-fix — Corrections urgentes page profil public (14/05/2026)
+
+### Bug 1 — Bouton PWA refresh visible sur `/profile/:username`
+- **Fix** : `useEffect` dans `PublicProfilePage.jsx` ajoute/retire `body.hide-pwa-refresh` au mount/unmount.
+- **CSS** dans `index.css` : `body.hide-pwa-refresh [data-testid="pwa-refresh-floating"] { display: none !important }`. Composant global jamais démonté — fonctionne toujours sur les autres pages.
+
+### Bug 2 — Page profil quasi vide pour `@meiravane1633be5`
+**Root cause** : L'API retourne `about` (textarea longue) mais le frontend lisait `profile.bio` (legacy nullable). Section "À propos" jamais affichée pour Meira (et tous les profils LinkedIn-style).
+- Fix data : `profile.about || profile.bio` (préfère about, fallback bio).
+- Fix UX : toutes les sections (À propos / Expériences / Formation / Réalisations / Compétences / Réseaux sociaux / Publications récentes) **toujours affichées** avec placeholder `<EmptyPlaceholder>` ("Aucune information renseignée" italique gris centré).
+- NEW section "Publications récentes" via nouveau endpoint additif `GET /api/users/{user_id}/public-posts` (anonymous-friendly, visibility public+public, jamais 404).
+- 5 nouvelles clés i18n × 5 langues.
+
+### Validation
+- Screenshot full-page Meira : 7/7 sections visibles, 3 posts récents listés, PWA refresh masqué, layout 2-col desktop.
+- Endpoint backend testé 200 OK (3 posts publics de Meira retournés).
+
+### Fichiers
+- MOD : `frontend/src/pages/PublicProfilePage.jsx`, `index.css`
+- MOD : `backend/routes/users.py` (+endpoint public-posts)
+- MOD : `frontend/src/locales/{fr,en,es,ar,ru}.json` (+5×5)
+- MOD : `frontend/public/sw.js` → v25-iter240l-fix
+
+
 ## iter240l-pdf — Certificat PDF imprimable + viralité LinkedIn (14/05/2026)
 
 **Demande user** : transformer le SVG en PDF imprimable via Puppeteer/wkhtmltopdf. Choix technique : **cairosvg** (lib Python pure, ~5MB, conversion SVG→PDF vectorielle native, pas de Chrome/binaire externe, parfait pour un worker FastAPI).

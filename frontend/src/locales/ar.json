@@ -383,7 +383,11 @@
     "kyc_verified": "الهوية موثقة",
     "visibility_set_public": "الملف الآن عام.",
     "visibility_set_private": "الملف الآن خاص.",
-    "visibility_failed": "فشل تغيير الظهور."
+    "visibility_failed": "فشل تغيير الظهور.",
+    "about": "نبذة",
+    "no_info": "لا توجد معلومات بعد",
+    "recent_posts": "أحدث المنشورات",
+    "social_links": "روابط اجتماعية"
   },
   "admin": {
     "title": "لوحة الإدارة",

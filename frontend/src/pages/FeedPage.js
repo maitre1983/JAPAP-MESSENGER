@@ -23,6 +23,7 @@ import ImageCropper from '@/components/ImageCropper';
 // iter239d — Pro video player (lazy autoplay, scrubbable, fullscreen).
 import VideoPlayer from '@/components/VideoPlayer';
 import MediaFilterEditor from '@/components/media/MediaFilterEditor';
+import UserNameLink from '@/components/common/UserNameLink';
 import ZoomableImage from '@/components/media/ZoomableImage';
 // iter239o — SmartImage: orientation-aware feed thumbnail (portrait→3/4,
 // landscape→16/9, square→1/1). ZoomableImage stays for fullscreen zoom.
@@ -746,14 +747,19 @@ export default function FeedPage() {
                 </div>
               )}
               <div className="flex items-center gap-3 p-4 pb-2">
-                <div className="jp-avatar jp-avatar-md jp-avatar-primary">
+                <UserNameLink user={{ user_id: post.user_id, username: post.username }}
+                              className="jp-avatar jp-avatar-md jp-avatar-primary"
+                              data-testid={`post-${post.post_id}-author-avatar`}>
                   {post.avatar ? <img src={post.avatar} alt="" /> : (post.first_name?.[0] || '?').toUpperCase()}
-                </div>
+                </UserNameLink>
                 <div className="flex-1">
                   <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-semibold font-['Manrope']" style={{ color: 'var(--jp-text)' }}>
+                    <UserNameLink user={{ user_id: post.user_id, username: post.username }}
+                                  className="text-sm font-semibold font-['Manrope']"
+                                  style={{ color: 'var(--jp-text)' }}
+                                  data-testid={`post-${post.post_id}-author-name`}>
                       {post.first_name} {post.last_name}
-                    </p>
+                    </UserNameLink>
                     {post.is_pinned && (
                       <span className="text-[9px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5 font-bold"
                         style={{ background: '#FEF3C7', color: '#B45309' }}

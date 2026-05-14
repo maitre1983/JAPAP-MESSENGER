@@ -27,23 +27,105 @@ class UpdateProfileRequest(BaseModel):
     cover_image: Optional[str] = None
     cover_image_mobile: Optional[str] = None
     cover_position_y: Optional[int] = None  # 0-100 percent, for drag repositioning
+    # iter240j — LinkedIn-style profile extension fields (all additive).
+    headline: Optional[str] = None
+    bio: Optional[str] = None
+    location: Optional[str] = None
+    website_url: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    twitter_url: Optional[str] = None
+    profession: Optional[str] = None
+    company: Optional[str] = None
+    skills: Optional[list] = None
+    languages_spoken: Optional[list] = None
+    experience: Optional[list] = None
+    education: Optional[list] = None
+    achievements: Optional[list] = None
 
 
-@router.get("/profile/{user_id}")
-async def get_profile(user_id: str, request: Request):
-    viewer = await get_current_user(request)
+# iter240j — Profile visibility toggle payload.
+class VisibilityRequest(BaseModel):
+    visibility: str  # 'public' or 'private'
+
+
+# iter240j — Helper to compute profile completion percentage.
+def _compute_completion_pct(u: dict) -> int:
+    pct = 0
+    if u.get("avatar"):
+        pct += 15
+    if u.get("headline"):
+        pct += 15
+    if u.get("bio"):
+        pct += 20
+    if u.get("location"):
+        pct += 10
+    if u.get("profession") and u.get("company"):
+        pct += 10
+    skills = u.get("skills") or []
+    if isinstance(skills, list) and len(skills) >= 3:
+        pct += 10
+    exp = u.get("experience") or []
+    if isinstance(exp, list) and len(exp) >= 1:
+        pct += 10
+    edu = u.get("education") or []
+    if isinstance(edu, list) and len(edu) >= 1:
+        pct += 5
+    if u.get("website_url") or u.get("linkedin_url") or u.get("twitter_url"):
+        pct += 5
+    return min(100, pct)
+
+
+# iter240j — Strip private fields when the viewer is NOT the owner and
+# profile_visibility='private'. Public-only fields stay (display_name,
+# username, avatar, headline). Email is always stripped from public API.
+_PRIVATE_FIELDS_HIDDEN_WHEN_PRIVATE = (
+    "bio", "location", "website_url", "linkedin_url", "twitter_url",
+    "profession", "company", "skills", "languages_spoken",
+    "experience", "education", "achievements",
+    "phone_number", "phone", "birthday", "gender",
+    "followers_count", "following_count", "posts_count",
+    "wallet_balance", "wallet_currency", "is_following",
+)
+
+
+def _strip_for_private_view(resp: dict) -> dict:
+    out = {k: v for k, v in resp.items() if k not in _PRIVATE_FIELDS_HIDDEN_WHEN_PRIVATE}
+    out["is_private"] = True
+    return out
+
+
+@router.get("/profile/{user_id_or_username}")
+async def get_profile(user_id_or_username: str, request: Request):
+    """iter240j — Lookup by user_id OR username. Visibility-aware:
+       • Public profile → full payload (without email).
+       • Private profile, viewer != owner → only public-safe fields + is_private=true.
+       • Private profile, viewer == owner → full payload.
+    Auth is optional: anonymous viewers may see public profiles.
+    """
+    # iter240j — Auth is OPTIONAL for public profiles; we swallow 401 so
+    # logged-out visitors can still see the public version.
+    viewer = None
+    try:
+        viewer = await get_current_user(request)
+    except HTTPException:
+        viewer = None
     pool = await get_pool()
     async with pool.acquire() as conn:
-        user = await conn.fetchrow("SELECT * FROM users WHERE user_id = $1", user_id)
+        # Try user_id first (fast), then case-insensitive username.
+        user = await conn.fetchrow(
+            "SELECT * FROM users WHERE user_id = $1", user_id_or_username,
+        )
+        if not user:
+            user = await conn.fetchrow(
+                "SELECT * FROM users WHERE LOWER(username) = LOWER($1)",
+                user_id_or_username,
+            )
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        wallet = await conn.fetchrow("SELECT balance, currency FROM wallets WHERE user_id = $1", user_id)
-        # iter173 — Trust badge: Identity verified comes ONLY from an approved
-        # KYC submission, NOT from the generic `is_verified` flag (which is
-        # also set for email-verified users / superadmin seed). A separate
-        # boolean lets the UI render a distinct "✅ Identité vérifiée" badge
-        # on the profile, marketplace listings and post author chips —
-        # boosting seller trust without conflating signals.
+        user_id = user["user_id"]
+        wallet = await conn.fetchrow(
+            "SELECT balance, currency FROM wallets WHERE user_id = $1", user_id,
+        )
         kyc_verified = bool(await conn.fetchval(
             "SELECT 1 FROM kyc_verifications WHERE user_id = $1 "
             "AND status = 'approved' LIMIT 1", user_id))
@@ -52,25 +134,77 @@ async def get_profile(user_id: str, request: Request):
         if wallet:
             resp['wallet_balance'] = str(wallet['balance'])
             resp['wallet_currency'] = wallet['currency']
-        # Surface the full social layer: cached counts (O(1)) + the viewer's
-        # is_following flag (O(1) index lookup) so the UI can render follow
-        # buttons without an extra round-trip.
         resp['followers_count'] = user['followers_count'] or 0
         resp['following_count'] = user['following_count'] or 0
         resp['posts_count'] = user['posts_count'] or 0
         resp['cover_image'] = user['cover_image']
         resp['cover_position_y'] = user['cover_position_y'] if user['cover_position_y'] is not None else 50
-        if viewer['user_id'] == user_id:
-            resp['is_following'] = False
-            resp['is_self'] = True
-        else:
+
+        # iter240j — Expose the LinkedIn-style fields.
+        for k in ("profile_visibility", "headline", "bio", "location",
+                  "website_url", "linkedin_url", "twitter_url",
+                  "profession", "company", "skills", "languages_spoken",
+                  "experience", "education", "achievements",
+                  "profile_completed_at"):
+            v = user[k] if k in user else None
+            if hasattr(v, "isoformat"):
+                v = v.isoformat()
+            resp[k] = v
+        # Ensure JSONB/list defaults are never null in the JSON payload.
+        for k in ("skills", "languages_spoken", "experience", "education", "achievements"):
+            if resp.get(k) is None:
+                resp[k] = []
+        resp["profile_completion_pct"] = _compute_completion_pct(resp)
+        # Never expose email through the public API.
+        resp.pop("email", None)
+
+        is_self = bool(viewer and viewer.get("user_id") == user_id)
+        resp["is_self"] = is_self
+        if is_self:
+            resp["is_following"] = False
+        elif viewer:
             is_following = await conn.fetchval(
                 "SELECT 1 FROM user_follows WHERE follower_id = $1 AND followed_id = $2",
-                viewer['user_id'], user_id,
+                viewer["user_id"], user_id,
             )
-            resp['is_following'] = bool(is_following)
-            resp['is_self'] = False
+            resp["is_following"] = bool(is_following)
+        else:
+            resp["is_following"] = False
+
+        # iter240j — Apply privacy mask if needed.
+        visibility = (user["profile_visibility"] or "public").lower()
+        if visibility == "private" and not is_self:
+            return _strip_for_private_view(resp)
+        resp["is_private"] = False
         return resp
+
+
+# iter240j — Quick public-safe "me" endpoint to bootstrap the edit modal
+# without going through the visibility-aware path above.
+@router.get("/profile/me/full")
+async def get_my_profile_full(request: Request):
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required.")
+    return await get_profile(user["user_id"], request)
+
+
+# iter240j — Visibility toggle.
+@router.post("/profile/visibility")
+async def set_profile_visibility(req: VisibilityRequest, request: Request):
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required.")
+    v = (req.visibility or "").lower().strip()
+    if v not in ("public", "private"):
+        raise HTTPException(status_code=400, detail="visibility must be 'public' or 'private'.")
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET profile_visibility = $1, updated_at = NOW() WHERE user_id = $2",
+            v, user["user_id"],
+        )
+    return {"ok": True, "visibility": v}
 
 
 @router.put("/profile")
@@ -80,13 +214,31 @@ async def update_profile(req: UpdateProfileRequest, request: Request):
     updates = {}
     for field in ['first_name', 'last_name', 'phone_number', 'about', 'gender',
                   'birthday', 'country', 'language', 'avatar', 'avatar_thumb',
-                  'cover_image', 'cover_image_mobile', 'cover_position_y']:
+                  'cover_image', 'cover_image_mobile', 'cover_position_y',
+                  # iter240j — LinkedIn-style fields.
+                  'headline', 'bio', 'location', 'website_url', 'linkedin_url',
+                  'twitter_url', 'profession', 'company', 'skills',
+                  'languages_spoken', 'experience', 'education', 'achievements']:
         val = getattr(req, field, None)
         if val is not None:
             updates[field] = val
 
     if not updates:
         raise HTTPException(status_code=400, detail="No fields to update")
+
+    # iter240j — Defensive validation: enforce length caps to keep the
+    # API stable and prevent abuse.
+    if 'headline' in updates and updates['headline'] and len(updates['headline']) > 220:
+        raise HTTPException(status_code=400, detail="headline ≤ 220 chars.")
+    if 'bio' in updates and updates['bio'] and len(updates['bio']) > 2000:
+        raise HTTPException(status_code=400, detail="bio ≤ 2000 chars.")
+    if 'skills' in updates and isinstance(updates['skills'], list) and len(updates['skills']) > 15:
+        raise HTTPException(status_code=400, detail="skills ≤ 15 items.")
+    # JSONB-typed fields: serialize lists/dicts as JSON strings for asyncpg.
+    import json as _json
+    for jf in ('experience', 'education', 'achievements'):
+        if jf in updates and updates[jf] is not None:
+            updates[jf] = _json.dumps(updates[jf])
 
     # Clamp cover positioning to a sane 0-100 percent band so a stale client
     # can't poison the DB.
@@ -102,8 +254,18 @@ async def update_profile(req: UpdateProfileRequest, request: Request):
 
     async with pool.acquire() as conn:
         await conn.execute(f"UPDATE users SET {set_clause} WHERE user_id = ${len(values)}", *values)
+        # iter240j — Mark profile as "completed" the first time the user
+        # crosses 60% completion (used to nudge stale profiles).
         updated = await conn.fetchrow("SELECT * FROM users WHERE user_id = $1", user['user_id'])
-        return user_to_response(dict(updated))
+        pct = _compute_completion_pct(dict(updated))
+        if pct >= 60 and not updated.get('profile_completed_at'):
+            await conn.execute(
+                "UPDATE users SET profile_completed_at = NOW() WHERE user_id = $1",
+                user['user_id'],
+            )
+        resp = user_to_response(dict(updated))
+        resp['profile_completion_pct'] = pct
+        return resp
 
 
 @router.get("/search")

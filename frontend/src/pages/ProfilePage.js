@@ -15,6 +15,8 @@ import PhotoGallery from '@/components/profile/PhotoGallery';
 import { uploadAvatar, uploadCover } from '@/utils/imageUpload';
 import TipSettingsCard from '@/components/profile/TipSettingsCard';
 import CurrencyDisplayToggleCard from '@/components/profile/CurrencyDisplayToggleCard';
+import ProfileCompletionBar from '@/components/profile/ProfileCompletionBar';
+import EditProfileLinkedInModal from '@/components/profile/EditProfileLinkedInModal';
 import DisplayCurrencySelector from '@/components/profile/DisplayCurrencySelector';
 import ScholarshipDigestPref from '@/components/profile/ScholarshipDigestPref';
 import KycVerifiedBadge from '@/components/KycVerifiedBadge';
@@ -51,6 +53,19 @@ export default function ProfilePage() {
   // Pending follow requests — surfaced as a dedicated CTA on the profile
   // header so the user never misses approval-gated incoming follows.
   const [pendingFollowRequests, setPendingFollowRequests] = useState(0);
+  // iter240j — LinkedIn-style profile state.
+  const [editingLinkedIn, setEditingLinkedIn] = useState(false);
+  const [fullProfile, setFullProfile] = useState(null);
+
+  // iter240j — Fetch full profile (with completion pct + new fields).
+  useEffect(() => {
+    if (!user?.user_id) return;
+    let alive = true;
+    axios.get(`${API}/api/users/profile/me/full`, { withCredentials: true })
+      .then(({ data }) => { if (alive) setFullProfile(data); })
+      .catch(() => { /* silent */ });
+    return () => { alive = false; };
+  }, [user?.user_id, editingLinkedIn]);
   // Social layer: we re-fetch the profile row (includes counts + is_following)
   // on mount so the numbers are always fresh even when the bootstrap `user`
   // in AuthContext is stale (e.g. after a follow from a friend-profile page).
@@ -454,6 +469,25 @@ export default function ProfilePage() {
               {/* ══ iter141nineF — Pay-as-you-Tip settings ══ */}
               <TipSettingsCard userId={user?.user_id} />
 
+              {/* ══ iter240j — LinkedIn-style profile sections (Edit Profile CTA + Completion bar) ══ */}
+              <div className="mt-3 p-4 rounded-2xl space-y-3" data-testid="profile-linkedin-card"
+                   style={{ background: 'var(--jp-surface-secondary)', border: '1px solid var(--jp-border)' }}>
+                <ProfileCompletionBar pct={fullProfile?.profile_completion_pct || 0} />
+                <button
+                  type="button"
+                  onClick={() => setEditingLinkedIn(true)}
+                  data-testid="profile-linkedin-edit-btn"
+                  className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold">
+                  {t('profile.edit', { defaultValue: 'Modifier le profil' })}
+                </button>
+                <a
+                  href={`/profile/${user?.username || user?.user_id}`}
+                  data-testid="profile-linkedin-view-public-btn"
+                  className="block text-center text-xs font-bold text-rose-600 no-underline hover:underline">
+                  {t('profile.view_public', { defaultValue: 'Voir mon profil public ↗' })}
+                </a>
+              </div>
+
               {/* ══ iter240g — Currency display preferences ══ */}
               <div className="mt-3">
                 <CurrencyDisplayToggleCard />
@@ -547,6 +581,13 @@ export default function ProfilePage() {
           setCropperFor(filterEditor.target);
           setFilterEditor({ open: false, target: null });
         }}
+      />
+      {/* iter240j — LinkedIn-style edit modal */}
+      <EditProfileLinkedInModal
+        open={editingLinkedIn}
+        profile={fullProfile}
+        onClose={() => setEditingLinkedIn(false)}
+        onSaved={() => setEditingLinkedIn(false)}
       />
     </div>
   );

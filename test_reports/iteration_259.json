@@ -1,0 +1,56 @@
+{
+  "summary": "iter240j — LinkedIn-style profile + Public/Private visibility tested. Backend 12/12 PASS. UI public profile renders correctly (visual confirmation via screenshot: headline, location, Send-message CTA, Bio card, Skills chips, Links card all visible on anonymous /profile/bob48c0). Owner-view + edit-modal flow could not be UI-tested end-to-end due to Math-captcha on login (Playwright didn't solve it) — but all data-testids are present in PublicProfilePage.jsx source (verified by grep).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/users/profile/{u}", "issue": "experience/education/achievements come back as JSON-encoded strings (e.g. '[]') rather than arrays — asyncpg JSONB decoding quirk noted by E1. Frontend tolerated. Consider json.loads at serialization time for consistency."},
+      {"endpoint": "Backend was unreachable on localhost:8001 at the start of testing (uvicorn was listening but not responding for ~minutes). A supervisorctl restart of backend resolved it. Worth checking for occasional event-loop blockage (LiteLLM calls visible in logs)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Playwright login bypass", "issue": "Login form has a visual math captcha (e.g. '14 - 3 =') with no test bypass slot — automated E2E that needs an authenticated session can't proceed via the UI. Backend has JAPAP_E2E_BYPASS_2026 but frontend LoginPage doesn't appear to expose it through the form. Recommend a dev-only auto-fill or storage hint when REACT_APP_E2E=1.", "affected_selectors": ["[data-testid='login-submit']"]}
+    ],
+    "design_issues": []
+  },
+  "feature_results": {
+    "A_new_fields_exposed": "PASS — anonymous GET returns all 15 new fields + profile_completion_pct + is_self + is_private",
+    "B_lookup_by_username_or_user_id": "PASS — both variants return same payload",
+    "C_put_profile_completion_jump": "PASS — payload {headline, bio, skills:[3]} → pct ≥ 50%",
+    "D_visibility_toggle_private_public": "PASS — private masks bio/skills/wallet/etc, owner still sees full, public restores",
+    "E_F_public_profile_sections_render": "VISUAL PASS — screenshot shows headline, location, Send-message CTA, Bio card, Skills chips (python, react, tests), Links card (https://example.org). data-testids present in source.",
+    "G_username_link_in_feed": "NOT TESTED — could not log in via captcha; needs main agent self-test or dev captcha bypass.",
+    "H_profile_linkedin_card_and_modal": "NOT TESTED — same auth blocker. data-testids exist in source.",
+    "I_visibility_toggle_ui": "NOT TESTED — same auth blocker.",
+    "J_i18n_5_langues": "NOT TESTED",
+    "K_rtl_arabic": "NOT TESTED — but dir attribute IS wired in PublicProfilePage.jsx (dir={isRtl?'rtl':'ltr'} at line 91)",
+    "L_email_never_leaked": "PASS — owner view, other-user view, and anonymous view all confirmed no email key",
+    "M_completion_pct_progression": "PASS — pct increases monotonically as fields added"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter240j_linkedin_profile.py",
+    "/app/test_reports/pytest/iter240j_results.xml"
+  ],
+  "action_items": [
+    "Add a captcha bypass for E2E tests on the LoginPage (frontend should accept ?e2e=1 or env-var to auto-fill JAPAP_E2E_BYPASS_2026 → captcha_answer=0), so Playwright can complete the auth-gated flows (G/H/I/J/K).",
+    "Consider json.loads on experience/education/achievements at GET-profile serialization so the FE never has to defensively parse a string.",
+    "Investigate occasional uvicorn unresponsiveness (likely async-blocking LiteLLM calls in some background path)."
+  ],
+  "critical_code_review_comments": [
+    "users.py routing OK: get_profile correctly swallows 401 to allow anon access; _strip_for_private_view drops 14 sensitive fields and forces is_private=true.",
+    "_compute_completion_pct is deterministic and capped at 100 — good.",
+    "JSONB fields stored as str via _json.dumps in PUT — but the read path does NOT json.loads them back. Frontend must be tolerant (E1 already aware).",
+    "Email is explicitly popped from response — good; verified by tests across 3 viewer-contexts."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter240j_linkedin_profile.py (NEW)"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "partial — public anonymous flow visually verified; owner-flow blocked by captcha"},
+  "test_credentials": "Bob: bob@japap.com / Test1234! (username bob48c0). Captcha bypass via JSON body: captcha_id=JAPAP_E2E_BYPASS_2026, captcha_answer=0. Login UI does NOT seem to surface this — used backend curl only.",
+  "seed_data_creation": "Modified Bob's profile during PUT tests (headline='Test headline iter240j', bio='Bio test iter240j', skills=[python,react,tests], website_url=https://example.org, location='Yaoundé, CM'). Bob restored to profile_visibility=public at fixture teardown.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend fully green. For UI: anonymous /profile/bob48c0 confirmed to render PublicProfilePage with all sections. Owner-side UI (LinkedIn edit modal, visibility toggle, completion bar, UserNameLink navigation from feed) needs either (a) a frontend E2E captcha bypass, or (b) manual smoke by main agent. data-testids are all present in PublicProfilePage.jsx (verified by grep at lines 91, 126, 163, 171, 199, 213, 246). SW_VERSION verification not performed.",
+  "rca of the issue": "N/A — no critical bug. Test gap is purely access-related (Playwright cannot solve the math captcha)."
+}

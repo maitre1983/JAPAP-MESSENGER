@@ -24,6 +24,7 @@ const RegisterPage = lazy(() => import('@/pages/RegisterPage'));
 const FeedPage = lazy(() => import('@/pages/FeedPage'));
 const ChatPage = lazy(() => import('@/pages/ChatPage'));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
+const PublicProfilePage = lazy(() => import('@/pages/PublicProfilePage'));
 const WalletPage = lazy(() => import('@/pages/WalletPage'));
 const ServicesPage = lazy(() => import('@/pages/ServicesPage'));
 
@@ -257,6 +258,8 @@ function AppRouter() {
       <Route path="/groups" element={<ProtectedRoute><GroupsPage /></ProtectedRoute>} />
       <Route path="/pages" element={<ProtectedRoute><PagesPage /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+      {/* iter240j — Public profile route (visibility-aware backend). */}
+      <Route path="/profile/:username" element={<PublicProfilePage />} />
       
       {/* Pro, Notifications, Admin */}
       <Route path="/pro" element={<ProtectedRoute><ProPage /></ProtectedRoute>} />

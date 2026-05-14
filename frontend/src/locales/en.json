@@ -1444,5 +1444,16 @@
     "square": "Square",
     "loading": "Loading image...",
     "error": "Image unavailable"
+  },
+  "stories": {
+    "add_story": "My story",
+    "your_story": "You",
+    "add_photo": "Add photo",
+    "add_video": "Add video",
+    "add_text": "Add text",
+    "views": "{{count}} views",
+    "expires_in": "Expires in {{time}}",
+    "delete_story": "Delete my story",
+    "no_stories": "No stories available"
   }
 }

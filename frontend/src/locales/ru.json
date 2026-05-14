@@ -233,5 +233,16 @@
     "uploading": "Публикация…",
     "post_failed": "Ошибка публикации. Попробуйте снова.",
     "post_success": "Опубликовано!"
+  },
+  "stories": {
+    "add_story": "Моя история",
+    "your_story": "Вы",
+    "add_photo": "Добавить фото",
+    "add_video": "Добавить видео",
+    "add_text": "Добавить текст",
+    "views": "{{count}} просмотров",
+    "expires_in": "Истекает через {{time}}",
+    "delete_story": "Удалить историю",
+    "no_stories": "Историй нет"
   }
 }

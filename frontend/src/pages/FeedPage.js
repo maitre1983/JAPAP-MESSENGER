@@ -712,7 +712,9 @@ export default function FeedPage() {
                   </div>
                 </div>
                 <span className="text-[10px] font-['Manrope'] truncate max-w-[70px]" style={{ color: 'var(--jp-text)' }}>
-                  {g.user_id === user?.user_id ? 'Vous' : g.name.split(' ')[0]}
+                  {g.user_id === user?.user_id
+                    ? t('stories.your_story', { defaultValue: 'Vous' })
+                    : g.name.split(' ')[0]}
                 </span>
               </button>
             ))}

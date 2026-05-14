@@ -1386,5 +1386,16 @@
     "square": "Cuadrado",
     "loading": "Cargando imagen...",
     "error": "Imagen no disponible"
+  },
+  "stories": {
+    "add_story": "Mi historia",
+    "your_story": "Tú",
+    "add_photo": "Añadir foto",
+    "add_video": "Añadir video",
+    "add_text": "Añadir texto",
+    "views": "{{count}} vistas",
+    "expires_in": "Expira en {{time}}",
+    "delete_story": "Eliminar mi historia",
+    "no_stories": "No hay historias disponibles"
   }
 }

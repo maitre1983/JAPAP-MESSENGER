@@ -7,6 +7,45 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240i — Stories i18n (14/05/2026) — 95% existait déjà
+
+**Audit anti-doublons** : Le système Stories complet existait DÉJÀ depuis iter147+ :
+- ✅ Tables DB `stories` + `story_views`
+- ✅ Backend `routes/feed_extended.py` : GET/POST `/stories`, POST `/stories/{id}/view`, DELETE `/stories/{id}`
+- ✅ Frontend FeedPage L682 : bouton "+ Ma story" (création)
+- ✅ Frontend FeedPage L701 : carousel horizontal scroll avec anneau gradient/gris (vue/non-vue)
+- ✅ Frontend FeedPage L981 : `<StoryViewer>` plein écran 9:16 avec barre de progression, tap left/right nav, auto-avance
+- ✅ Story creation flow : `showStoryCreate`, `storyPhoto`, `storyBg`, `storyPreset` (filters)
+
+### Vrais gaps comblés
+1. **`'Vous'` hardcodé** L716 du carousel → passé en i18n `stories.your_story`
+2. **Aucune clé `stories.*`** dans les locales → ajout des 9 clés × 5 langues (`add_story`, `your_story`, `add_photo`, `add_video`, `add_text`, `views`, `expires_in`, `delete_story`, `no_stories`)
+3. **SW_VERSION** → v25-iter240i
+
+### Fichiers modifiés
+- MOD : `frontend/src/pages/FeedPage.js` (1 string FR hardcodée → i18n)
+- MOD : `frontend/src/locales/{fr,en,es,ar,ru}.json` (+9 clés × 5)
+- MOD : `frontend/public/sw.js` (v25-iter240i)
+
+### Tâches NON refaites (déjà en place)
+- ❌ StoriesCarousel.jsx component : déjà inline dans FeedPage L701
+- ❌ StoryViewer plein écran : déjà inline dans FeedPage L981 + helper component L1221-1264
+- ❌ Backend stories endpoints : déjà dans feed_extended.py L245-340
+- ❌ DB tables stories + story_views : déjà créées
+- ❌ Auto-expiration 24h : déjà via `expires_at` colonne + filtre côté backend
+- ❌ Auto-avance 5s : déjà dans StoryViewer existant
+
+### Validation
+- ✅ Lint OK
+- ✅ Aucune logique paiement touchée
+- ✅ Zéro régression — pure addition de clés i18n + 1 binding
+
+### Backlog identifié
+- Si l'utilisateur veut une refonte VISUELLE du Stories Viewer (style Instagram exact), c'est un travail à part : préciser les divergences via screenshot
+- Si autres textes Stories sont encore hardcodés ailleurs (ex: dans `showStoryCreate` modal), les passer en i18n
+
+
+
 ## iter240h — Fix SmartImage portrait + Badge upload live + i18n Feed/Reels (14/05/2026)
 
 **Règles respectées** : zéro paiement touché, 100% additif, SW bumpé, 5 langues, zéro hardcode.

@@ -1386,5 +1386,16 @@
     "square": "مربع",
     "loading": "جارٍ تحميل الصورة...",
     "error": "الصورة غير متاحة"
+  },
+  "stories": {
+    "add_story": "قصتي",
+    "your_story": "أنت",
+    "add_photo": "إضافة صورة",
+    "add_video": "إضافة فيديو",
+    "add_text": "إضافة نص",
+    "views": "{{count}} مشاهدة",
+    "expires_in": "تنتهي في {{time}}",
+    "delete_story": "حذف قصتي",
+    "no_stories": "لا توجد قصص متاحة"
   }
 }

@@ -650,6 +650,7 @@
       "notif_placeholder": "Message to send to the user…",
       "send_notif": "Send",
       "notif_sent": "Notification sent",
+      "notif_failed": "Send failed",
       "won_usd": "Won (USD)",
       "won_pts": "Won (PTS)",
       "refunded": "Refunded",

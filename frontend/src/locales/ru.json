@@ -188,6 +188,7 @@
       "notif_placeholder": "Сообщение пользователю…",
       "send_notif": "Отправить",
       "notif_sent": "Уведомление отправлено",
+      "notif_failed": "Ошибка отправки",
       "won_usd": "Выигрыш (USD)",
       "won_pts": "Выигрыш (PTS)",
       "refunded": "Возвращено",

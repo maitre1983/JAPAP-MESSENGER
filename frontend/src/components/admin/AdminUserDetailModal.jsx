@@ -466,7 +466,17 @@ function SendNotifFooter({ userId, t }) {
       await axios.post(`${API}/api/admin/users/${userId}/send-notification`, { message: txt, type:'info' }, { withCredentials:true });
       toast.success(t('admin.user_detail.notif_sent'));
       setMsg('');
-    } catch { toast.error(t('admin.user_detail.action_failed')); }
+    } catch (e) {
+      // iter240l-msgfix — surface the actual failure reason so admins can
+      // act on it (CSRF, 404 user gone, 500 DB, network…). Falls back to
+      // the generic label only when no detail is available.
+      const status = e?.response?.status;
+      const detail = e?.response?.data?.detail || e?.message || '';
+      // eslint-disable-next-line no-console
+      console.error('[admin send-notification] failed:', status, detail, e);
+      const base = t('admin.user_detail.notif_failed', { defaultValue: 'Envoi échoué' });
+      toast.error(status || detail ? `${base} (${status || ''}${status && detail ? ' · ' : ''}${detail})` : base);
+    }
     finally { setBusy(false); }
   };
   return (

@@ -622,6 +622,7 @@
       "notif_placeholder": "رسالة لإرسالها إلى المستخدم…",
       "send_notif": "إرسال",
       "notif_sent": "تم إرسال الإشعار",
+      "notif_failed": "فشل الإرسال",
       "won_usd": "ربح (USD)",
       "won_pts": "ربح (PTS)",
       "refunded": "مُستردّ",

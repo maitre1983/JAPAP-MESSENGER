@@ -382,21 +382,49 @@ async def reset_game_limits(user_id: str, request: Request):
 
 @router.post("/{user_id}/send-notification")
 async def send_notification(user_id: str, req: NotificationRequest, request: Request):
+    # iter240l-msgfix — better error reporting + admin trail.
     admin = await _require_admin(request)
     pool = await get_pool()
     import uuid, json as _json
+
+    message_clean = (req.message or "").strip()
+    if not message_clean:
+        raise HTTPException(status_code=422, detail="Message vide")
+
     notif_id = f"notif_{uuid.uuid4().hex[:16]}"
     data_payload = _json.dumps({"from_admin": admin["user_id"], "kind": req.type})
+
     async with pool.acquire() as conn:
+        # Verify the target user exists — surfaces a clean 404 instead of an
+        # opaque FK violation.
+        exists = await conn.fetchval(
+            "SELECT 1 FROM users WHERE user_id = $1", user_id,
+        )
+        if not exists:
+            raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+
         try:
             await conn.execute(
                 "INSERT INTO notifications (notif_id, user_id, type, title, message, data) "
                 "VALUES ($1, $2, $3, $4, $5, $6)",
                 notif_id, user_id, "admin_message",
-                "Message de l'administration", req.message, data_payload,
+                "Message de l'administration", message_clean, data_payload,
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"notification insert failed: {e}")
+
+        # Best-effort audit trail in admin_user_notes (failure here must NOT
+        # break the user-visible notification path).
+        try:
+            await conn.execute(
+                "INSERT INTO admin_user_notes (user_id, admin_id, note) "
+                "VALUES ($1, $2, $3)",
+                user_id, admin["user_id"],
+                f"[MESSAGE ENVOYÉ — {req.type}] {message_clean}",
+            )
+        except Exception:
+            pass
+
     return {"ok": True, "notif_id": notif_id}
 
 

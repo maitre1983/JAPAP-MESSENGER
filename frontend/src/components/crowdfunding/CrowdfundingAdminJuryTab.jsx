@@ -117,6 +117,11 @@ export default function CrowdfundingAdminJuryTab() {
       <ul className="space-y-2">
         {members.map(m => {
           const revoked = !!m.revoked_at;
+          const lang = 'fr';
+          const pdfHref = m.certificate_pdf_url
+            || `${API}/api/crowdfunding/jury/certificate/${m.user_id}.pdf?lang=${lang}`;
+          const svgHref = m.certificate_url
+            || `${API}/api/crowdfunding/jury/certificate/${m.user_id}.svg?lang=${lang}`;
           const certHref = `${API}/api/crowdfunding/jury/certificate/${m.user_id}.png`;
           return (
             <li key={m.jury_id || m.user_id} className="jp-card p-3" data-testid={`cf-admin-jury-${m.user_id}`}
@@ -147,12 +152,12 @@ export default function CrowdfundingAdminJuryTab() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <a href={`${API}/api/crowdfunding/jury/certificate/${m.user_id}.pdf?lang=fr`} target="_blank" rel="noreferrer"
+                  <a href={pdfHref} target="_blank" rel="noreferrer"
                     className="jp-btn jp-btn-ghost jp-btn-sm" data-testid={`cf-admin-jury-cert-pdf-${m.user_id}`}
                     style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <FilePdf size={14} /> PDF
                   </a>
-                  <a href={`${API}/api/crowdfunding/jury/certificate/${m.user_id}.svg?lang=fr`} target="_blank" rel="noreferrer"
+                  <a href={svgHref} target="_blank" rel="noreferrer"
                     className="jp-btn jp-btn-ghost jp-btn-sm" data-testid={`cf-admin-jury-cert-svg-${m.user_id}`}
                     style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <FileText size={14} /> SVG

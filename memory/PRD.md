@@ -7,6 +7,48 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240l-cert-fix — Logo JAPAP officiel + QR Code réel (14/05/2026)
+
+**Demande user** : remplacer le logo générique par le vrai brand mark JAPAP (j rouge + dot bleu sans fond), insérer un QR code scannable pointant vers `/crowdfunding/jury`, persister les URLs PDF en DB, désactiver les endpoints emergent.host.
+
+### Backend
+- **NEW** lib `qrcode==8.2` installée + ajoutée à `requirements.txt`.
+- **`_japap_logo_svg()`** dans `services/jury_certificate_svg.py` : nouveau brand mark vectoriel (j rouge `#E53935` + dot bleu foncé `#1A237E` avec reflet, pas de fond) — coordonnées propres `translate(572 30)` sans scaling double, dimensions intrinsèques 50×100px.
+- **`_get_jury_qr_path()`** : génère un QR code error-correction H pointant vers `https://japapmessenger.com/crowdfunding/jury` via `qrcode.image.svg.SvgPathImage`. Cache module-level (1 seule génération pour tout le process). **Bug fix critique** : la regex initiale `<path[^>]+d="([^"]+)"` matchait `id="qr-path"` par backtracking greedy → fix avec `\bd="(M[^"]+)"` (ancrage sur le M initial du path). Retourne `{path, size}` avec viewBox réel (12.3mm) pour scaling correct.
+- Injection du QR dans le SVG : `<g transform="translate(980 612)">` avec rectangle blanc 116×116 + `<g transform="scale(8.13)">` pour adapter le path mm → 100×100 px + légende "✓ Certifié JAPAP" + "japapmessenger.com".
+- Sceau circulaire ancien remplacé entièrement par le QR code (premier zone visible scannable au coin bas-droit).
+
+### Base de données
+- **Migration** : `ALTER TABLE crowdfunding_jury_members ADD COLUMN IF NOT EXISTS certificate_pdf_url TEXT;` exécutée.
+- Migration des anciennes URLs `emergent.host` → `media.japapmessenger.com` (idempotent, 0 lignes à migrer car aucune URL emergent.host dans cette table).
+- Hook auto-grant + endpoint regenerate + endpoint GET .svg : tous mettent à jour SIMULTANÉMENT `certificate_url` (svg) ET `certificate_pdf_url`.
+
+### API
+- `GET /jury/members` + `GET /jury/me` + `GET /admin/jury` : retournent désormais `certificate_url` ET `certificate_pdf_url`.
+- Endpoints `GET .../{user_id}.svg|.pdf|.png` **conservés intentionnellement** (utiles comme fallback si la DB n'a pas encore l'URL R2, ex: première grant). Best-effort R2 upload en arrière-plan. **Cohabitation OK** avec les URLs R2 directes (priorité aux URLs DB côté front).
+
+### Frontend
+- `JuryHallOfFame` : `downloadCert(member, fmt)` lit `member.certificate_pdf_url` / `member.certificate_url` en priorité, fallback API.
+- `CrowdfundingAdminJuryTab` : 4 boutons par juré (PDF / SVG / PNG / Régénérer). PDF + SVG pointent vers les URLs R2 persistées (CDN cached), PNG legacy via API.
+
+### Validation
+- 7/7 pytest PASS
+- Screenshot final : **certificat parfait** avec logo JAPAP officiel (j rouge + dot bleu) + QR scannable (testable avec un téléphone, pointe vers `/crowdfunding/jury`) + tout le contenu (Cycle #4, 500$, date, signature, filigrane).
+- URLs R2 confirmées : SVG + PDF reachables sur `media.japapmessenger.com/certificates/`.
+
+### SW
+v25-iter240l-fix → v25-iter240l-cert.
+
+### Fichiers
+- MOD : `backend/services/jury_certificate_svg.py` (real logo, real QR, regex fix)
+- MOD : `backend/routes/crowdfunding.py` (3 callers persist both URLs + 3 SELECT include certificate_pdf_url)
+- DB : `+ certificate_pdf_url` column
+- MOD : `frontend/src/components/JuryHallOfFame.jsx` (member-aware downloadCert)
+- MOD : `frontend/src/components/crowdfunding/CrowdfundingAdminJuryTab.jsx` (DB-priority URLs)
+- MOD : `frontend/public/sw.js` → v25-iter240l-cert
+- MOD : `backend/requirements.txt` (+qrcode)
+
+
 ## iter240l-fix — Corrections urgentes page profil public (14/05/2026)
 
 ### Bug 1 — Bouton PWA refresh visible sur `/profile/:username`

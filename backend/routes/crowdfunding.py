@@ -2469,7 +2469,7 @@ async def get_my_jury_status(request: Request):
         all_grants = await conn.fetch(
             """SELECT jury_id, user_id, awarded_cycle_id, awarded_cycle_number,
                       total_wins_at_grant, granted_at, expires_at_cycle_number,
-                      revoked_at, revoke_reason, certificate_url
+                      revoked_at, revoke_reason, certificate_url, certificate_pdf_url
                  FROM crowdfunding_jury_members
                 WHERE user_id = $1
                 ORDER BY granted_at DESC""",
@@ -2505,7 +2505,7 @@ async def list_jury_members(limit: int = Query(50, ge=1, le=500),
         rows = await conn.fetch(
             """SELECT j.jury_id, j.user_id, j.awarded_cycle_id, j.awarded_cycle_number,
                       j.total_wins_at_grant, j.granted_at, j.expires_at_cycle_number,
-                      j.certificate_url,
+                      j.certificate_url, j.certificate_pdf_url,
                       u.first_name, u.last_name, u.username, u.avatar, u.country_code
                  FROM crowdfunding_jury_members j
                  JOIN users u ON u.user_id = j.user_id
@@ -2541,6 +2541,7 @@ async def list_jury_members(limit: int = Query(50, ge=1, le=500),
             "granted_at": d["granted_at"].isoformat() if d["granted_at"] else None,
             "awarded_cycle_number": int(d["awarded_cycle_number"]) if d["awarded_cycle_number"] else None,
             "certificate_url": d["certificate_url"] or None,
+            "certificate_pdf_url": d.get("certificate_pdf_url") or None,
             "expires_at_cycle_number": d["expires_at_cycle_number"],
         })
     return out
@@ -2622,9 +2623,13 @@ async def _auto_generate_jury_certificate(user_id: str, lang: str = "fr") -> Non
             pool2 = await get_pool()
             async with pool2.acquire() as conn2:
                 await conn2.execute(
-                    "UPDATE crowdfunding_jury_members SET certificate_url = $1 "
-                    "WHERE user_id = $2 AND certificate_url IS DISTINCT FROM $1",
-                    url["svg_url"], user_id,
+                    """UPDATE crowdfunding_jury_members
+                          SET certificate_url = $1,
+                              certificate_pdf_url = $2
+                        WHERE user_id = $3
+                          AND (certificate_url IS DISTINCT FROM $1
+                               OR certificate_pdf_url IS DISTINCT FROM $2)""",
+                    url["svg_url"], url.get("pdf_url"), user_id,
                 )
             logger.warning(f"[jury_cert] auto-uploaded R2 cert user={user_id} "
                            f"svg={url['svg_url']} pdf={url.get('pdf_url')}")
@@ -2675,7 +2680,7 @@ async def admin_list_jury_all(request: Request,
             f"""SELECT j.jury_id, j.user_id, j.awarded_cycle_id, j.awarded_cycle_number,
                        j.total_wins_at_grant, j.granted_at,
                        j.expires_at_cycle_number, j.revoked_at, j.revoked_by, j.revoke_reason,
-                       j.certificate_url,
+                       j.certificate_url, j.certificate_pdf_url,
                        u.first_name, u.last_name, u.username, u.avatar
                   FROM crowdfunding_jury_members j
                   JOIN users u ON u.user_id = j.user_id
@@ -2690,6 +2695,8 @@ async def admin_list_jury_all(request: Request,
             "jury_id": d["jury_id"], "user_id": d["user_id"],
             "owner_name": (f"{d.get('first_name','') or ''} {d.get('last_name','') or ''}".strip()
                            or d.get("username") or "Anonyme"),
+            "first_name": d.get("first_name"), "last_name": d.get("last_name"),
+            "username": d.get("username"), "avatar": d.get("avatar"),
             "awarded_cycle_id": d["awarded_cycle_id"],
             "awarded_cycle_number": int(d["awarded_cycle_number"]) if d["awarded_cycle_number"] else None,
             "total_wins_at_grant": int(d["total_wins_at_grant"]),
@@ -2698,6 +2705,7 @@ async def admin_list_jury_all(request: Request,
             "revoked_at": d["revoked_at"].isoformat() if d["revoked_at"] else None,
             "revoke_reason": d["revoke_reason"] or "",
             "certificate_url": d["certificate_url"] or None,
+            "certificate_pdf_url": d.get("certificate_pdf_url") or None,
         })
     return out
 
@@ -2877,9 +2885,13 @@ async def get_jury_certificate_svg(user_id: str,
                 pool2 = await get_pool()
                 async with pool2.acquire() as conn2:
                     await conn2.execute(
-                        "UPDATE crowdfunding_jury_members SET certificate_url = $1 "
-                        "WHERE user_id = $2 AND certificate_url IS DISTINCT FROM $1",
-                        result["svg_url"], user_id,
+                        """UPDATE crowdfunding_jury_members
+                              SET certificate_url = $1,
+                                  certificate_pdf_url = $2
+                            WHERE user_id = $3
+                              AND (certificate_url IS DISTINCT FROM $1
+                                   OR certificate_pdf_url IS DISTINCT FROM $2)""",
+                        result["svg_url"], result.get("pdf_url"), user_id,
                     )
     except Exception as e:
         logger.warning(f"[jury_cert] background upload best-effort failed: {e}")
@@ -3008,8 +3020,10 @@ async def admin_regenerate_jury_certificate(user_id: str, request: Request,
     pool2 = await get_pool()
     async with pool2.acquire() as conn2:
         await conn2.execute(
-            "UPDATE crowdfunding_jury_members SET certificate_url = $1 WHERE user_id = $2",
-            url["svg_url"], user_id,
+            "UPDATE crowdfunding_jury_members "
+            "SET certificate_url = $1, certificate_pdf_url = $2 "
+            "WHERE user_id = $3",
+            url["svg_url"], url.get("pdf_url"), user_id,
         )
     return {"ok": True, "certificate_url": url["svg_url"],
             "pdf_url": url.get("pdf_url"), "lang": lang}

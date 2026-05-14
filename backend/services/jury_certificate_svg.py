@@ -99,6 +99,81 @@ def _xml_escape(s: str) -> str:
     return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+# iter240l-cert-fix — Build a high-error-correction QR code SVG path pointing
+# to the public jury page. Cached at module level — only one QR is needed.
+_JURY_QR_URL = os.environ.get(
+    "JAPAP_JURY_QR_URL",
+    "https://japapmessenger.com/crowdfunding/jury",
+)
+_JURY_QR_PATH_CACHE: Optional[dict] = None
+
+
+def _get_jury_qr_path() -> dict:
+    """Return the SVG `d=` path + native viewBox size for a QR pointing to
+    the public jury page. Cached (the URL doesn't change). High error-correction
+    so it stays readable at small print sizes.
+
+    Returns dict {"path": str, "size": float}. Empty path on failure."""
+    global _JURY_QR_PATH_CACHE
+    if _JURY_QR_PATH_CACHE is not None:
+        return _JURY_QR_PATH_CACHE
+    try:
+        import qrcode  # type: ignore
+        import qrcode.image.svg  # type: ignore
+        from io import BytesIO
+        import re as _re
+        factory = qrcode.image.svg.SvgPathImage
+        qr = qrcode.QRCode(
+            version=2,
+            error_correction=qrcode.constants.ERROR_CORRECT_H,
+            box_size=3,
+            border=2,
+        )
+        qr.add_data(_JURY_QR_URL)
+        qr.make(fit=True)
+        img = qr.make_image(image_factory=factory)
+        buf = BytesIO()
+        img.save(buf)
+        svg_str = buf.getvalue().decode("utf-8")
+        # The QR path always starts with "M"; use a stricter pattern than
+        # `d="([^"]+)"` to avoid matching id="qr-path" via greedy backtracking.
+        m = _re.search(r'\bd="(M[^"]+)"', svg_str)
+        vb = _re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', svg_str)
+        path = m.group(1) if m else ""
+        size = float(vb.group(1)) if vb else 12.3
+        _JURY_QR_PATH_CACHE = {"path": path, "size": size}
+    except Exception as e:
+        logger.warning(f"[jury_cert] QR generation failed: {e}")
+        _JURY_QR_PATH_CACHE = {"path": "", "size": 0.0}
+    return _JURY_QR_PATH_CACHE
+
+
+def _japap_logo_svg() -> str:
+    """iter240l-cert-fix — Real JAPAP brand mark (red 'j' + dark-blue dot).
+
+    Cleaner reconstruction: the brand mark is a stylized lowercase 'j' — a
+    vertical red stem with a hook/foot at the bottom left, topped by a dark
+    blue dot (offset right). Drawn within an 80×100 inner box scaled to fit
+    near the top-center of the 1200×850 certificate."""
+    return """
+  <!-- JAPAP brand mark — red 'j' + dark blue dot (no background) -->
+  <g id="japap-logo" transform="translate(572 30)">
+    <!-- Dark blue dot (top-right of the j-stem) -->
+    <circle cx="42" cy="14" r="11" fill="#1A237E" stroke="#0D47A1" stroke-width="0.8"/>
+    <ellipse cx="38" cy="9" rx="4" ry="2.4" fill="rgba(255,255,255,0.35)" transform="rotate(-20 38 9)"/>
+    <!-- Vertical body of the 'j' -->
+    <rect x="28" y="32" width="14" height="50" rx="7" fill="#E53935"/>
+    <!-- Foot curving to the bottom-left -->
+    <path d="M 42 70
+             Q 42 95  22 95
+             Q  4 95   4 80
+             L 14 80
+             Q 14 86  22 86
+             Q 30 86  30 70 Z"
+          fill="#E53935"/>
+  </g>"""
+
+
 def _format_date(dt: Optional[datetime], lang: str) -> str:
     dt = dt or datetime.now(timezone.utc)
     locales = {
@@ -168,6 +243,28 @@ def render_jury_certificate_svg(
         )
     particles_svg = "\n  ".join(particles)
 
+    # Pull dynamic content
+    japap_logo = _japap_logo_svg()
+    qr = _get_jury_qr_path()
+    qr_svg = ""
+    if qr.get("path"):
+        # Scale path from native (mm) coordinates to fit 100×100 pixel area.
+        # qrcode lib outputs ~12.3mm viewBox for our content; scale = 100/size.
+        qr_scale = 100.0 / qr["size"] if qr["size"] else 8.13
+        qr_svg = f"""
+  <!-- QR code → public jury page (bottom-right) -->
+  <g transform="translate(980 612)">
+    <rect x="-8" y="-8" width="116" height="116" fill="white" rx="6"/>
+    <g transform="scale({qr_scale:.4f})">
+      <path d="{qr['path']}" fill="#0a0a1a"/>
+    </g>
+    <text x="50" y="124" font-family="Helvetica,Arial,sans-serif"
+          font-size="10" fill="#FFD700" text-anchor="middle"
+          letter-spacing="0.5"{direction_attr}>{seal_txt}</text>
+    <text x="50" y="138" font-family="Helvetica,Arial,sans-serif"
+          font-size="9" fill="#a0a0c0" text-anchor="middle">{domain_txt}</text>
+  </g>"""
+
     # ─ Build the SVG ───────────────────────────────────────────────────────
     return f"""<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="850"
      viewBox="0 0 1200 850" role="img" aria-label="{title_txt} — {safe_name}">
@@ -234,14 +331,10 @@ def render_jury_certificate_svg(
     <rect x="1102" y="787" width="40" height="3" />
   </g>
 
-  <!-- HEADER: JAPAP logo + name -->
-  <g transform="translate(600 130)">
-    <circle cx="-150" cy="0" r="32" fill="#E63946" stroke="#FFD700" stroke-width="2"/>
-    <text x="-150" y="11" text-anchor="middle" font-size="38" font-weight="900"
-          fill="#ffffff" class="title-font">J</text>
-    <text x="40" y="8" text-anchor="middle" font-size="22" font-weight="700"
-          fill="#ffffff" letter-spacing="6" class="body-font"{direction_attr}>{header_txt}</text>
-  </g>
+  <!-- HEADER: real JAPAP brand mark + product name -->
+  {japap_logo}
+  <text x="600" y="148" text-anchor="middle" font-size="20" font-weight="700"
+        fill="#ffffff" letter-spacing="6" font-family="Helvetica,Arial,sans-serif"{direction_attr}>{header_txt}</text>
   <line x1="320" y1="180" x2="880" y2="180" stroke="url(#gold)" stroke-width="2"/>
 
   <!-- TITLE -->
@@ -291,18 +384,8 @@ def render_jury_certificate_svg(
     <text x="0" y="38" class="body-font" font-size="12" fill="#cccccc">{admin_txt}</text>
   </g>
 
-  <!-- FOOTER: seal/badge right -->
-  <g transform="translate(1020 730)">
-    <circle cx="0" cy="6" r="34" fill="none" stroke="#FFD700" stroke-width="2"/>
-    <circle cx="0" cy="6" r="28" fill="none" stroke="#FFA500" stroke-width="1" opacity="0.7"/>
-    <text x="0" y="2" text-anchor="middle" class="body-font"
-          font-size="9" font-weight="700" fill="#FFD700">✓</text>
-    <text x="0" y="15" text-anchor="middle" class="body-font"
-          font-size="6" font-weight="700" fill="#FFD700"
-          letter-spacing="0.5">JAPAP</text>
-    <text x="0" y="58" text-anchor="middle" class="body-font"
-          font-size="10" fill="#cccccc"{direction_attr}>{seal_txt}</text>
-  </g>
+  <!-- FOOTER: real QR code → public jury Hall of Fame -->
+  {qr_svg}
 
   <!-- Domain centered + cert id -->
   <text x="600" y="795" text-anchor="middle" class="body-font"

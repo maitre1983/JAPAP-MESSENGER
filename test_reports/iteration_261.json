@@ -1,0 +1,35 @@
+{
+  "summary": "iter240k RETEST — Frontend ONLY validation of AdminUserDetailModal (7 tabs). VERIFIED via Playwright on public preview URL. The /admin Utilisateurs list rendering race (iter260 blocker) reproduced again on cold mount: first navigation to /admin shows empty table even though GET /api/admin/users returns 200. Workaround used: type a character into the search input then backspace to force a re-fetch + re-render -> 20 view-user-<id> buttons rendered. After the workaround, modal flow is 95% PASS: modal opens, all 7 aud-tab-* tabs present + clickable with correct labels, Notes/Restrictions/Notification POST endpoints return success toasts, aud-close closes modal, i18n EN switch works (testid 'language-switcher-trigger' with 🇬🇧 emoji, Overview label switches from 'Vue Générale' -> 'Overview'). Edit/Reset/Suspend regression buttons all present per user row. NEW MINOR ISSUE: after creating a note or restriction, the modal stays in 'Loading…' state and the new item does NOT appear in the visible list within 3s — the reload() callback sets data=null/loading=true while re-fetching, causing perceived empty state. Functionally backend records the note/restriction (toast 'Note ajoutée'/'Restriction appliquée' appears), but UX shows blank list. Lift restriction button could not be visually tested because the freshly-created restriction wasn't yet rendered.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminPage > Utilisateurs tab", "issue": "Empty table on first cold navigation to /admin despite /api/admin/users returning 200. Multiple /api/auth/me and /api/auth/refresh return 401 before login completes, creating a race where the users-list fetch fires before the session is hydrated, or its state is reset. Workaround: typing in the search box triggers a re-fetch that populates the list.", "selector": "[data-testid='admin-tab-users'] table tbody", "priority": "HIGH"},
+      {"component": "AdminUserDetailModal Notes/Restrictions tabs", "issue": "After POSTing a new note or restriction, the reload() callback resets data to null and shows 'Loading…' for ~3s; the new item (aud-note-<id> / aud-restrict-<id>) does not appear immediately in the list. Toast confirms success but visible list lags or stays empty in test window.", "selector": "[data-testid='admin-user-detail-modal'] .app-modal-body", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Lift restriction", "issue": "Could not test 'Lever' button because the newly-created restriction wasn't visible in the active list within wait window (3s). Backend RestrictionsTab list refresh perceived as slow.", "affected_selectors": ["button:has-text('Lever')", "[data-testid^='aud-restrict-']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_261.json"
+  ],
+  "action_items": [
+    "Fix admin Users tab initial render race: ensure /api/admin/users is called AFTER cookies/CSRF + auth state are hydrated, OR re-trigger fetch on session ready. Currently a workaround (typing in search) is required.",
+    "Improve modal list refresh UX after note/restriction creation: instead of replacing data with null + 'Loading…', do an in-place merge of newly created item, or hide loader while keeping existing list visible. Optionally pass the freshly-created entity back from the API and append to local state without full reload.",
+    "Consider exposing 'Lever' button with a data-testid like 'aud-restrict-lift-<id>' for deterministic E2E testing."
+  ],
+  "critical_code_review_comments": [
+    "AdminUserDetailModal.jsx imports `GameController` from '@phosphor-icons/react' — verify icon name in installed phosphor-icons version (some bundles use `GameController` vs `GameControl`).",
+    "RestrictionsTab.add and NotesTab.add call reload() which triggers setLoading(true) + setData(null) — list flickers to empty/Loading until refetch completes. Prefer optimistic update or local insert (setData(prev => ({...prev, notes: [newNote, ...prev.notes]})))." ,
+    "Multiple /api/auth/refresh 401 calls fire on initial app load (pre-login) — consider gating refresh on presence of cookie to reduce noise + race conditions."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "100% (12/12, verified iter260)", "frontend": "~85% — modal + tabs + i18n + toasts + close + regression PASS; users-list race + post-action loader UX MEDIUM bugs" },
+  "test_credentials": "admin@japap.com / JapapAdmin2024! ; captcha bypass JAPAP_E2E_BYPASS_2026 / 0",
+  "seed_data_creation": "Created TEST_iter240k note + restriction (1 day) + 1 notification on first listed user (user_e30635be17ce 'Megha Malik').",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Public preview URL: https://japap-refactor.preview.emergentagent.com. Admin /admin Users tab DOES NOT auto-populate on first cold mount; workaround is to type any char then backspace in the search input to trigger refetch. With the workaround, modal flow works end-to-end. Language switcher data-testid is 'language-switcher-trigger'. Aud-close, aud-notif-send, aud-note-submit and aud-restrict-submit all produce correct sonner toasts ('Note added/ajoutée', 'Restriction applied/appliquée', 'Notification sent/envoyée'). The reload() in Notes and Restrictions tab resets data to null causing momentary 'Loading…' — wait at least 5–6s after submit to see new items, or add a longer wait_for_selector on the new data-testid.",
+  "rca_of_the_issue": "1) Users list empty on first mount: /api/auth/me and /api/auth/refresh return 401 right after page load (cookies set but request fires before browser attaches them, or before CSRF state is ready). The first /api/admin/users call response is then ignored because component state was reset on auth-state change. Triggering any state update on the AdminPage (typing in search) forces a clean re-fetch using the now-authenticated session, which renders normally. 2) Modal list lag: NotesTab and RestrictionsTab call reload() after POST which sets loading=true and clears data; the body renders 'Loading…' until the GET /detail completes (~2–4s on preview). Tests checking the new item too soon see an empty list. Fix: optimistic UI update or render existing data while reloading silently."
+}

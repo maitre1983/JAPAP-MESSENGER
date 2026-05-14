@@ -142,8 +142,16 @@ export default function CrowdfundingAdminProjectsTab({ ActionsComponent }) {
               className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 hover:shadow-sm transition">
               <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
                 <div className="min-w-0 flex-1">
-                  <h4 className="font-bold text-slate-900 text-sm sm:text-base truncate" title={p.title}>
-                    {p.title || '—'}
+                  <h4 className="font-bold text-slate-900 text-sm sm:text-base truncate flex items-center gap-1.5" title={p.title}>
+                    {p.is_priority && (
+                      <span
+                        data-testid={`cf-admin-projects-priority-${p.slug}`}
+                        title={t('crowdfunding.fast_track_active_badge', { defaultValue: 'Priority Boost actif' })}
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-gradient-to-r from-amber-400 to-rose-500 text-white flex-shrink-0">
+                        ⚡ PRIORITY
+                      </span>
+                    )}
+                    <span className="truncate">{p.title || '—'}</span>
                   </h4>
                   <p className="text-xs text-slate-500 mt-0.5">
                     {p.owner_name || t('crowdfunding.anonymous', { defaultValue: 'Anonyme' })}

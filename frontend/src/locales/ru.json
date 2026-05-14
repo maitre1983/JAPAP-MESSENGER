@@ -194,6 +194,27 @@
     "votes": "голосов",
     "rel_just_now": "только что",
     "rel_hours_ago": "{{h}} ч",
-    "rel_days_ago": "{{d}} д"
+    "rel_days_ago": "{{d}} д",
+    "jury_member": "Член жюри",
+    "jury_vote_weight": "Ваш голос считается как {{weight}} голосов",
+    "cannot_vote_own": "Вы не можете голосовать за свой проект.",
+    "jury_awarded": "🏆 Поздравляем! Вы теперь член жюри Japap.",
+    "jury_settings": "Вес голоса члена жюри",
+    "jury_wins_count": "{{count}} побед(ы)",
+    "fast_track_title": "Ускорить модерацию",
+    "fast_track_pitch": "Ваш проект на модерации. Перейти в начало очереди администратора за {{n}} {{c}} (списание с кошелька Japap).",
+    "fast_track_cta": "Ускорить за {{n}} {{c}}",
+    "fast_track_confirm": "Подтвердить оплату",
+    "fast_track_cancel": "Отмена",
+    "fast_track_paying": "Оплата…",
+    "fast_track_success": "⚡ Буст активен! Ваш проект в начале очереди модерации.",
+    "fast_track_insufficient": "Недостаточно средств (требуется {{n}} {{c}}).",
+    "fast_track_already": "Уже усилено.",
+    "fast_track_failed": "Ошибка ускорения.",
+    "fast_track_active_badge": "Priority Boost активен",
+    "fast_track_admin_section": "Ускорение модерации (платное)",
+    "fast_track_admin_enabled": "Включить платный буст",
+    "fast_track_admin_price": "Цена буста",
+    "fast_track_admin_currency": "Валюта"
   }
 }

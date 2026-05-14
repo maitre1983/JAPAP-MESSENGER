@@ -572,6 +572,20 @@ function MyDashboard({ me, engagement, onCreate, onEdit, onDelete }) {
         <div className="bg-gradient-to-r from-rose-500 to-amber-500 h-full" style={{ width: `${p.progress_pct || 0}%` }} />
       </div>
 
+      {/* iter240e — Fast-track moderation: paid priority bump for pending projects */}
+      {p.status === 'pending_review' && (
+        <FastTrackCta project={p} onChanged={() => window.dispatchEvent(new Event('japap:refresh'))} />
+      )}
+
+      {/* iter240e — Priority badge for already-boosted projects */}
+      {p.is_priority && (
+        <div data-testid="cf-my-priority-badge"
+             className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-400 to-rose-500 text-white text-xs font-bold shadow-sm">
+          <Lightning weight="fill" size={14} />
+          {t('crowdfunding.fast_track_active_badge', { defaultValue: 'Priority Boost actif' })}
+        </div>
+      )}
+
       {/* iter142E — Velocity + share performance widgets */}
       {(velocity > 0 || (sp && sp.last_share_votes > 0)) && (
         <div className="mt-3 grid grid-cols-2 gap-2" data-testid="cf-my-perf-widgets">
@@ -591,6 +605,102 @@ function MyDashboard({ me, engagement, onCreate, onEdit, onDelete }) {
               </div>
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── iter240e — Fast-track moderation paid CTA ───────────────────────────
+function FastTrackCta({ project, onChanged }) {
+  const { t } = useTranslation();
+  const [info, setInfo] = useState(null);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    axios.get(`${API}/api/crowdfunding/fast-track/price`, { withCredentials: true })
+      .then(({ data }) => { if (alive) setInfo(data); })
+      .catch(() => { if (alive) setInfo({ enabled: false }); });
+    return () => { alive = false; };
+  }, []);
+
+  if (!info || !info.enabled) return null;
+
+  const submit = async () => {
+    setBusy(true);
+    try {
+      await axios.post(`${API}/api/crowdfunding/projects/${project.slug}/fast-track`, {}, { withCredentials: true });
+      toast.success(t('crowdfunding.fast_track_success', {
+        defaultValue: '⚡ Boost activé ! Ton projet passe en haut de la file de modération.',
+      }));
+      setConfirming(false);
+      if (onChanged) onChanged();
+    } catch (e) {
+      const code = e?.response?.data?.detail?.code;
+      if (code === 'insufficient_balance') {
+        const need = e?.response?.data?.detail?.required;
+        const cur = e?.response?.data?.detail?.currency;
+        toast.error(t('crowdfunding.fast_track_insufficient', {
+          defaultValue: 'Solde insuffisant ({{n}} {{c}} requis).',
+          n: need, c: cur,
+        }));
+      } else if (code === 'already_priority') {
+        toast.error(t('crowdfunding.fast_track_already', { defaultValue: 'Déjà boosté.' }));
+      } else {
+        toast.error(extractErrorMessage(e, t('crowdfunding.fast_track_failed', { defaultValue: 'Boost impossible.' })));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 rounded-xl border border-amber-300 bg-gradient-to-br from-amber-50 to-rose-50 p-3"
+         data-testid="cf-my-fast-track-block">
+      <div className="flex items-start gap-2 mb-2">
+        <Lightning weight="fill" size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <div className="text-sm font-bold text-slate-900">
+            {t('crowdfunding.fast_track_title', { defaultValue: 'Boost ma modération' })}
+          </div>
+          <div className="text-xs text-slate-700 mt-0.5">
+            {t('crowdfunding.fast_track_pitch', {
+              defaultValue: 'Ton projet est en attente. Passe en tête de la file admin pour {{n}} {{c}} (débit du wallet Japap).',
+              n: info.price, c: info.currency,
+            })}
+          </div>
+        </div>
+      </div>
+      {!confirming ? (
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          data-testid="cf-my-fast-track-btn"
+          className="w-full bg-gradient-to-r from-amber-500 to-rose-600 text-white py-2 rounded-full text-sm font-bold hover:opacity-90">
+          🚀 {t('crowdfunding.fast_track_cta', { defaultValue: 'Booster pour {{n}} {{c}}', n: info.price, c: info.currency })}
+        </button>
+      ) : (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setConfirming(false)}
+            disabled={busy}
+            data-testid="cf-my-fast-track-cancel"
+            className="flex-1 py-2 rounded-full text-sm font-semibold border border-slate-300 text-slate-700">
+            {t('crowdfunding.fast_track_cancel', { defaultValue: 'Annuler' })}
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={busy}
+            data-testid="cf-my-fast-track-confirm"
+            className="flex-[2] py-2 rounded-full text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300">
+            {busy
+              ? t('crowdfunding.fast_track_paying', { defaultValue: 'Paiement…' })
+              : t('crowdfunding.fast_track_confirm', { defaultValue: 'Confirmer le débit' })}
+          </button>
         </div>
       )}
     </div>
@@ -771,6 +881,31 @@ function AdminPanel({ open, onClose, onChanged, activeCycle }) {
               <NumField label="Seuil projets par défaut" v={settings.default_threshold_projects} onChange={(v) => setSettings({ ...settings, default_threshold_projects: v })} testid="cf-admin-set-thr" />
               <NumField label="Votes/win par défaut" v={settings.default_votes_to_win} onChange={(v) => setSettings({ ...settings, default_votes_to_win: v })} testid="cf-admin-set-vw" />
               <NumField label="Récompense par défaut" v={settings.default_reward_amount} onChange={(v) => setSettings({ ...settings, default_reward_amount: Number(v) })} testid="cf-admin-set-rw" />
+
+              {/* iter240e — Fast-track moderation pricing */}
+              <h4 className="font-bold text-slate-900 pt-3">⚡ {t('crowdfunding.fast_track_admin_section', { defaultValue: 'Boost de modération (payant)' })}</h4>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={!!settings.fast_track_enabled}
+                  onChange={(e) => setSettings({ ...settings, fast_track_enabled: e.target.checked })}
+                  data-testid="cf-admin-set-fasttrack-enabled" />
+                {t('crowdfunding.fast_track_admin_enabled', { defaultValue: 'Activer le boost payant' })}
+              </label>
+              <NumField
+                label={t('crowdfunding.fast_track_admin_price', { defaultValue: 'Tarif boost' })}
+                v={settings.fast_track_price}
+                onChange={(v) => setSettings({ ...settings, fast_track_price: Number(v) })}
+                testid="cf-admin-set-fasttrack-price" />
+              <div>
+                <label className="text-xs font-semibold text-slate-700">{t('crowdfunding.fast_track_admin_currency', { defaultValue: 'Devise' })}</label>
+                <input
+                  value={settings.fast_track_currency || 'XAF'}
+                  onChange={(e) => setSettings({ ...settings, fast_track_currency: e.target.value.toUpperCase() })}
+                  data-testid="cf-admin-set-fasttrack-currency"
+                  className="w-full mt-1 px-3 py-2 border rounded-lg text-sm uppercase" />
+              </div>
+
               <button
                 data-testid="cf-admin-save-settings"
                 onClick={saveSettings}

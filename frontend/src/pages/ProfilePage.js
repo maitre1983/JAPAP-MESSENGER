@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import axios from 'axios';
 import { EnvelopeSimple, Phone, Globe, Calendar, PencilSimple, FloppyDisk, Gift, Crown, X, Translate, WifiHigh as Wifi, ListChecks, PhoneList, Camera, UserCircle, Gear, UsersThree, Headset } from '@phosphor-icons/react';
+import ProfileJuryBadge from '@/components/profile/ProfileJuryBadge';
 import { useTasks } from '@/context/TasksContext';
 import PushNotificationsToggle from '@/components/PushNotificationsToggle';
 import { SUPPORTED_LANGUAGES as LANGUAGES } from '@/constants/languages';
@@ -227,6 +228,7 @@ export default function ProfilePage() {
                 {user.is_pro && <span className="jp-badge jp-badge-secondary">{t('profile.pro_title')}</span>}
                 <span className="jp-badge jp-badge-neutral">{user.role}</span>
               </div>
+              <ProfileJuryBadge />
             </div>
             <button data-testid="edit-profile-button" onClick={() => setEditing(!editing)}
               className={`jp-btn ${editing ? 'jp-btn-ghost' : 'jp-btn-primary'}`}>

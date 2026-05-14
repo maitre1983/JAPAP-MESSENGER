@@ -401,6 +401,9 @@ def _project_dict(row: dict, *, voted_by_me: bool = False) -> dict:
         "moderation_reason": row.get("moderation_reason") or "",
         "terms_accepted_at": row["terms_accepted_at"].isoformat() if row.get("terms_accepted_at") else None,
         "terms_version": row.get("terms_version") or "",
+        # iter240e — Fast-track moderation badge (read-only on public dicts).
+        "is_priority": bool(row.get("is_priority")),
+        "priority_paid_at": row["priority_paid_at"].isoformat() if row.get("priority_paid_at") else None,
         "voted_by_me": bool(voted_by_me),
         # Owner labels — joined in queries below
         "owner_name": row.get("owner_name") or "",
@@ -1247,6 +1250,136 @@ async def _credit_winner(conn, project, cycle) -> str:
     return tx_id
 
 
+# iter240e — Fast-track moderation (paid priority bump) ───────────────────
+# Allows a project owner to push their pending_review project to the top of
+# the admin moderation queue by debiting the Japap wallet (zero touch to
+# external payment methods Hubtel/Paystack/USDT/MoMo/Wave — pure internal
+# wallet transfer to the platform's revenue ledger).
+@router.post("/projects/{slug}/fast-track")
+async def fast_track_project(slug: str, request: Request):
+    """Boost a pending_review project to the top of the admin queue by
+    debiting the owner's Japap wallet. Idempotent: a project can only be
+    fast-tracked once. Re-tries on an already-priority project return 409.
+    """
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentification requise.")
+
+    if not await get_bool("crowdfunding_fast_track_enabled", True):
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "fast_track_disabled",
+                    "message": "Le boost de modération est désactivé."}
+        )
+
+    # Price + currency (admin-configurable, zéro hardcode)
+    try:
+        price = Decimal(str(await get_setting("crowdfunding_fast_track_price") or "500"))
+    except Exception:
+        price = Decimal("500")
+    if price <= 0:
+        raise HTTPException(status_code=500, detail="Prix fast-track invalide.")
+    currency = (await get_setting("crowdfunding_fast_track_currency") or "XAF").upper()[:8]
+
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            project = await conn.fetchrow(
+                "SELECT * FROM crowdfunding_projects WHERE slug = $1 FOR UPDATE",
+                slug,
+            )
+            if not project:
+                raise HTTPException(status_code=404, detail="Projet introuvable.")
+            if project["user_id"] != user["user_id"]:
+                raise HTTPException(status_code=403, detail="Ce projet ne t'appartient pas.")
+            if project["status"] != "pending_review":
+                raise HTTPException(
+                    status_code=409,
+                    detail={"code": "not_pending",
+                            "message": "Seuls les projets en attente de modération peuvent être boostés."}
+                )
+            if project["is_priority"]:
+                raise HTTPException(
+                    status_code=409,
+                    detail={"code": "already_priority",
+                            "message": "Ce projet est déjà boosté."}
+                )
+
+            # Debit Japap wallet — internal only, NO external payment provider.
+            wallet = await conn.fetchrow(
+                "SELECT * FROM wallets WHERE user_id = $1 FOR UPDATE",
+                user["user_id"],
+            )
+            if not wallet:
+                raise HTTPException(status_code=404, detail="Wallet introuvable.")
+            if wallet["is_locked"]:
+                raise HTTPException(status_code=403, detail="Wallet verrouillé.")
+            if Decimal(wallet["balance"]) < price:
+                raise HTTPException(
+                    status_code=400,
+                    detail={"code": "insufficient_balance",
+                            "message": f"Solde insuffisant. Il te faut {price} {currency}.",
+                            "required": str(price), "currency": currency,
+                            "current_balance": str(wallet["balance"])}
+                )
+
+            now = datetime.now(timezone.utc)
+            await conn.execute(
+                "UPDATE wallets SET balance = balance - $1, updated_at = $2 WHERE user_id = $3",
+                price, now, user["user_id"],
+            )
+            tx_id = f"cf_ft_{uuid.uuid4().hex[:16]}"
+            await conn.execute(
+                """INSERT INTO transactions
+                    (tx_id, from_user_id, type, amount, fee, currency, status, notes, reference)
+                   VALUES ($1, $2, 'crowdfunding_fast_track', $3, 0, $4, 'completed', $5, $6)""",
+                tx_id, user["user_id"], price, currency,
+                f"Fast-track boost project={project['slug']}",
+                project["project_id"],
+            )
+            await conn.execute(
+                """UPDATE crowdfunding_projects
+                      SET is_priority = TRUE,
+                          priority_paid_at = $2,
+                          priority_paid_amount = $3,
+                          priority_currency = $4,
+                          updated_at = $2
+                    WHERE project_id = $1""",
+                project["project_id"], now, price, currency,
+            )
+
+    return {
+        "ok": True,
+        "tx_id": tx_id,
+        "project_id": project["project_id"],
+        "slug": project["slug"],
+        "is_priority": True,
+        "priority_paid_at": now.isoformat(),
+        "priority_paid_amount": str(price),
+        "priority_currency": currency,
+    }
+
+
+# iter240e — Public read of the current fast-track price (for the
+# "Boost ma modération" CTA). Authenticated to keep the catalog private-ish.
+@router.get("/fast-track/price")
+async def get_fast_track_price(request: Request):
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentification requise.")
+    enabled = await get_bool("crowdfunding_fast_track_enabled", True)
+    try:
+        price = Decimal(str(await get_setting("crowdfunding_fast_track_price") or "500"))
+    except Exception:
+        price = Decimal("500")
+    currency = (await get_setting("crowdfunding_fast_track_currency") or "XAF").upper()[:8]
+    return {
+        "enabled": enabled,
+        "price": str(price),
+        "currency": currency,
+    }
+
+
 # ─── Leaderboard ──────────────────────────────────────────────────────────
 @router.get("/leaderboard")
 async def leaderboard(
@@ -1465,6 +1598,10 @@ async def admin_get_settings(request: Request):
             "crowdfunding_jury_vote_weight_by_wins",
             DEFAULT_JURY_VOTE_WEIGHT_BY_WINS) or DEFAULT_JURY_VOTE_WEIGHT_BY_WINS,
         "jury_membership_duration_cycles": await _get_jury_duration_cycles(),
+        # iter240e — Fast-track moderation (admin-configurable price + toggle)
+        "fast_track_enabled": await get_bool("crowdfunding_fast_track_enabled", True),
+        "fast_track_price": str(await get_setting("crowdfunding_fast_track_price") or "500"),
+        "fast_track_currency": str(await get_setting("crowdfunding_fast_track_currency") or "XAF"),
     }
 
 
@@ -1483,6 +1620,10 @@ class AdminUpdateSettings(BaseModel):
     # iter239x — Jury config
     jury_vote_weight_by_wins: Optional[dict] = None
     jury_membership_duration_cycles: Optional[int] = Field(None, ge=0, le=10000)
+    # iter240e — Fast-track moderation
+    fast_track_enabled: Optional[bool] = None
+    fast_track_price: Optional[float] = Field(None, ge=0, le=10_000_000)
+    fast_track_currency: Optional[str] = Field(None, max_length=8)
 
 
 @router.put("/admin/settings")
@@ -1525,6 +1666,13 @@ async def admin_update_settings(req: AdminUpdateSettings, request: Request):
         v = int(req.jury_membership_duration_cycles)
         await set_setting("crowdfunding_jury_membership_duration_cycles",
                           v if v > 0 else None)
+    # iter240e — Fast-track settings
+    if req.fast_track_enabled is not None:
+        await set_setting("crowdfunding_fast_track_enabled", bool(req.fast_track_enabled))
+    if req.fast_track_price is not None:
+        await set_setting("crowdfunding_fast_track_price", str(req.fast_track_price))
+    if req.fast_track_currency is not None:
+        await set_setting("crowdfunding_fast_track_currency", req.fast_track_currency.upper()[:8])
     return await admin_get_settings(request)
 
 
@@ -2002,12 +2150,13 @@ async def admin_list_all_projects(
                p.category, p.country_code, p.votes_count, p.status,
                p.suspended_at, p.suspension_reason, p.moderation_reason,
                p.terms_accepted_at, p.terms_version,
+               p.is_priority, p.priority_paid_at, p.priority_paid_amount, p.priority_currency,
                p.created_at, p.updated_at,
                u.first_name, u.last_name, u.username
           FROM crowdfunding_projects p
           JOIN users u ON u.user_id = p.user_id
           {where_sql}
-         ORDER BY p.created_at DESC
+         ORDER BY p.is_priority DESC, p.priority_paid_at DESC NULLS LAST, p.created_at DESC
          LIMIT ${len(args)-1} OFFSET ${len(args)}
     """
     async with pool.acquire() as conn:
@@ -2027,6 +2176,11 @@ async def admin_list_all_projects(
             "moderation_reason": d["moderation_reason"] or "",
             "terms_accepted_at": d["terms_accepted_at"].isoformat() if d["terms_accepted_at"] else None,
             "terms_version": d["terms_version"] or "",
+            # iter240e — Fast-track fields
+            "is_priority": bool(d.get("is_priority")),
+            "priority_paid_at": d["priority_paid_at"].isoformat() if d.get("priority_paid_at") else None,
+            "priority_paid_amount": str(d["priority_paid_amount"]) if d.get("priority_paid_amount") is not None else None,
+            "priority_currency": d.get("priority_currency") or "",
             "created_at": d["created_at"].isoformat(),
             "updated_at": d["updated_at"].isoformat() if d["updated_at"] else None,
             "owner_name": (

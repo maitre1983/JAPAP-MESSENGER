@@ -28,11 +28,33 @@ async def get_pool():
         # without it, any schema change (e.g. ADD COLUMN at boot migrations) can
         # trigger `asyncpg.exceptions.InvalidCachedStatementError` on already-
         # prepared statements held by other connections in the pool.
+        #
+        # iter240l-prodfix (16/05/2026) — Sizing & timeouts hardened after
+        # P0 production incident where DB-bound routes (login, forgot-password,
+        # …) hung for 24h while /api/health stayed green. Root cause: the old
+        # pool (max_size=10, no command_timeout, no acquire timeout) was
+        # exhausted by concurrent prod traffic — every new request would
+        # `acquire()` and block forever, snowballing into a full outage.
+        #
+        # Tuning rationale:
+        #   • max_size=50  — uvicorn single-worker, async I/O — 50 is well
+        #     within Neon's free-tier connection cap and matches realistic
+        #     concurrent-login bursts (~30) with headroom.
+        #   • min_size=5   — keep a warm baseline so the first user after a
+        #     Neon idle-suspend doesn't pay the full cold-start latency.
+        #   • command_timeout=20 — every individual query has a hard ceiling,
+        #     so a stuck Neon backend cannot indefinitely tie up a slot.
+        #   • max_inactive_connection_lifetime=60 — Neon suspends idle conns
+        #     after ~5 min; recycle ours every 60s to dodge that edge.
+        #   • Pool-level `timeout` (acquire) is set per-call (see _acquire())
+        #     so an overloaded pool surfaces a fast 503 instead of a hang.
         pool = await asyncpg.create_pool(
             os.environ['DATABASE_URL'],
-            min_size=2,
-            max_size=10,
+            min_size=5,
+            max_size=50,
             statement_cache_size=0,
+            command_timeout=20,
+            max_inactive_connection_lifetime=60,
         )
     return pool
 

@@ -7,6 +7,85 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240l-prodfix — 🚨 P0 PRODUCTION OUTAGE (24h) — DB pool exhausted (16/05/2026)
+
+### Incident
+Pendant ~24h, **aucun utilisateur ne pouvait se connecter** sur https://japapmessenger.com. Symptômes :
+- Bouton bloqué sur "Signing in..." indéfiniment (axios sans timeout)
+- Toast rouge "Le service est occupé. Réessaie dans quelques secondes." (déclenché par 5xx)
+
+### Diagnostic
+- `/api/health` (no DB) → 200 en 270ms ✅
+- `/api/auth/login` (DB) → **TIMEOUT 30s** ❌
+- `/api/auth/forgot-password` (DB) → **TIMEOUT 30s** ❌
+
+→ **TOUTES les routes touchant la DB hang en prod**, mais le health endpoint statique reste vert → fausse impression que tout va bien → **monitoring aveugle 24h**.
+
+### Root Cause (database.py ligne 31, ancien code)
+```python
+asyncpg.create_pool(min_size=2, max_size=10, statement_cache_size=0)
+```
+- `max_size=10` : seulement 10 connexions concurrentes — saturé en quelques secondes sur le trafic réel
+- **Aucun `command_timeout`** : queries peuvent hang à l'infini si Neon ralentit
+- **Aucun `max_inactive_connection_lifetime`** : connexions stales (Neon serverless suspend après 5 min d'idle, asyncpg garde le slot occupé)
+- **Aucun timeout sur `acquire()`** : nouvelles requêtes empilées indéfiniment
+
+### Fix
+**`backend/database.py`**
+```python
+asyncpg.create_pool(
+    min_size=5,         # warm baseline (vs 2)
+    max_size=50,        # 5× capacité (vs 10) — couvre les bursts de logins
+    statement_cache_size=0,
+    command_timeout=20,                       # NEW — hard ceiling par query
+    max_inactive_connection_lifetime=60,      # NEW — recycle avant Neon suspend
+)
+```
+
+**`backend/server.py`** — nouvelle route monitoring obligatoire :
+```python
+GET /api/health/db
+→ 200 { status, db_ms, pool: {size, max_size, min_size, idle}, timestamp }
+→ 503 { status: "db_unreachable", error, db_ms } si DB injoignable
+```
+À pinger toutes les 60s par un monitoring externe (UptimeRobot, BetterStack, etc.).
+
+**`frontend/src/context/AuthContext.js`** — timeout client-side login :
+```js
+axios.post(`${API}/api/auth/login`, body, { withCredentials: true, timeout: 15000 });
+```
+→ bouton ne reste plus bloqué sur "Signing in…" si le backend hang. Toast clair `extractErrorMessage` après 15s.
+
+### Validation (preview)
+- 5/5 pytest pass dans `/app/backend/tests/test_iter240l_prodfix_pool.py` (config + endpoint + charge)
+- **30 logins parallèles → 30×401 en 1.1-1.9s, 0 timeout** (vs ancien : pool exhaust)
+- Admin login OK en 2.77s
+- `/api/health/db` → 200 en 331ms avec stats pool
+
+### PWA
+- `SW_VERSION = "v25-iter240l-prodfix"` (bump pour invalidation cache)
+
+### Action utilisateur post-fix
+**Redéployer preview → production** (bouton Deploy Emergent) pour pousser le fix sur japapmessenger.com.
+
+### Monitoring recommandé (à mettre en place côté ops)
+1. Ping `/api/health/db` toutes les 60s — alerter si HTTP ≠ 200 ou db_ms > 2000ms
+2. Alerter si `pool.idle == 0` pendant > 60s consécutives (saturation imminente)
+3. Alerter si `/api/auth/login` répond > 5s ou HTTP ≠ 200/401
+4. Garder le tier Neon avec assez de connexions max (vérifier `SHOW max_connections` côté Postgres)
+
+### Fichiers
+- MOD : `backend/database.py` (config pool durcie)
+- MOD : `backend/server.py` (+ endpoint `/api/health/db`)
+- MOD : `frontend/src/context/AuthContext.js` (axios timeout 15s sur login)
+- MOD : `frontend/public/sw.js` (SW_VERSION)
+- NEW : `backend/tests/test_iter240l_prodfix_pool.py` (5 tests régression)
+
+### Aucune régression
+Aucune route de paiement touchée (Hubtel, Paystack, USDT, Orange, Wave). iter240l-gamefix + iter240l-msgfix toujours verts.
+
+
+
 ## iter240l-msgfix — Bug envoi message admin → utilisateur corrigé (14/05/2026)
 
 **Demande user** : depuis la Fiche Admin, le bouton "Envoyer" sous "Message à envoyer à l'utilisateur..." affichait toast rouge **"Action échouée"** sans détail (testé sur @JMGHOMSI).

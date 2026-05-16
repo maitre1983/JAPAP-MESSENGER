@@ -447,6 +447,53 @@ async def health():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
+@fastapi_app.get("/api/health/db")
+async def health_db():
+    """iter240l-prodfix — Real readiness probe that exercises the DB pool.
+
+    Returns 200 within ~1s when Postgres is reachable and the pool has at
+    least one slot free, 503 otherwise. This is the endpoint monitoring
+    must ping (every 60s) — `/api/health` only proves uvicorn is alive and
+    will stay green even when every DB route is hung."""
+    from database import get_pool
+    import asyncio as _asyncio
+    started = datetime.now(timezone.utc)
+    try:
+        pool = await get_pool()
+        async with pool.acquire(timeout=5) as conn:
+            ok = await _asyncio.wait_for(conn.fetchval("SELECT 1"), timeout=3)
+        ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+        # Surface pool-stats so an external monitor can alert before
+        # full saturation (e.g. if free=0 for >60s).
+        try:
+            stats = {
+                "size":      pool.get_size(),
+                "max_size":  pool.get_max_size(),
+                "min_size":  pool.get_min_size(),
+                "idle":      pool.get_idle_size(),
+            }
+        except Exception:
+            stats = {}
+        return {
+            "status":     "healthy" if ok == 1 else "degraded",
+            "db_ms":      round(ms, 1),
+            "pool":       stats,
+            "timestamp":  datetime.now(timezone.utc).isoformat(),
+        }
+    except Exception as e:
+        from fastapi.responses import JSONResponse
+        ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status":    "db_unreachable",
+                "error":     str(e)[:200],
+                "db_ms":     round(ms, 1),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+
+
 # ---- Socket.IO Events ----
 connected_users = {}  # user_id -> set of sids
 

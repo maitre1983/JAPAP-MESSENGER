@@ -130,7 +130,14 @@ export function AuthProvider({ children }) {
     } else if (typeof captchaOrTurnstile === 'string') {
       body.turnstile_token = captchaOrTurnstile;
     }
-    const { data } = await axios.post(`${API}/api/auth/login`, body, { withCredentials: true });
+    const { data } = await axios.post(`${API}/api/auth/login`, body, {
+      withCredentials: true,
+      // iter240l-prodfix — hard ceiling so the button cannot stick on
+      // "Signing in…" forever if the backend hangs (P0 outage 15/05/26).
+      // 15s comfortably absorbs bcrypt + tokens + cookies even on slow
+      // Neon cold-starts, and surfaces a clear "timeout" toast otherwise.
+      timeout: 15000,
+    });
     // Iter83 — superadmin flow returns {status:'otp_required'} instead of
     // {user,...}. Only set the user context when a real user payload is
     // present; otherwise hand the status back to the caller so the UI can

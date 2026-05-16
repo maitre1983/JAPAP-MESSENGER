@@ -3,8 +3,10 @@
 > **JAPAP** is a mobile-first, all-in-one super-app combining a WhatsApp-style
 > messenger, a fiat + crypto wallet, a marketplace (food / taxi / jobs /
 > services), a crypto staking product (MIR on BSC), a hotspot-powered
-> connectivity layer (**JAPAP Connect v2**), and an admin messaging control
-> center.
+> connectivity layer (**JAPAP Connect v2**), a crowdfunding platform with
+> a community-elected jury, and an admin control center.
+>
+> 🚀 **Production**: https://japapmessenger.com  ·  28 000+ users  ·  5 langues UI (FR · EN · ES · AR with RTL · RU)
 
 ![JAPAP Logo](frontend/public/japap-logo.jpg)
 
@@ -40,7 +42,10 @@
 | **Wallet**       | Multi-currency balance (XAF, USD, EUR, NGN…), deposit (NowPayments USDT), withdraw, in-chat money transfers, transaction history.            |
 | **Games (P3)**   | **Wheel of Fortune v2** (30-day cycle, 10 000 pts + 25 days, anti-bot Turnstile), **Tap Challenge** (backend-authoritative anti-cheat), **Quiz JAPAP** (5Q sessions, anti-bruteforce, learning mode, daily challenge with streak, anti-repetition picker, AI-generated content via Claude), **Quiz Champion par Pays** (Free + Paid escrow with 10% commission), **Quiz Duel** (peer-to-peer with tiebreaker temps + WhatsApp viral share + rematch loop). |
 | **Profile**      | Personal info, KYC, task inbox, referral link with visual tier editor, Pro plans (Star / Hot / Ultima / VIP), Web Push (OneSignal), preferred UI language & auto-translate. |
-| **Admin**        | Stats, messaging campaigns, ads, payments, staking controls, **Games & Engagement** dashboards, **Quiz Champion KPIs**, **Erreurs IA** (Claude RCA + bulk-action), system settings. |
+| **Crowdfunding** | Project pitches with rich media, community voting + ⚖️ **Jury system** (community-elected, premium SVG/PDF certificate auto-generated and uploaded to Cloudflare R2, vote-multiplier, scannable QR), recruit-reminder + viral share. |
+| **Reels**        | TikTok-style vertical feed with IntersectionObserver autoplay, snap scroll, native portrait/landscape/square handling (iter240m). |
+| **Payments** 🔒  | Hubtel MoMo · Paystack · USDT (TRC20/BEP20) · Orange Money · Wave — **real-money rails, never touched outside dedicated payment iterations**. |
+| **Admin**        | Stats, messaging campaigns, ads, payments, staking controls, **Games & Engagement** dashboards, **Quiz Champion KPIs**, **Erreurs IA** (Claude RCA + bulk-action), **Fiche Admin 7-onglets** (overview, transactions, KYC, restrictions, notes, posts, crowdfunding) accessible from any user mention via `<UserNameLink/>`, system settings. |
 
 ---
 
@@ -82,13 +87,15 @@ External integrations:
 
 **Backend**
 - Python 3.11 · FastAPI · Uvicorn + Gunicorn
-- `asyncpg` (Neon with `statement_cache_size=0`)
+- `asyncpg` (Neon, `statement_cache_size=0`, `max_size=50`, `command_timeout=20`, `max_inactive_connection_lifetime=60` — see iter240l-prodfix)
 - `python-socketio` for realtime chat / calls / notifications
-- `pywebpush` + `py_vapid` for Web Push
+- `cairosvg` + `qrcode[svg]` for premium SVG → PDF certificates (Jury Crowdfunding, iter240l)
+- `pywebpush` + `py_vapid` for Web Push (legacy — OneSignal preferred since iter71)
 - `web3` for read-only BSC staking mirror
 - `emergentintegrations` (Claude Sonnet 4.5 via Emergent LLM Key)
 - `svix` for Resend webhook signature verification
 - `resend` SDK for email delivery
+- `boto3` for Cloudflare R2 (S3-compatible) asset storage (avatars, certificates, video thumbnails)
 
 **Frontend**
 - React 18 (CRA) · React Router · Tailwind CSS · Shadcn/UI (`/components/ui/`)
@@ -403,12 +410,46 @@ viewports (iPhone SE 320, Android 360, iPhone X 375, iPhone Plus 414).
 
 ## Deployment
 
+### Two environments
+| Env             | URL                                | Purpose                              |
+| --------------- | ---------------------------------- | ------------------------------------ |
+| **PREVIEW**     | `japap-refactor.preview.emergentagent.com` (rotating) | Active development & QA           |
+| **PRODUCTION**  | **https://japapmessenger.com**     | Live users (28k+), real transactions |
+
 - Hosted inside a Kubernetes container managed by Emergent.
 - Supervisor processes: `backend` (Uvicorn on `0.0.0.0:8001`) + `frontend`
   (CRA dev server on `0.0.0.0:3000`).
 - Ingress routes `/api/*` → 8001, everything else → 3000.
 - **Never** change ports or bind addresses — supervisor + ingress coupling.
-- Deploy = Emergent "Deploy" button (see platform docs).
+- Deploy = Emergent "Deploy" button → pushes preview to japapmessenger.com.
+
+### Readiness probes (iter240l-prodfix)
+
+| Endpoint            | What it proves                                    | Use case                  |
+| ------------------- | ------------------------------------------------- | ------------------------- |
+| `GET /api/health`   | uvicorn is alive (in-memory ping only)            | Liveness — k8s probe      |
+| `GET /api/health/db` | Postgres reachable, pool not saturated, query<3s | **Readiness — monitoring** |
+
+`/api/health/db` returns a JSON payload with live pool stats:
+```json
+{ "status": "healthy", "db_ms": 331.7,
+  "pool": {"size": 6, "max_size": 50, "min_size": 5, "idle": 5} }
+```
+External monitoring (UptimeRobot / BetterStack) **must** poll
+`/api/health/db` every 60s — `/api/health` alone misses pool exhaustion
+(the failure mode that caused the 24h P0 outage on 15/05/2026).
+
+### Manual smoke after a deploy
+
+```bash
+curl -sS https://japapmessenger.com/api/health/db | python3 -m json.tool
+# Expect: status=healthy, db_ms<2000, pool.max_size>=50
+
+time curl -sS -X POST https://japapmessenger.com/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"x@x","password":"x","captcha_id":"JAPAP_E2E_BYPASS_2026","captcha_answer":"0"}'
+# Expect: HTTP 401 in <1.5s. If it hangs → pool is saturated, page on-call.
+```
 
 ---
 
@@ -454,6 +495,15 @@ Each iteration has a dedicated block in `/app/memory/PRD.md`. Highlights:
 | 137  | **AI Error Monitor wired E2E** — découverte que l'infra existait depuis iter108 mais peu utilisée. ErrorBoundary redirigé vers `/api/errors/report`. Nouveau `utils/axiosErrorReporter.js` interceptor global qui auto-reporte tous les 4xx/5xx (throttle 1/sig/60s). Module auto-deduit du pathname. Audit instantané : 43 groupes ouverts / 8114 occurrences captés |
 | 138  | **Cleanup admin Erreurs IA** — nouveau `POST /api/admin/errors/bulk-action` (action groupée par filtres ou signatures explicites avec cutoff time-based anti-kill-legit). Boutons "Tout marquer corrigé" + "Tout ignorer" dans le dashboard. 44 groupes nettoyés en 1 click |
 | 139  | **Auth UX fluidity + PWA bump** — autoComplete + inputMode mobiles, OTP double-submit guard, message resent i18n 11 langues, `extractErrorMessage` partout. Manifest `id` + `start_url=/?source=pwa` + `launch_handler.navigate-existing` + shortcut Jeux. SW v4-iter83 → **v5-iter139** invalide tous les caches anciens |
+| 158/178 | **USD canonical migration** — wallet balances normalised to USD as the canonical store, FX layer for display in user-preferred currency (XAF / EUR / NGN / …). Idempotent migration block runs at boot |
+| 237c | **Deferred-start workers** — video transcode, migration broadcast, Hubtel MoMo status check, seller reminder, crowdfunding recruit reminder, quiz champion scheduler — all kicked off +30s after uvicorn ready, so cold-start is fast and individual worker faults don't block the API surface |
+| 239d/h/n | **Pro `VideoPlayer`** — IntersectionObserver autoplay, click-to-pause, fullscreen, scrubbable progress, mute toggle, mobile-safe `playsInline`, **auto aspect-ratio detection** via `onLoadedMetadata` (iter239n) |
+| 240j-k | **Fiche Admin (7-tab user detail modal)** — overview, transactions, KYC, restrictions, notes, posts, crowdfunding tabs. `UserNameLink` applied globally so every user mention everywhere clicks through to the modal. `GET /api/admin/users/{user_id}/detail` is the single source of truth |
+| 240l   | **Système Jury Crowdfunding** — `crowdfunding_jury_members` table (vote_multiplier, certificate_url, certificate_pdf_url), badge ⚖️ Jury on public profiles, stats endpoints, premium SVG certificate auto-generated and uploaded to Cloudflare R2, PDF fallback via `cairosvg` for LinkedIn-shareable downloads, real JAPAP logo embedded base64 + scannable QR |
+| 240l-gamefix | **Admin "Activité Jeux" rebuilt from transactions** — old tables (quiz_game_history, fortune_wheel_spins, mini_spin_history) were unreliable/empty → `_build_game_activity_from_tx()` aggregates from `transactions` table (single SQL with CTEs) — Quiz/Roue/Spin/Staking + collapsible `all_transaction_types` debug breakdown for admins |
+| 240l-msgfix | **Admin → user notification fix** — `} catch {}` without binding ate the real error → toast always said "Action échouée". Now `catch (e)` surfaces `(status · detail)` and backend validates 422 empty / 404 unknown user / auto-logs to `admin_user_notes` for audit trail |
+| 240l-prodfix | **🚨 P0 production outage (24h) fix** — DB pool `max_size=10` exhausted in prod → every DB-bound route hung forever, `/api/health` stayed green so monitoring missed it. Pool now sized for production (`min=5/max=50, command_timeout=20s, max_inactive_connection_lifetime=60s`) + new `GET /api/health/db` readiness probe + client-side `axios timeout: 15000` on login |
+| 240m   | **Video orientation portrait/paysage/carré** — `FeedPage/PostDetailPage/ChatPage` flipped `aspectRatio="16/9"` → `"auto"` (ReelsPage already did). `VideoPlayer` now detects `isPortrait/isSquare/isLandscape` from resolved ratio, caps `maxHeight: 80vh` on portrait (prevents 2133px-tall desktop layouts), `object-fit: contain` for portrait/square, exposes `data-orientation` attribute |
 
 ---
 
@@ -495,6 +545,27 @@ A few hard rules — they exist because breaking them **has bitten us**:
     (iter137) via the global axios interceptor + ErrorBoundary. Check
     *Admin → Erreurs IA* daily; bulk-fix after each deployment via
     *Tout marquer corrigé* (iter138).
+11. **DB connection pool must stay sized for production** (iter240l-prodfix
+    P0 lesson). The `asyncpg.create_pool(...)` config in `database.py` is
+    `min_size=5, max_size=50, command_timeout=20, max_inactive_connection_lifetime=60`.
+    **Do not lower** these without testing 30 concurrent logins. The
+    regression test in `tests/test_iter240l_prodfix_pool.py` locks the
+    sizing in place.
+12. **🛑 NEVER TOUCH PAYMENT ROUTES**. Hubtel MoMo, Paystack, USDT
+    (TRC20/BEP20), Orange Money, Wave are real-money integrations
+    serving real customers. Any change there must go through a dedicated
+    integration playbook + signed-off staging test, *never* as a
+    side-effect of another iteration. The string `"never_modify_payment"`
+    appears in CI guards for this reason.
+13. **Every admin action that mutates user state must auto-log to
+    `admin_user_notes`** (iter240l-msgfix lesson). The pattern is a
+    best-effort `INSERT … (note='[ACTION KIND] details')` inside the
+    same connection, in a `try/except: pass` so the user-visible action
+    never fails because the audit log did.
+14. **`pages/*.js` callers of `<VideoPlayer />` must pass
+    `aspectRatio="auto"`** unless they have a strong reason to force a
+    ratio (e.g. a fixed 16:9 hero banner). Forcing `"16/9"` everywhere
+    is what broke portrait videos for months (iter240m lesson).
 
 ---
 

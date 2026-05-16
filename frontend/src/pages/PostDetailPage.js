@@ -140,7 +140,7 @@ export default function PostDetailPage() {
                 ? <VideoPlayer key={i} videoUrl={src}
                     thumbnailUrl={typeof m === 'object' ? (m?.thumbnail_url || m?.thumbnailUrl) : undefined}
                     autoplay={false} muted loop={false}
-                    aspectRatio="16/9" testId={`post-video-${i}`} />
+                    aspectRatio="auto" testId={`post-video-${i}`} />
                 : <img key={i} src={src} alt=""
                     loading="lazy" decoding="async"
                     className="w-full max-h-96 object-cover"

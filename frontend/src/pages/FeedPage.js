@@ -809,7 +809,7 @@ export default function FeedPage() {
                             autoplay
                             muted
                             loop={false}
-                            aspectRatio="16/9"
+                            aspectRatio="auto"
                             className="w-full"
                             testId={`feed-video-${post.post_id}-${i}`}
                           />

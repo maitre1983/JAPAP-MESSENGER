@@ -1069,7 +1069,7 @@ export default function ChatPage() {
                                 videoUrl={inline.url}
                                 thumbnailUrl={inline.thumbnail_url || inline.thumbnailUrl}
                                 autoplay={false} muted loop={false}
-                                aspectRatio="16/9" className="w-full"
+                                aspectRatio="auto" className="w-full"
                                 testId={`chat-video-${msg.msg_id}`}
                               />
                             ) : (

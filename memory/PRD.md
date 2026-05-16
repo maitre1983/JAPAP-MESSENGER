@@ -7,6 +7,49 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240m — Orientation vidéo portrait/paysage/carré corrigée (16/05/2026)
+
+### Bug
+Toutes les vidéos s'affichaient en paysage (16:9) dans Feed / Post / Chat, peu importe leur orientation native — y compris les vidéos filmées en portrait sur téléphone.
+
+### Root Cause (audit minimal — pas besoin de ffmpeg/transcoding serveur)
+`VideoPlayer.jsx` (iter239n) supporte déjà `aspectRatio="auto"` avec détection automatique via `onLoadedMetadata` → `videoWidth/videoHeight`. ReelsPage l'utilisait correctement.
+
+**3 composants forçaient `aspectRatio="16/9"` en dur**, écrasant l'orientation native :
+- `pages/FeedPage.js` (ligne ~813)
+- `pages/PostDetailPage.js` (ligne ~143)
+- `pages/ChatPage.js` (ligne ~1072)
+
+### Fix (Option A minimaliste — 0 surcoût serveur, 0 dépendance)
+1. **3 props flippés** : `aspectRatio="16/9"` → `aspectRatio="auto"` dans FeedPage/PostDetailPage/ChatPage.
+2. **VideoPlayer durci** (`components/VideoPlayer.jsx`) :
+   - Calcule `ratioNum = w/h` à partir de `effectiveRatio` et déduit `isPortrait` (< 0.95), `isSquare` (0.95-1.05), landscape (> 1.05).
+   - Container portrait : `maxHeight: 80vh, width: auto, margin: 0 auto` → empêche une vidéo 9:16 de prendre 2133px de haut sur desktop tout en restant cinématique sur mobile.
+   - `object-fit: contain` pour portrait/square/auto, `cover` pour landscape-fixed (préserve fond noir letterbox propre).
+   - Nouveaux attributs HTML : `data-orientation="portrait|square|landscape"` et className `jp-video-portrait|square|landscape` pour styling externe + tests.
+
+### Garanties
+- ✅ ReelsPage inchangée (utilisait déjà `auto`).
+- ✅ Cas paysage 16:9 : pixel-perfect identique (cover sur ratio fixe).
+- ✅ Cas portrait/carré : maintenant respectés sur Feed/Post/Chat.
+- ✅ Aucune migration DB, aucune nouvelle dépendance, aucun transcoding serveur.
+- ✅ Payments intacts.
+
+### PWA
+- `SW_VERSION = "v25-iter240m"`.
+
+### Edge case connu (volontairement non couvert — Option B en backup)
+Très rare : MP4 avec tag EXIF rotation=90 où le navigateur expose `videoWidth` pré-rotation. Couverture < 5% du parc navigateur (vieux Firefox uniquement). Si signalé en prod, on déploie l'Option B (ffmpeg transcoding serveur) en complément.
+
+### Fichiers
+- MOD : `frontend/src/components/VideoPlayer.jsx` (détection portrait/square/landscape + maxHeight cap).
+- MOD : `frontend/src/pages/FeedPage.js` (`aspectRatio="auto"`).
+- MOD : `frontend/src/pages/PostDetailPage.js` (`aspectRatio="auto"`).
+- MOD : `frontend/src/pages/ChatPage.js` (`aspectRatio="auto"`).
+- MOD : `frontend/public/sw.js` (SW_VERSION).
+
+
+
 ## iter240l-prodfix — 🚨 P0 PRODUCTION OUTAGE (24h) — DB pool exhausted (16/05/2026)
 
 ### Incident

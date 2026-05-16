@@ -52,6 +52,18 @@ export default function VideoPlayer({
     ? (autoRatio || '9/16')   // sensible default while metadata loads
     : aspectRatio;
 
+  // iter240m — portrait/square detection from the resolved ratio so we
+  // can (a) cap the container height on desktop (a 9/16 video at 100%
+  // width on a 1200px column would be 2133px tall — unusable), and
+  // (b) keep the visual letterbox clean (object-fit: contain + black
+  // background) without breaking landscape full-width layouts.
+  const ratioNum = (() => {
+    const [w, h] = (effectiveRatio || '16/9').split('/').map(Number);
+    return w && h ? w / h : 16 / 9;
+  })();
+  const isPortrait = ratioNum < 0.95;
+  const isSquare   = ratioNum >= 0.95 && ratioNum <= 1.05;
+
   // IntersectionObserver — autoplay when scrolled into view.
   useEffect(() => {
     if (!autoplay || !containerRef.current) return undefined;
@@ -132,13 +144,19 @@ export default function VideoPlayer({
   return (
     <div
       ref={containerRef}
-      className={`jp-video-player ${className}`}
+      className={`jp-video-player ${className} jp-video-${isPortrait ? 'portrait' : isSquare ? 'square' : 'landscape'}`}
       data-testid={testId}
       data-playing={isPlaying ? 'true' : 'false'}
+      data-orientation={isPortrait ? 'portrait' : isSquare ? 'square' : 'landscape'}
       style={{
         position: 'relative', borderRadius: 12, overflow: 'hidden',
         background: '#000', aspectRatio: effectiveRatio, cursor: 'pointer',
         userSelect: 'none',
+        // iter240m — keep portrait videos tall but bounded. Without this,
+        // a 9:16 reel at full container width would push the next post
+        // off-screen on desktop. 80vh matches our Reels layout and feels
+        // native on mobile too (status bar + bottom nav remain visible).
+        ...(isPortrait ? { maxHeight: '80vh', width: 'auto', margin: '0 auto' } : null),
       }}
       onMouseMove={onMouseMove}
       onMouseLeave={() => setShowControls(false)}
@@ -191,12 +209,10 @@ export default function VideoPlayer({
         data-testid={`${testId}-video`}
         style={{
           width: '100%', height: '100%',
-          // iter239n — `contain` instead of `cover` so portrait videos
-          // keep their full frame (no top/bottom crop) and landscape
-          // videos sit in a letterboxed black band — the orientation
-          // detection above already sized the container to the natural
-          // ratio so there's typically no visible bar at all.
-          objectFit: aspectRatio === 'auto' ? 'contain' : 'cover',
+          // iter239n / iter240m — `contain` whenever the natural ratio is
+          // portrait/square OR the caller asked for auto. Landscape with
+          // a fixed ratio keeps `cover` to fill 16/9 nicely.
+          objectFit: (aspectRatio === 'auto' || isPortrait || isSquare) ? 'contain' : 'cover',
           display: 'block',
         }}
         onLoadedMetadata={() => {

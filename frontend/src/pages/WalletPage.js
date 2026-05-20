@@ -1073,6 +1073,22 @@ export default function WalletPage() {
                     </span>
                   </button>
                 ))}
+                {/* iter240n — Hubtel Mobile Money Ghana withdraw CTA (additif, gated by toggle).
+                    Reuses the existing `/wallet/hubtel-momo` page in withdraw mode — the entire
+                    backend route POST /api/wallet/withdraw/hubtel-momo is untouched. */}
+                {methodStatus?.hubtel_momo !== false && (
+                <button type="button"
+                  onClick={() => navigate('/wallet/hubtel-momo?mode=withdraw')}
+                  className="rounded-xl p-3 text-sm font-bold border-2 transition-all flex items-center gap-2 jp-btn-ghost"
+                  data-testid="withdraw-method-hubtel-momo-cta"
+                  style={{ borderColor: 'var(--jp-border)' }}>
+                  <span className="text-2xl">🇬🇭</span>
+                  <span className="flex-1 text-left leading-tight">
+                    Mobile Money Ghana
+                    <div className="text-[10px] font-normal opacity-80 mt-0.5">MTN · Telecel · AirtelTigo</div>
+                  </span>
+                </button>
+                )}
               </div>
             </div>
             <div>

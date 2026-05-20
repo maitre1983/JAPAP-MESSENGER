@@ -7,6 +7,70 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter240n-momo-withdraw — MoMo Ghana retrait à nouveau accessible depuis le wallet (20/05/2026)
+
+### Bug rapporté par le Chairman
+Le moyen de retrait par MoMo Ghana (Hubtel) n'est plus visible sur la page wallet alors que tout est correctement configuré côté admin :
+- `hubtel_enabled=true`, `hubtel_momo_enabled=true` en DB
+- Credentials Hubtel valides (HTTP 200 sur test endpoint)
+- Disbursement account configuré (`2021772`)
+
+### Root Cause (UI-only, code paiement intact)
+**TOUT le pipeline backend MoMo retrait fonctionne** :
+- ✅ Route `POST /api/wallet/withdraw/hubtel-momo` (`routes/hubtel_momo.py:546`) — débit atomique, anti-dup, FX USD→GHS, appel Hubtel disbursement, refund auto si échec
+- ✅ Worker cron `hubtel_momo_status_check.py` — réconciliation des statuts
+- ✅ Widget frontend `HubtelMomoWidget.jsx` — supporte modes `deposit` ET `withdraw`
+- ✅ Page wrapper `WalletHubtelMomoPage.jsx` (route `/wallet/hubtel-momo`) — switch UI deposit/withdraw
+
+**Le seul lien manquant** : depuis `WalletPage.js`, le CTA "MoMo Ghana" n'existait que dans la zone **deposit** (ligne 752). Dans la zone **withdraw** (ligne 1063), seuls les boutons USDT TRC20 / BEP20 étaient mappés. Aucun bouton ne pointait vers `/wallet/hubtel-momo` en mode retrait.
+
+### Fix (100% additif, 2 fichiers, 0 modif des routes paiement)
+
+1. **`pages/WalletHubtelMomoPage.jsx`** :
+   ```js
+   const [searchParams] = useSearchParams();
+   const initialMode = searchParams.get('mode') === 'withdraw' ? 'withdraw' : 'deposit';
+   const [mode, setMode] = useState(initialMode);
+   ```
+   La page accepte maintenant `?mode=withdraw` et démarre directement sur le bon onglet (rétro-compat : sans query param, reste `deposit`).
+
+2. **`pages/WalletPage.js`** (zone withdraw, après le `.map` USDT) :
+   ```jsx
+   {methodStatus?.hubtel_momo !== false && (
+     <button onClick={() => navigate('/wallet/hubtel-momo?mode=withdraw')}
+             data-testid="withdraw-method-hubtel-momo-cta" …>
+       <span className="text-2xl">🇬🇭</span>
+       <span>Mobile Money Ghana
+         <div className="text-[10px]">MTN · Telecel · AirtelTigo</div>
+       </span>
+     </button>
+   )}
+   ```
+   Même style que le CTA deposit (cohérence visuelle), gated par le toggle admin `methodStatus.hubtel_momo`.
+
+### PWA
+- `SW_VERSION = "v25-iter240n-momo-withdraw"`.
+
+### Garanties
+- 🔒 **Zéro modif des routes paiement** : `wallet.py`, `hubtel_momo.py`, `paystack.py`, `services/hubtel_momo.py` intacts.
+- ✅ Lint clean sur les 2 fichiers modifiés.
+- ✅ Frontend compile (HTTP 200, pas d'overlay).
+- ✅ Tous les autres flows (USDT retrait, dépôt MoMo, Paystack) inchangés.
+- ✅ Toggle admin `payment_methods_status.hubtel_momo` continue à gater l'affichage.
+
+### Action utilisateur post-déploiement
+1. **Cliquer "Deploy" Emergent** pour pousser preview → production.
+2. Sur https://japapmessenger.com : Wallet → bouton "Retirer" → la liste de méthodes affichera maintenant **🇬🇭 Mobile Money Ghana** à côté de USDT TRC20/BEP20.
+3. Le clic redirige sur la page `/wallet/hubtel-momo?mode=withdraw` (mode retrait sélectionné).
+4. Saisir numéro MoMo Ghana (+233 / 0XX) → montant USD → soumettre → Hubtel disbursement déclenché.
+
+### Fichiers
+- MOD : `frontend/src/pages/WalletHubtelMomoPage.jsx` (lecture `?mode=` via useSearchParams).
+- MOD : `frontend/src/pages/WalletPage.js` (CTA "🇬🇭 Mobile Money Ghana" dans la zone withdraw).
+- MOD : `frontend/public/sw.js` (SW_VERSION).
+
+
+
 ## iter240m — Orientation vidéo portrait/paysage/carré corrigée (16/05/2026)
 
 ### Bug

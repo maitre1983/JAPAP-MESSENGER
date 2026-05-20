@@ -7,7 +7,7 @@
  * (or by directly entering the URL).
  */
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft } from '@phosphor-icons/react';
 import { HubtelMomoWidget } from '../components/wallet/HubtelMomoWidget';
@@ -15,7 +15,12 @@ import { HubtelMomoWidget } from '../components/wallet/HubtelMomoWidget';
 export default function WalletHubtelMomoPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [mode, setMode] = useState('deposit');
+  // iter240n — Allow callers to pre-select the mode via ?mode=withdraw|deposit
+  // so the "Retirer en MoMo Ghana" CTA from the wallet withdraw section lands
+  // directly on the right tab. Defaults to deposit for backwards compat.
+  const [searchParams] = useSearchParams();
+  const initialMode = searchParams.get('mode') === 'withdraw' ? 'withdraw' : 'deposit';
+  const [mode, setMode] = useState(initialMode);
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--jp-background)' }}

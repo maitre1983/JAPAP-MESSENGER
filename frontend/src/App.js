@@ -69,6 +69,7 @@ const AboutPage = lazy(() => import('@/pages/AboutPage'));
 
 // Games (groupe lourd — chargé uniquement quand l'utilisateur navigue vers /games)
 const GamesModule = lazy(() => import('@/pages/GamesModule'));
+const ForecastPage = lazy(() => import('@/pages/ForecastPage'));
 const WheelFortunePage = lazy(() => import('@/pages/WheelFortunePage'));
 const QuizJAPAPPage = lazy(() => import('@/pages/QuizJAPAPPage'));
 const QuizChampionPage = lazy(() => import('@/pages/QuizChampionPage'));
@@ -224,6 +225,7 @@ function AppRouter() {
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="/settings/requests" element={<ProtectedRoute><FollowRequestsPage /></ProtectedRoute>} />
       <Route path="/games" element={<ProtectedRoute><GamesModule /></ProtectedRoute>} />
+      <Route path="/games/forecast" element={<ProtectedRoute><ForecastPage /></ProtectedRoute>} />
       <Route path="/games/wheel" element={<ProtectedRoute><WheelFortunePage /></ProtectedRoute>} />
       <Route path="/games/quiz" element={<ProtectedRoute><QuizJAPAPPage /></ProtectedRoute>} />
       <Route path="/games/quiz/daily" element={<ProtectedRoute><QuizJAPAPPage /></ProtectedRoute>} />

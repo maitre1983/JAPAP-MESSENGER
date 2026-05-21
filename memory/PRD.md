@@ -7,6 +7,78 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter241a — Module Prédictions (Forecast Markets) — MVP livré (21/05/2026)
+
+### Demande user
+Nouveau module de marchés de prédiction dans le menu Games. Les utilisateurs parient leur solde USD wallet sur des événements réels (politique, économie, crypto, culture, monde, sport). Admin crée les marchés manuellement, valide les résultats, et un layer IA (Claude) assistera en iter241b.
+
+### Stack & contraintes choisies (audit-driven)
+- Wallet : **uniquement USD canonique** (table `wallets`). MIR/LIMO/USDT prêts en `forecast_settings` mais désactivés (iter241c).
+- `user_id VARCHAR(80)` partout (cohérent avec le reste).
+- 5 langues (FR/EN/ES/AR-RTL/RU) — namespace `forecast` complet × 5.
+- Compliance : appelé "Prédictions", jeu de divertissement (comme Quiz/Roue).
+- Mise min: 1 USD (config admin).
+
+### Backend (3 nouveaux fichiers, 0 modif sur l'existant)
+- **`services/forecast_service.py`** (~720 lignes) :
+  - `ensure_forecast_tables()` idempotent → 5 tables (`forecast_settings`, `forecast_markets`, `forecast_options`, `forecast_bets`, `forecast_results`)
+  - `place_bet()` **atomique** : `wallets FOR UPDATE` → balance check → debit → insert bet → mirror dans `transactions(type='forecast_bet')` — tout dans la même `conn.transaction()`
+  - Guards : module désactivé (503), token désactivé (503), min/max bet, plafond/user, marché closed/paused/expired
+  - `admin_resolve_market()` : marque is_winner, paie tous les gagnants (`balance += potential_payout`), losers restent débités, mirror tx `forecast_win`
+  - `_refund_all_bets()` (cancel) : refund + tx `forecast_refund`
+  - `admin_market_exposure()` : worst-case payout par option, exposure_ratio_pct
+  - `admin_metrics()` : compteurs globaux (markets, bets, staked, fees, payouts, unique users)
+- **`routes/forecast.py`** : 5 endpoints user (`/settings/public`, `/markets`, `/markets/:id`, `/markets/:id/bet`, `/my-bets`)
+- **`routes/forecast_admin.py`** : 8 endpoints admin (settings GET/PUT, markets CRUD, lifecycle activate/pause/resume/close/cancel/resolve, exposure, metrics) + 3 stubs IA HTTP 501 pour iter241b
+
+### Frontend (3 nouveaux fichiers + 2 modifs additives)
+- **`pages/ForecastPage.js`** : page user, onglets Marchés/Mes Paris, filtre catégories, modal de mise avec preview (fee + net + gain potentiel) + check solde temps réel via `/api/wallet/balance`
+- **`pages/admin/ForecastAdminTab.jsx`** : 3 sous-onglets (Marchés / Paramètres / Métriques), form de création, modal résolution, toggles tokens MIR/LIMO/USDT (désactivés MVP)
+- `pages/GamesModule.js` : carte "🔮 Prédictions" (gated par `toggles.forecast_enabled` qui fetch `/api/forecast/settings/public`)
+- `pages/AdminPage.js` : nouvel onglet `forecast` après `wheel`
+- `App.js` : route `/games/forecast` ajoutée
+
+### i18n
+Namespace `forecast.*` × 5 langues (40 clés chacun). `admin.forecast` avec `defaultValue` pour fonctionner sans bloat dans le namespace admin existant (141 clés intactes).
+
+### Validation live (curl)
+- ✅ `POST /api/admin/forecast/markets` — création marché BTC binary, status='draft'
+- ✅ `POST .../activate` — passage en active
+- ✅ `POST /api/forecast/markets/:id/bet` 10 USD → fee 0.5, net 9.5, potential 19.95, wallet débité 32.55→22.55
+- ✅ `GET /api/forecast/my-bets` — bet visible avec market_title/option_label joinés
+- ✅ `GET /api/admin/forecast/markets/:id/exposure` — worst_case 19.95, net_exposure 9.95, ratio 0.02%
+- ✅ Guards : mise > max → 400 "Mise maximum 10000 USD", mise < min → 400 "Mise minimum 1 USD"
+
+### PWA
+- `SW_VERSION = "v25-iter241a"`
+
+### Pas inclus (iter241b/c/d)
+- **iter241b** : Layer Claude IA (suggest_markets, detect_result, abuse_check) — endpoints stubs déjà en place (501).
+- **iter241c** : Activer MIR/LIMO via table `user_balances` dédiée.
+- **iter241d** : KYC/geo-blocking si réglementation l'exige.
+
+### Garanties
+- 🔒 Aucune route paiement touchée (Hubtel, Paystack, USDT, Orange, Wave).
+- 🔒 Aucun composant frontend existant modifié dans son comportement (Wallet, Quiz, Wheel, etc.).
+- ✅ Module activable/désactivable en 1 clic (toggle `forecast_settings.module_enabled`).
+- ✅ Lint clean sur ForecastPage, ForecastAdminTab, GamesModule, AdminPage.
+- ✅ 5 locales JSON valides après ajout (admin namespace toujours 141 clés).
+
+### Fichiers
+- NEW : `backend/services/forecast_service.py`
+- NEW : `backend/routes/forecast.py`
+- NEW : `backend/routes/forecast_admin.py`
+- MOD : `backend/server.py` (3 imports + 2 include_router + 1 ensure_forecast_tables)
+- NEW : `frontend/src/pages/ForecastPage.js`
+- NEW : `frontend/src/pages/admin/ForecastAdminTab.jsx`
+- MOD : `frontend/src/pages/GamesModule.js` (carte 🔮 Prédictions + fetch toggle)
+- MOD : `frontend/src/pages/AdminPage.js` (onglet forecast)
+- MOD : `frontend/src/App.js` (route /games/forecast)
+- MOD : `frontend/src/locales/{fr,en,es,ar,ru}.json` (namespace forecast × 5)
+- MOD : `frontend/public/sw.js` (SW_VERSION)
+
+
+
 ## iter240n-momo-withdraw — MoMo Ghana retrait à nouveau accessible depuis le wallet (20/05/2026)
 
 ### Bug rapporté par le Chairman

@@ -32,6 +32,12 @@ export default function GamesModule({ onBack }) {
       const { data } = await axios.get(`${API}/api/games/toggles`);
       setToggles(data);
     } catch (_) {}
+    // iter241a — Forecast module enabled is its own setting (public, unauth-safe).
+    // Merge it into the toggles bag so the existing GameCard gating works.
+    try {
+      const { data } = await axios.get(`${API}/api/forecast/settings/public`);
+      setToggles(prev => ({ ...prev, forecast_enabled: !!data?.module_enabled }));
+    } catch (_) {}
   };
   const [leaderboardScope, setLeaderboardScope] = useState('country');
   const [meRanks, setMeRanks] = useState({ rank_global: null, rank_country: null });
@@ -166,6 +172,23 @@ export default function GamesModule({ onBack }) {
           testid="game-leaderboard-jump"
         />
       </div>
+
+      {/* iter241a — Prédictions card (gated by forecast_settings.module_enabled — fetched on mount).
+          Strictly additive: hidden when toggles.forecast_enabled is falsy. */}
+      {toggles.forecast_enabled && (
+        <div className="mb-4">
+          <GameCard
+            icon={<span style={{ fontSize: 32 }}>🔮</span>}
+            label={t('forecast.tab_label')}
+            desc={t('forecast.subtitle')}
+            color="#7C3AED"
+            remaining={null}
+            onClick={() => navigate('/games/forecast')}
+            testid="game-forecast"
+            badge={t('forecast.tab_label')}
+          />
+        </div>
+      )}
 
       <div className="text-[11px] uppercase tracking-widest font-bold mb-2 mt-6"
            style={{ color: 'var(--jp-text-muted)' }}>{t('games.mini_jeux_xaf_quotidiens')}</div>

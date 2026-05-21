@@ -16,6 +16,7 @@ import StatsAdminTab from '@/pages/admin/StatsAdminTab';
 import MessagingAdminTab from '@/pages/admin/MessagingAdminTab';
 import StakingAdminTab from '@/pages/admin/StakingAdminTab';
 import WheelFortuneAdminTab from '@/pages/admin/WheelFortuneAdminTab';
+import ForecastAdminTab from '@/pages/admin/ForecastAdminTab';
 import GamesEngagementAdminTab from '@/pages/admin/GamesEngagementAdminTab';
 import RecruitAdminTab from '@/pages/admin/RecruitAdminTab';
 import WalletOverviewAdminTab from '@/pages/admin/WalletOverviewAdminTab';
@@ -74,6 +75,7 @@ export default function AdminPage() {
     { id: 'support', label: 'Support', icon: Headset, badge: supportOpen },
     { id: 'kyc', label: `KYC${kycPending > 0 ? ` (${kycPending})` : ''}`, icon: IdentificationCard },
     { id: 'wheel', label: 'Roue Fortune', icon: Target },
+    { id: 'forecast', label: '🔮 Prédictions', icon: GameController },
     { id: 'engagement', label: 'Quiz & Tap', icon: GameController },
     { id: 'recruit', label: 'Recruteurs (Viral)', icon: Confetti },
     { id: 'crowdfunding', label: 'Crowdfunding', icon: Gift },
@@ -142,6 +144,7 @@ export default function AdminPage() {
       {tab === 'support' && <SupportAdminTab onAction={loadStats} />}
       {tab === 'kyc' && <KycTab onAction={loadStats} setMessage={setMessage} />}
       {tab === 'wheel' && <WheelFortuneAdminTab />}
+      {tab === 'forecast' && <ForecastAdminTab />}
       {tab === 'engagement' && <GamesEngagementAdminTab />}
       {tab === 'recruit' && <RecruitAdminTab />}
       {tab === 'crowdfunding' && (

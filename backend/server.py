@@ -44,6 +44,9 @@ from routes.tap import router as tap_router
 from routes.engagement_leaderboard import router as engagement_leaderboard_router
 from routes.duel import router as duel_router
 from routes.support import router as support_router
+from routes.forecast import router as forecast_router
+from routes.forecast_admin import router as forecast_admin_router
+from services.forecast_service import ensure_forecast_tables
 from routes.jobs import router as jobs_router
 from routes.transport import router as transport_router
 from routes.feed_extended import router as feed_extended_router
@@ -359,6 +362,10 @@ fastapi_app.include_router(staking_router)
 fastapi_app.include_router(staking_admin_router)
 fastapi_app.include_router(security_router)
 fastapi_app.include_router(wheel_router)
+# iter241a — Forecast (Prediction Markets) MVP. Module gated by
+# forecast_settings.module_enabled (admin can disable in one click).
+fastapi_app.include_router(forecast_router)
+fastapi_app.include_router(forecast_admin_router)
 
 # iter237c — Defensive guard: wrap Mobile Money imports/registrations
 # in a try/except so a single mis-loaded module never breaks pod boot.
@@ -979,6 +986,7 @@ async def startup():
     try:
         await ensure_security_tables()
         await ensure_wheel_tables()
+        await ensure_forecast_tables()
         # iter146 — trusted devices table for long-lived sessions on
         # recognised devices (≥2 successful logins).
         from services.trusted_device_service import ensure_trusted_devices_table

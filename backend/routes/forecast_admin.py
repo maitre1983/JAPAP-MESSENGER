@@ -99,6 +99,37 @@ async def create_market(payload: MarketCreate, request: Request):
     return await svc.admin_create_market(body, admin_id=admin["user_id"])
 
 
+class MarketUpdate(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=3, max_length=500)
+    description: Optional[str] = Field(default=None, max_length=2000)
+    category: Optional[str] = None
+    closes_at: Optional[str] = None
+    source_label: Optional[str] = Field(default=None, max_length=255)
+    source_url: Optional[str] = Field(default=None, max_length=500)
+    min_bet: Optional[float] = None
+    max_bet: Optional[float] = None
+    max_bet_per_user: Optional[float] = None
+    max_exposure: Optional[float] = None
+    platform_fee_percent: Optional[float] = None
+    options: Optional[list[OptionIn]] = None  # only allowed while draft & no bets
+
+
+@router.put("/markets/{market_id}")
+async def update_market(market_id: str, payload: MarketUpdate, request: Request):
+    await require_admin(request)
+    return await svc.admin_update_market(market_id, payload.model_dump(exclude_none=True))
+
+
+@router.delete("/markets/{market_id}")
+async def delete_market(market_id: str, request: Request):
+    """Hard delete — only allowed while the market is `draft` (no bets yet)
+    or `cancelled` (all bets already refunded). Active/resolved markets must
+    stay in DB for audit & user history."""
+    await require_admin(request)
+    await svc.admin_delete_market(market_id)
+    return {"ok": True}
+
+
 @router.post("/markets/{market_id}/{action}")
 async def market_action(market_id: str, action: str, request: Request):
     """action ∈ {activate, pause, resume, close, cancel}."""

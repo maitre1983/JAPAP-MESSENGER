@@ -7,6 +7,59 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter241a-admin-ux — Prédictions Admin : Modifier / ON·OFF / Supprimer / Save explicite (21/05/2026)
+
+### Bugs/manques signalés (3 captures Production)
+1. ❌ Aucun bouton "Modifier" pour éditer un marché en draft avant publication.
+2. ❌ Mécanique pause/resume confuse — pas de signal visuel clair ON/OFF.
+3. ❌ Pas de bouton "Supprimer" — uniquement Annuler (qui rembourse, garde la trace).
+4. ❌ Capture 2 : bouton "Activer" rouge ne marche pas → toast "Action invalide".
+5. ❌ Capture 1 : modal résolution affiche `admin.forecast.resolve` brut (i18n key manquante).
+6. ❌ Capture 3 : Paramètres sauvent en silence sur onBlur — aucune confirmation visible.
+
+### Fix complet (preview)
+- **Backend** (2 nouvelles routes, aucune modif sur l'existant) :
+  - `PUT  /api/admin/forecast/markets/:id` — édite titre/desc/limits/closes_at toujours possible, options uniquement si `status=draft AND no bets`.
+  - `DELETE /api/admin/forecast/markets/:id` — hard-delete uniquement sur `draft|cancelled`. Active/closed/resolved → 400 avec message clair "Annulez d'abord le marché (les mises seront remboursées)".
+  - Le `cascade DELETE` enlève `forecast_options` et `forecast_results` ; les `forecast_bets` (cancelled+refunded) restent pour l'historique user.
+
+- **Frontend admin** (`ForecastAdminTab.jsx`) :
+  - **Badge ON LIGNE / HORS LIGNE** sur chaque marché — vert si `status='active' AND NOT is_paused`, gris sinon. Visuel pro instant.
+  - **Bouton ✏️ Modifier** sur draft → ouvre `EditMarketForm` prérempli (titre/desc/cat/date/source/options/multiplicateurs).
+  - **Boutons explicites** : ▶ Mettre en ligne · ⏸ Mettre hors ligne · ▶ Remettre en ligne · 🔒 Fermer · 🏆 Résoudre · ✕ Annuler · 🗑️ Supprimer.
+  - **`defaultValue` sur TOUS les `t('admin.forecast.*')` calls** : plus jamais de string brute affichée (`admin.forecast.resolve` était visible capture 1).
+
+- **SettingsPanel refactor — confirmation explicite (capture 3)** :
+  - 2 états distincts : `saved` (DB) + `draft` (édition locale).
+  - **Bouton "💾 Enregistrer les paramètres"** (sticky en bas) ne s'active que si dirty.
+  - Bouton "Annuler les modifications" (reset au `saved`).
+  - **Bannière jaune "⚠ Modifications non enregistrées"** quand dirty.
+  - Toast "✓ Paramètres enregistrés" après save.
+  - Onblur supprimé — plus jamais de save fantôme.
+
+### Validation live (curl)
+- ✅ `POST /api/admin/forecast/markets` → draft `mkt_da65ce57d7a14c`
+- ✅ `PUT  /api/admin/forecast/markets/:id` → titre + min_bet + options remplacés → HTTP 200, payload complet retourné
+- ✅ `DELETE /api/admin/forecast/markets/:id` (draft) → HTTP 200 `{ok:true}`
+- ✅ `DELETE /api/admin/forecast/markets/:id` (active) → HTTP 400 message clair
+
+### Garanties
+- 🔒 Aucune route paiement touchée.
+- ✅ Cohérence : les marchés actifs/résolus/avec paris restent dans la DB pour audit (delete refusé).
+- ✅ Lint clean sur ForecastAdminTab, forecast_service.py, forecast_admin.py.
+- 5 langues toujours valides (clés `admin.forecast.*` utilisent `defaultValue`, pas besoin de toucher aux locales).
+
+### PWA
+- `SW_VERSION = "v25-iter241a-admin-ux"`
+
+### Fichiers
+- MOD : `backend/services/forecast_service.py` (`admin_update_market`, `admin_delete_market`)
+- MOD : `backend/routes/forecast_admin.py` (PUT + DELETE routes + MarketUpdate model)
+- MOD : `frontend/src/pages/admin/ForecastAdminTab.jsx` (ON/OFF badge, EditMarketForm, SettingsPanel refactor, defaultValue partout)
+- MOD : `frontend/public/sw.js` (SW_VERSION)
+
+
+
 ## iter241a — Module Prédictions (Forecast Markets) — MVP livré (21/05/2026)
 
 ### Demande user

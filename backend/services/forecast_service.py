@@ -737,6 +737,115 @@ async def admin_market_exposure(market_id: str) -> dict:
     }
 
 
+async def admin_update_market(market_id: str, payload: dict) -> dict:
+    """Patch metadata + limits. Title/desc/limits editable any time; closes_at
+    & options editable ONLY while draft & no bets exist (otherwise we'd alter
+    the rules people already placed bets on)."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            m = await conn.fetchrow(
+                "SELECT * FROM forecast_markets WHERE market_id = $1 FOR UPDATE",
+                market_id,
+            )
+            if not m:
+                raise HTTPException(status_code=404, detail="Marché introuvable.")
+            if m["status"] in ("resolved", "cancelled"):
+                raise HTTPException(status_code=400,
+                                     detail=f"Marché {m['status']} non modifiable.")
+
+            has_bets = await conn.fetchval(
+                "SELECT COUNT(*) FROM forecast_bets WHERE market_id = $1 AND status='placed'",
+                market_id,
+            ) or 0
+
+            # Build allowed-fields UPDATE.
+            allowed = {
+                "title", "description", "category", "source_label", "source_url",
+                "min_bet", "max_bet", "max_bet_per_user", "max_exposure",
+                "platform_fee_percent",
+            }
+            if has_bets == 0 and m["status"] == "draft":
+                allowed.add("closes_at")  # safe to retime an empty draft
+
+            sets, args = [], []
+            for k, v in (payload or {}).items():
+                if k not in allowed:
+                    continue
+                if k == "category" and v not in VALID_CATEGORIES:
+                    raise HTTPException(status_code=422, detail="Catégorie invalide.")
+                if k == "closes_at" and isinstance(v, str):
+                    try:
+                        from datetime import datetime as _dt
+                        v = _dt.fromisoformat(v.replace("Z", "+00:00"))
+                    except ValueError:
+                        raise HTTPException(status_code=422, detail="closes_at invalide.")
+                sets.append(f"{k} = ${len(args) + 1}")
+                args.append(v)
+            if sets:
+                sets.append(f"updated_at = ${len(args) + 1}")
+                args.append(datetime.now(timezone.utc))
+                args.append(market_id)
+                await conn.execute(
+                    f"UPDATE forecast_markets SET {', '.join(sets)} "
+                    f"WHERE market_id = ${len(args)}",
+                    *args,
+                )
+
+            # Replace options only when no bets AND draft.
+            options = payload.get("options")
+            if options and has_bets == 0 and m["status"] == "draft":
+                if len(options) < 2:
+                    raise HTTPException(status_code=422, detail="Au moins 2 options requises.")
+                await conn.execute(
+                    "DELETE FROM forecast_options WHERE market_id = $1", market_id,
+                )
+                for i, o in enumerate(options):
+                    label = (o.get("label") or "").strip()
+                    if not label:
+                        raise HTTPException(status_code=422,
+                                             detail=f"Option #{i+1} sans libellé.")
+                    try:
+                        mult = float(o.get("multiplier") or 2.0)
+                    except (TypeError, ValueError):
+                        raise HTTPException(status_code=422,
+                                             detail=f"Multiplicateur invalide pour option #{i+1}.")
+                    if mult < 1.01 or mult > 100:
+                        raise HTTPException(status_code=422,
+                                             detail="Multiplicateur doit être entre 1.01 et 100.")
+                    await conn.execute("""
+                        INSERT INTO forecast_options
+                          (option_id, market_id, label, multiplier, display_order)
+                        VALUES ($1, $2, $3, $4, $5)
+                    """, _new_id("opt"), market_id, label, mult, i)
+    return await get_market(market_id)
+
+
+async def admin_delete_market(market_id: str) -> None:
+    """Hard-delete a market — only while draft (no bets) or cancelled
+    (already refunded). Resolved/active markets must stay for audit."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            m = await conn.fetchrow(
+                "SELECT status FROM forecast_markets WHERE market_id = $1 FOR UPDATE",
+                market_id,
+            )
+            if not m:
+                raise HTTPException(status_code=404, detail="Marché introuvable.")
+            if m["status"] not in ("draft", "cancelled"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Seuls les brouillons et marchés annulés peuvent être supprimés. "
+                           "Annulez d'abord le marché (les mises seront remboursées).",
+                )
+            await conn.execute("DELETE FROM forecast_results WHERE market_id = $1", market_id)
+            await conn.execute("DELETE FROM forecast_options WHERE market_id = $1", market_id)
+            # Keep `forecast_bets` rows for cancelled markets so the user
+            # history page can still show "refunded" entries with context.
+            await conn.execute("DELETE FROM forecast_markets WHERE market_id = $1", market_id)
+
+
 async def admin_metrics() -> dict:
     pool = await get_pool()
     async with pool.acquire() as conn:

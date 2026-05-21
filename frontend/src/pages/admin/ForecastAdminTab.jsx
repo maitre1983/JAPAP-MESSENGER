@@ -97,16 +97,43 @@ function MarketsManager({ t }) {
 
 function AdminMarketRow({ t, market, onAction, onReload }) {
   const [resolveOpen, setResolveOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+
+  // iter241a-fix — clear ON/OFF semantics:
+  //   ON  = status='active' AND NOT is_paused (visible & accepting bets)
+  //   OFF = anything else (hidden from end-users)
+  const isOnline = market.status === 'active' && !market.is_paused;
   const statusColors = {
-    draft:     '#64748b', active: '#15803d', closed: '#b45309',
-    resolved:  '#7c3aed', cancelled: '#dc2626',
+    draft: '#64748b', active: '#15803d', closed: '#b45309',
+    resolved: '#7c3aed', cancelled: '#dc2626',
   };
+
+  const remove = async () => {
+    if (!window.confirm(t('admin.forecast.confirm_delete',
+        { defaultValue: 'Supprimer définitivement ce marché ? Cette action est irréversible.' }))) return;
+    try {
+      await axios.delete(`${API}/api/admin/forecast/markets/${market.market_id}`, { withCredentials: true });
+      toast.success(t('admin.forecast.deleted_ok', { defaultValue: 'Marché supprimé.' }));
+      onReload();
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Delete failed'); }
+  };
+
+  const canEdit   = market.status === 'draft';
+  const canDelete = ['draft', 'cancelled'].includes(market.status);
+
   return (
     <div className="jp-card p-3" data-testid={`forecast-admin-market-${market.market_id}`}>
       <div className="flex justify-between items-start gap-3 mb-2 flex-wrap">
         <div className="flex-1 min-w-0">
-          <div className="text-[10px] uppercase font-bold" style={{ color: 'var(--jp-text-muted)' }}>
-            {market.category} · {market.market_type}
+          <div className="text-[10px] uppercase font-bold flex items-center gap-2" style={{ color: 'var(--jp-text-muted)' }}>
+            <span>{market.category} · {market.market_type}</span>
+            {/* iter241a-fix — ON/OFF visual indicator for any admin to spot live markets at a glance. */}
+            <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold"
+                  style={{ background: isOnline ? '#15803d' : '#64748b', color: 'white' }}
+                  data-testid={`fc-admin-online-${market.market_id}`}>
+              {isOnline ? '● ' + t('admin.forecast.online', { defaultValue: 'EN LIGNE' })
+                        : '○ ' + t('admin.forecast.offline', { defaultValue: 'HORS LIGNE' })}
+            </span>
           </div>
           <div className="font-bold text-sm" style={{ color: 'var(--jp-text)' }}>{market.title}</div>
           <div className="text-[11px]" style={{ color: 'var(--jp-text-muted)' }}>
@@ -116,7 +143,8 @@ function AdminMarketRow({ t, market, onAction, onReload }) {
         </div>
         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap"
               style={{ color: statusColors[market.status] || '#64748b', background: 'var(--jp-surface-secondary)' }}>
-          {market.status}{market.is_paused && ' (paused)'}
+          {t(`admin.forecast.status_${market.status}`, { defaultValue: market.status })}
+          {market.is_paused && ' (' + t('admin.forecast.paused_short', { defaultValue: 'pause' }) + ')'}
         </span>
       </div>
 
@@ -129,37 +157,56 @@ function AdminMarketRow({ t, market, onAction, onReload }) {
       </div>
 
       <div className="flex flex-wrap gap-1 mt-2">
+        {/* iter241a-fix — explicit Modifier action surfaces only on drafts. */}
+        {canEdit && (
+          <button className="jp-btn-secondary jp-btn-sm" onClick={() => setEditOpen(true)}
+                  data-testid={`fc-admin-edit-${market.market_id}`}>
+            ✏️ {t('admin.forecast.edit', { defaultValue: 'Modifier' })}
+          </button>
+        )}
+        {/* ON/OFF actions — clearer wording than activate/pause/resume. */}
         {market.status === 'draft' && (
-          <button className="jp-btn-secondary jp-btn-sm" onClick={() => onAction(market.market_id, 'activate')}
+          <button className="jp-btn-primary jp-btn-sm" onClick={() => onAction(market.market_id, 'activate')}
                   data-testid={`fc-admin-activate-${market.market_id}`}>
-            {t('admin.forecast.activate', { defaultValue: 'Activer' })}
+            ▶ {t('admin.forecast.put_online', { defaultValue: 'Mettre en ligne' })}
           </button>
         )}
         {market.status === 'active' && !market.is_paused && (
-          <button className="jp-btn-secondary jp-btn-sm" onClick={() => onAction(market.market_id, 'pause')}>
-            ⏸ {t('admin.forecast.pause', { defaultValue: 'Pause' })}
+          <button className="jp-btn-secondary jp-btn-sm" onClick={() => onAction(market.market_id, 'pause')}
+                  data-testid={`fc-admin-offline-${market.market_id}`}>
+            ⏸ {t('admin.forecast.put_offline', { defaultValue: 'Mettre hors ligne' })}
           </button>
         )}
         {market.status === 'active' && market.is_paused && (
-          <button className="jp-btn-secondary jp-btn-sm" onClick={() => onAction(market.market_id, 'resume')}>
-            ▶ {t('admin.forecast.resume', { defaultValue: 'Reprendre' })}
+          <button className="jp-btn-primary jp-btn-sm" onClick={() => onAction(market.market_id, 'resume')}
+                  data-testid={`fc-admin-online-resume-${market.market_id}`}>
+            ▶ {t('admin.forecast.put_online_again', { defaultValue: 'Remettre en ligne' })}
           </button>
         )}
         {market.status === 'active' && (
           <button className="jp-btn-secondary jp-btn-sm" onClick={() => onAction(market.market_id, 'close')}>
-            {t('admin.forecast.close', { defaultValue: 'Fermer' })}
+            🔒 {t('admin.forecast.close', { defaultValue: 'Fermer' })}
           </button>
         )}
         {(market.status === 'active' || market.status === 'closed') && (
           <button className="jp-btn-primary jp-btn-sm" onClick={() => setResolveOpen(true)}
                   data-testid={`fc-admin-resolve-${market.market_id}`}>
-            🏆 {t('admin.forecast.resolve')}
+            🏆 {t('admin.forecast.resolve', { defaultValue: 'Résoudre' })}
           </button>
         )}
         {['draft','active','closed'].includes(market.status) && (
-          <button className="jp-btn-ghost jp-btn-sm" style={{ color: 'var(--jp-error, #dc2626)' }}
-                  onClick={() => onAction(market.market_id, 'cancel')}>
-            {t('admin.forecast.cancel_market', { defaultValue: 'Annuler' })}
+          <button className="jp-btn-ghost jp-btn-sm"
+                  onClick={() => onAction(market.market_id, 'cancel')}
+                  data-testid={`fc-admin-cancel-${market.market_id}`}
+                  style={{ color: 'var(--jp-warning, #b45309)' }}>
+            ✕ {t('admin.forecast.cancel_market', { defaultValue: 'Annuler' })}
+          </button>
+        )}
+        {canDelete && (
+          <button className="jp-btn-ghost jp-btn-sm" onClick={remove}
+                  data-testid={`fc-admin-delete-${market.market_id}`}
+                  style={{ color: 'var(--jp-error, #dc2626)' }}>
+            🗑️ {t('admin.forecast.delete', { defaultValue: 'Supprimer' })}
           </button>
         )}
       </div>
@@ -168,6 +215,87 @@ function AdminMarketRow({ t, market, onAction, onReload }) {
         <ResolveModal t={t} market={market} onClose={() => setResolveOpen(false)}
                       onResolved={() => { setResolveOpen(false); onReload(); }} />
       )}
+      {editOpen && (
+        <EditMarketForm t={t} market={market}
+                        onClose={() => setEditOpen(false)}
+                        onUpdated={() => { setEditOpen(false); onReload(); }} />
+      )}
+    </div>
+  );
+}
+
+function EditMarketForm({ t, market, onClose, onUpdated }) {
+  const [title, setTitle] = useState(market.title || '');
+  const [description, setDescription] = useState(market.description || '');
+  const [category, setCategory] = useState(market.category || 'world');
+  const [closesAt, setClosesAt] = useState(market.closes_at ? market.closes_at.slice(0, 16) : '');
+  const [sourceLabel, setSourceLabel] = useState(market.source_label || '');
+  const [sourceUrl, setSourceUrl] = useState(market.source_url || '');
+  const [options, setOptions] = useState(
+    (market.options || []).map(o => ({ label: o.label, multiplier: o.multiplier })),
+  );
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    setBusy(true);
+    try {
+      await axios.put(`${API}/api/admin/forecast/markets/${market.market_id}`, {
+        title, description, category,
+        closes_at: closesAt ? new Date(closesAt).toISOString() : undefined,
+        source_label: sourceLabel, source_url: sourceUrl,
+        options: options.map(o => ({ label: o.label, multiplier: Number(o.multiplier) })),
+      }, { withCredentials: true });
+      toast.success(t('admin.forecast.updated_ok', { defaultValue: 'Marché mis à jour.' }));
+      onUpdated();
+    } catch (e) { toast.error(e?.response?.data?.detail || 'Update failed'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+      <div className="jp-card-elevated p-5 max-w-xl w-full max-h-[90vh] overflow-y-auto" data-testid="fc-admin-edit-form">
+        <h3 className="font-bold text-lg mb-3">
+          ✏️ {t('admin.forecast.edit', { defaultValue: 'Modifier' })}
+        </h3>
+        <input className="jp-input w-full mb-2" placeholder={t('admin.forecast.title_field', { defaultValue: 'Titre' })}
+               value={title} onChange={e => setTitle(e.target.value)} data-testid="fc-admin-edit-title" />
+        <textarea className="jp-input w-full mb-2" rows={2} placeholder={t('admin.forecast.desc_field', { defaultValue: 'Description' })}
+                  value={description} onChange={e => setDescription(e.target.value)} />
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <select className="jp-input" value={category} onChange={e => setCategory(e.target.value)}>
+            {CATEGORIES.map(c => <option key={c} value={c}>{t(`forecast.cat_${c}`)}</option>)}
+          </select>
+          <input className="jp-input" type="datetime-local" value={closesAt} onChange={e => setClosesAt(e.target.value)} />
+        </div>
+        <input className="jp-input w-full mb-2" placeholder={t('admin.forecast.source_label', { defaultValue: 'Source (label)' })}
+               value={sourceLabel} onChange={e => setSourceLabel(e.target.value)} />
+        <input className="jp-input w-full mb-3" placeholder={t('admin.forecast.source_url', { defaultValue: 'Source URL' })}
+               value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} />
+
+        <div className="text-xs font-bold mb-1">{t('admin.forecast.options', { defaultValue: 'Options' })}</div>
+        {options.map((o, i) => (
+          <div key={i} className="flex gap-2 mb-2">
+            <input className="jp-input flex-1" placeholder="Label" value={o.label}
+                   onChange={e => setOptions(opts => opts.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
+            <input className="jp-input w-24" type="number" step="0.01" min="1.01" max="100"
+                   value={o.multiplier}
+                   onChange={e => setOptions(opts => opts.map((x, j) => j === i ? { ...x, multiplier: e.target.value } : x))} />
+            {options.length > 2 && (
+              <button className="jp-btn-ghost jp-btn-sm" onClick={() => setOptions(opts => opts.filter((_, j) => j !== i))}>×</button>
+            )}
+          </div>
+        ))}
+        <button className="jp-btn-ghost jp-btn-sm mb-3" onClick={() => setOptions(opts => [...opts, { label: '', multiplier: 2.0 }])}>
+          + {t('admin.forecast.add_option', { defaultValue: 'Ajouter option' })}
+        </button>
+
+        <div className="flex gap-2 mt-2">
+          <button onClick={onClose} className="jp-btn-ghost flex-1">{t('forecast.cancel', { defaultValue: 'Annuler' })}</button>
+          <button onClick={submit} disabled={busy} className="jp-btn-primary flex-1" data-testid="fc-admin-edit-submit">
+            {busy ? '…' : t('admin.forecast.save', { defaultValue: 'Enregistrer' })}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -194,7 +322,9 @@ function ResolveModal({ t, market, onClose, onResolved }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
       <div className="jp-card-elevated p-5 max-w-md w-full">
-        <h3 className="font-bold text-lg mb-3">🏆 {t('admin.forecast.resolve')} — {market.title}</h3>
+        <h3 className="font-bold text-lg mb-3">
+          🏆 {t('admin.forecast.resolve', { defaultValue: 'Résoudre' })} — {market.title}
+        </h3>
         <label className="block text-xs font-bold mb-1">{t('admin.forecast.winning_option', { defaultValue: 'Option gagnante' })}</label>
         <select className="jp-input w-full mb-3" value={winning} onChange={e => setWinning(e.target.value)}
                 data-testid="fc-resolve-option">
@@ -294,35 +424,55 @@ function CreateMarketForm({ t, onClose, onCreated }) {
 }
 
 function SettingsPanel({ t }) {
-  const [s, setS] = useState(null);
+  // iter241a-fix — Two distinct states: `saved` reflects what's in DB,
+  // `draft` is what the admin is editing. Save only fires on explicit
+  // click — capture 3 showed there was no confirmation, save was silent
+  // onBlur and admins didn't see anything happen.
+  const [saved, setSaved] = useState(null);
+  const [draft, setDraft] = useState(null);
   const [busy, setBusy] = useState(false);
+
   useEffect(() => {
     axios.get(`${API}/api/admin/forecast/settings`, { withCredentials: true })
-      .then(r => setS(r.data)).catch(() => {});
+      .then(r => { setSaved(r.data); setDraft(r.data); })
+      .catch(() => {});
   }, []);
-  const save = async (patch) => {
+
+  if (!draft || !saved) return <div className="text-center py-8">…</div>;
+
+  const dirty = JSON.stringify(saved) !== JSON.stringify(draft);
+
+  const save = async () => {
     setBusy(true);
     try {
-      const { data } = await axios.put(`${API}/api/admin/forecast/settings`, patch, { withCredentials: true });
-      setS(data);
-      toast.success('✓');
-    } catch (e) { toast.error(e?.response?.data?.detail || 'Save failed'); }
-    finally { setBusy(false); }
+      const patch = {};
+      Object.keys(draft).forEach(k => {
+        if (saved[k] !== draft[k]) patch[k] = draft[k];
+      });
+      if (Object.keys(patch).length === 0) { setBusy(false); return; }
+      const { data } = await axios.put(`${API}/api/admin/forecast/settings`, patch,
+        { withCredentials: true });
+      setSaved(data); setDraft(data);
+      toast.success(t('admin.forecast.settings_saved', { defaultValue: '✓ Paramètres enregistrés.' }));
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Save failed');
+    } finally { setBusy(false); }
   };
-  if (!s) return <div className="text-center py-8">…</div>;
+
+  const reset = () => setDraft(saved);
 
   const Toggle = ({ k, label }) => (
     <label className="flex items-center justify-between py-2 cursor-pointer" data-testid={`fc-admin-toggle-${k}`}>
       <span className="text-sm">{label}</span>
-      <input type="checkbox" checked={!!s[k]} disabled={busy} onChange={e => save({ [k]: e.target.checked })} />
+      <input type="checkbox" checked={!!draft[k]}
+             onChange={e => setDraft({ ...draft, [k]: e.target.checked })} />
     </label>
   );
   const Num = ({ k, label }) => (
     <label className="flex items-center justify-between py-2">
       <span className="text-sm">{label}</span>
-      <input className="jp-input w-32 text-right" type="number" step="0.01" value={s[k] ?? ''}
-             disabled={busy} onBlur={e => save({ [k]: Number(e.target.value) })}
-             onChange={e => setS({ ...s, [k]: e.target.value })} />
+      <input className="jp-input w-32 text-right" type="number" step="0.01" value={draft[k] ?? ''}
+             onChange={e => setDraft({ ...draft, [k]: e.target.value === '' ? '' : Number(e.target.value) })} />
     </label>
   );
 
@@ -347,6 +497,27 @@ function SettingsPanel({ t }) {
       <Num k="default_max_bet_per_user"     label={t('admin.forecast.max_per_user', { defaultValue: 'Plafond / user' })} />
       <Num k="default_max_exposure"         label={t('admin.forecast.max_exposure', { defaultValue: 'Exposition max' })} />
       <Num k="default_platform_fee_percent" label={t('admin.forecast.fee_percent', { defaultValue: 'Frais (%)' })} />
+
+      {/* iter241a-fix — explicit Save / Reset buttons (sticky bottom row). */}
+      <div className="flex gap-2 mt-4 pt-3 border-t" style={{ borderColor: 'var(--jp-border)' }}>
+        <button onClick={reset} disabled={!dirty || busy} className="jp-btn-ghost"
+                data-testid="fc-admin-settings-reset">
+          {t('admin.forecast.reset', { defaultValue: 'Annuler les modifications' })}
+        </button>
+        <button onClick={save} disabled={!dirty || busy}
+                className="jp-btn-primary flex-1 disabled:opacity-50"
+                data-testid="fc-admin-settings-save">
+          {busy ? '…' : (dirty
+            ? '💾 ' + t('admin.forecast.save_settings', { defaultValue: 'Enregistrer les paramètres' })
+            : t('admin.forecast.up_to_date', { defaultValue: 'À jour' }))}
+        </button>
+      </div>
+      {dirty && (
+        <div className="text-[11px] mt-2" style={{ color: 'var(--jp-warning, #b45309)' }}
+             data-testid="fc-admin-settings-dirty">
+          ⚠ {t('admin.forecast.unsaved_changes', { defaultValue: 'Modifications non enregistrées.' })}
+        </div>
+      )}
     </div>
   );
 }

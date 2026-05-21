@@ -1655,6 +1655,21 @@
     "cat_crypto": "Crypto",
     "cat_culture": "Culture",
     "cat_world": "Monde",
-    "cat_sport": "Sport"
+    "cat_sport": "Sport",
+    "share": "Partager",
+    "share_earn_banner": "Partage cette prédiction et gagne {{pct}}% de chaque mise gagnante de tes followers !",
+    "share_modal_title": "Partager & gagner",
+    "share_modal_subtitle": "Chaque follower qui parie via ton lien ET gagne te rapporte {{pct}}% de sa mise.",
+    "share_message": "🔮 Je viens de parier sur \"{{title}}\" sur JAPAP. Rejoins-moi et gagne aussi 👇",
+    "bet_via_friend": "Tu paries via le lien d'un ami. Il gagnera {{pct}}% si tu gagnes.",
+    "link_copied": "✓ Lien copié",
+    "copy_failed": "Copie impossible",
+    "copy": "Copier",
+    "native_share": "Partager via…",
+    "my_referrals_title": "Mes commissions de partage",
+    "followers": "Followers",
+    "referrals_total": "Paris parrainés",
+    "referrals_won": "Gagnés",
+    "commission_earned": "Commissions"
   }
 }

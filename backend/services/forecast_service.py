@@ -58,8 +58,15 @@ async def ensure_forecast_tables() -> None:
             default_max_bet_per_user      NUMERIC(18,4) DEFAULT 1000,
             default_max_exposure          NUMERIC(18,4) DEFAULT 50000,
             default_platform_fee_percent  NUMERIC(5,2)  DEFAULT 5.0,
+            referral_commission_percent   NUMERIC(5,2)  DEFAULT 10.0,
             updated_at                    TIMESTAMPTZ DEFAULT NOW()
         )
+        """)
+        # iter241a-share — additive column for the referral commission %
+        # (idempotent for environments where forecast_settings already exists).
+        await conn.execute("""
+        ALTER TABLE forecast_settings
+        ADD COLUMN IF NOT EXISTS referral_commission_percent NUMERIC(5,2) DEFAULT 10.0
         """)
         await conn.execute("""
         INSERT INTO forecast_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING
@@ -125,10 +132,23 @@ async def ensure_forecast_tables() -> None:
             potential_payout   NUMERIC(18,4) NOT NULL,
             status             VARCHAR(20) DEFAULT 'placed',
             payout_amount      NUMERIC(18,4) DEFAULT 0,
+            referrer_id        VARCHAR(80),
+            referral_commission NUMERIC(18,4) DEFAULT 0,
             resolved_at        TIMESTAMPTZ,
             created_at         TIMESTAMPTZ DEFAULT NOW(),
             updated_at         TIMESTAMPTZ DEFAULT NOW()
         )
+        """)
+        # iter241a-share — additive columns for referral tracking
+        # (idempotent for previously-created DBs).
+        await conn.execute("""
+        ALTER TABLE forecast_bets
+        ADD COLUMN IF NOT EXISTS referrer_id VARCHAR(80),
+        ADD COLUMN IF NOT EXISTS referral_commission NUMERIC(18,4) DEFAULT 0
+        """)
+        await conn.execute("""
+        CREATE INDEX IF NOT EXISTS ix_fc_bet_referrer
+        ON forecast_bets(referrer_id) WHERE referrer_id IS NOT NULL
         """)
         await conn.execute("""
         CREATE INDEX IF NOT EXISTS ix_fc_bet_market
@@ -176,6 +196,7 @@ async def update_settings(payload: dict, admin_id: str) -> dict:
         "ai_abuse_detection_enabled",
         "default_min_bet", "default_max_bet", "default_max_bet_per_user",
         "default_max_exposure", "default_platform_fee_percent",
+        "referral_commission_percent",
     }
     sets, args = [], []
     for k, v in (payload or {}).items():
@@ -294,11 +315,18 @@ async def get_result(market_id: str) -> Optional[dict]:
 
 
 async def place_bet(user_id: str, market_id: str, option_id: str,
-                     token_type: str, stake_amount: float) -> dict:
+                     token_type: str, stake_amount: float,
+                     referrer_id: Optional[str] = None) -> dict:
     """Atomic bet placement. Debits the user's USD wallet, inserts a bet row,
     returns the new balance. Raises HTTPException on any guard violation —
     every guard message is user-visible so keep them clean & translatable
-    on the frontend if needed."""
+    on the frontend if needed.
+
+    iter241a-share — `referrer_id` is an optional upstream user (the one
+    who shared the link). It's validated against `users.user_id`, must NOT
+    equal the bettor (no self-referral), and is recorded for later
+    commission payout at resolution time.
+    """
     await _require_module_enabled()
 
     token_type = (token_type or "usd").lower()
@@ -384,14 +412,26 @@ async def place_bet(user_id: str, market_id: str, option_id: str,
             )
 
             bet_id = _new_id("bet")
+            # iter241a-share — referrer guard: must be a real user_id and
+            # NOT the bettor (no self-referral).
+            ref = (referrer_id or "").strip() or None
+            if ref:
+                if ref == user_id:
+                    ref = None  # silently ignore self-referrals
+                else:
+                    exists = await conn.fetchval(
+                        "SELECT 1 FROM users WHERE user_id = $1", ref,
+                    )
+                    if not exists:
+                        ref = None
             await conn.execute("""
                 INSERT INTO forecast_bets
                   (bet_id, market_id, option_id, user_id, token_type,
                    stake_amount, platform_fee, net_stake, multiplier,
-                   potential_payout, status, created_at, updated_at)
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'placed',$11,$11)
+                   potential_payout, status, referrer_id, created_at, updated_at)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'placed',$11,$12,$12)
             """, bet_id, market_id, option_id, user_id, token_type,
-               stake, fee, net, mult, potential, now)
+               stake, fee, net, mult, potential, ref, now)
 
             # Mirror in transactions for the user's history & for admin audit.
             await conn.execute("""
@@ -637,21 +677,55 @@ async def admin_resolve_market(market_id: str, winning_option_id: str,
             """, now, market_id, winning_option_id)
 
             # Pay winners. We loop because each row updates a different wallet.
+            # iter241a-share — also pay 10% referral commission to each
+            # winning bettor's referrer (if any). Commission % is taken
+            # from forecast_settings.referral_commission_percent.
+            commission_pct_raw = await conn.fetchval(
+                "SELECT referral_commission_percent FROM forecast_settings WHERE id = 1",
+            )
+            commission_pct = Decimal(str(commission_pct_raw or 0))
             winners = await conn.fetch("""
-                SELECT bet_id, user_id, potential_payout FROM forecast_bets
+                SELECT bet_id, user_id, stake_amount, potential_payout, referrer_id
+                FROM forecast_bets
                 WHERE market_id = $1 AND option_id = $2 AND status = 'placed'
             """, market_id, winning_option_id)
             for w in winners:
+                # 1) Pay the bettor's potential payout.
                 await conn.execute(
                     "UPDATE wallets SET balance = balance + $1, updated_at = $2 "
                     "WHERE user_id = $3",
                     w["potential_payout"], now, w["user_id"],
                 )
+                # 2) Pay 10% commission to the referrer (on the original stake),
+                # if any. Skipped silently when no referrer or referrer wallet
+                # missing (we don't fail the resolution for that).
+                commission = Decimal("0")
+                if w["referrer_id"] and commission_pct > 0:
+                    commission = (Decimal(str(w["stake_amount"])) * commission_pct
+                                  / Decimal("100")).quantize(Decimal("0.0001"))
+                    if commission > 0:
+                        updated = await conn.fetchval(
+                            "UPDATE wallets SET balance = balance + $1, updated_at = $2 "
+                            "WHERE user_id = $3 RETURNING 1",
+                            commission, now, w["referrer_id"],
+                        )
+                        if updated:
+                            await conn.execute("""
+                                INSERT INTO transactions
+                                  (tx_id, to_user_id, type, amount, currency, status, notes, reference)
+                                VALUES ($1, $2, 'forecast_referral_commission',
+                                        $3, 'USD', 'completed', $4, $5)
+                            """, _new_id("tx"), w["referrer_id"], commission,
+                               f"[Prédiction · commission filleul] {m['title'][:60]}",
+                               w["bet_id"])
+                        else:
+                            commission = Decimal("0")  # referrer has no wallet → no commission
                 await conn.execute("""
                     UPDATE forecast_bets
-                    SET status='won', payout_amount=$1, resolved_at=$2, updated_at=$2
-                    WHERE bet_id = $3
-                """, w["potential_payout"], now, w["bet_id"])
+                    SET status='won', payout_amount=$1, referral_commission=$2,
+                        resolved_at=$3, updated_at=$3
+                    WHERE bet_id = $4
+                """, w["potential_payout"], commission, now, w["bet_id"])
                 await conn.execute("""
                     INSERT INTO transactions
                       (tx_id, to_user_id, type, amount, currency, status, notes, reference)
@@ -844,6 +918,44 @@ async def admin_delete_market(market_id: str) -> None:
             # Keep `forecast_bets` rows for cancelled markets so the user
             # history page can still show "refunded" entries with context.
             await conn.execute("DELETE FROM forecast_markets WHERE market_id = $1", market_id)
+
+
+async def list_my_referral_earnings(user_id: str) -> dict:
+    """iter241a-share — Aggregate referral commission for a user (as upstream
+    referrer). Used by ForecastPage → "Mes paris" → encart commissions."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        agg = await conn.fetchrow("""
+            SELECT
+              COUNT(*)                                 AS referrals_total,
+              COUNT(*) FILTER (WHERE status = 'won')   AS referrals_won,
+              COALESCE(SUM(referral_commission), 0)    AS commission_earned,
+              COUNT(DISTINCT user_id)                  AS unique_followers
+            FROM forecast_bets
+            WHERE referrer_id = $1
+        """, user_id)
+        last = await conn.fetch("""
+            SELECT b.bet_id, b.stake_amount, b.referral_commission, b.status,
+                   b.created_at, b.resolved_at,
+                   b.user_id AS follower_id,
+                   m.title AS market_title
+            FROM forecast_bets b
+            JOIN forecast_markets m ON m.market_id = b.market_id
+            WHERE b.referrer_id = $1
+            ORDER BY b.created_at DESC
+            LIMIT 30
+        """, user_id)
+        settings = await conn.fetchrow(
+            "SELECT referral_commission_percent FROM forecast_settings WHERE id = 1",
+        )
+    return {
+        "commission_percent": float(settings["referral_commission_percent"] or 0) if settings else 10.0,
+        "referrals_total":    agg["referrals_total"] or 0,
+        "referrals_won":      agg["referrals_won"] or 0,
+        "unique_followers":   agg["unique_followers"] or 0,
+        "commission_earned":  float(agg["commission_earned"] or 0),
+        "recent":             [_row_to_dict(r) for r in last],
+    }
 
 
 async def admin_metrics() -> dict:

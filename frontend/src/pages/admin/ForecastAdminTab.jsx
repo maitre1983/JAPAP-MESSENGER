@@ -497,6 +497,7 @@ function SettingsPanel({ t }) {
       <Num k="default_max_bet_per_user"     label={t('admin.forecast.max_per_user', { defaultValue: 'Plafond / user' })} />
       <Num k="default_max_exposure"         label={t('admin.forecast.max_exposure', { defaultValue: 'Exposition max' })} />
       <Num k="default_platform_fee_percent" label={t('admin.forecast.fee_percent', { defaultValue: 'Frais (%)' })} />
+      <Num k="referral_commission_percent"  label={t('admin.forecast.referral_pct', { defaultValue: 'Commission partage (%)' })} />
 
       {/* iter241a-fix — explicit Save / Reset buttons (sticky bottom row). */}
       <div className="flex gap-2 mt-4 pt-3 border-t" style={{ borderColor: 'var(--jp-border)' }}>

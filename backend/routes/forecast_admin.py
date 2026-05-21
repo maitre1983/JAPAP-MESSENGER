@@ -39,6 +39,7 @@ class SettingsUpdate(BaseModel):
     default_max_bet_per_user: Optional[float] = None
     default_max_exposure: Optional[float] = None
     default_platform_fee_percent: Optional[float] = None
+    referral_commission_percent: Optional[float] = None
 
 
 @router.put("/settings")
@@ -130,19 +131,15 @@ async def delete_market(market_id: str, request: Request):
     return {"ok": True}
 
 
-@router.post("/markets/{market_id}/{action}")
-async def market_action(market_id: str, action: str, request: Request):
-    """action ∈ {activate, pause, resume, close, cancel}."""
-    await require_admin(request)
-    return await svc.admin_set_market_status(market_id, action)
-
-
 class ResolvePayload(BaseModel):
     winning_option_id: str = Field(..., min_length=3, max_length=64)
     result_notes: str = Field(default="", max_length=2000)
     source_reference: str = Field(default="", max_length=500)
 
 
+# iter241a-share — `/resolve` MUST be declared BEFORE the catch-all
+# `/{market_id}/{action}` below, otherwise FastAPI routes the call to
+# admin_set_market_status() with action='resolve' and rejects it as invalid.
 @router.post("/markets/{market_id}/resolve")
 async def resolve_market(market_id: str, payload: ResolvePayload, request: Request):
     admin = await require_admin(request)
@@ -153,6 +150,13 @@ async def resolve_market(market_id: str, payload: ResolvePayload, request: Reque
         source_reference=payload.source_reference,
         admin_id=admin["user_id"],
     )
+
+
+@router.post("/markets/{market_id}/{action}")
+async def market_action(market_id: str, action: str, request: Request):
+    """action ∈ {activate, pause, resume, close, cancel}."""
+    await require_admin(request)
+    return await svc.admin_set_market_status(market_id, action)
 
 
 @router.get("/markets/{market_id}/exposure")

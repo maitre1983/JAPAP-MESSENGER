@@ -21,6 +21,7 @@ class BetRequest(BaseModel):
     option_id: str = Field(..., min_length=3, max_length=64)
     token_type: str = Field(default="usd", min_length=2, max_length=10)
     stake_amount: float = Field(..., gt=0)
+    referrer_id: Optional[str] = Field(default=None, max_length=80)
 
 
 @router.get("/settings/public")
@@ -33,6 +34,7 @@ async def public_settings():
         "token_usd_enabled": bool(s.get("token_usd_enabled")),
         "default_min_bet":   float(s.get("default_min_bet") or 1),
         "default_max_bet":   float(s.get("default_max_bet") or 10000),
+        "referral_commission_percent": float(s.get("referral_commission_percent") or 10.0),
         "categories":        list(svc.VALID_CATEGORIES),
     }
 
@@ -65,7 +67,17 @@ async def place_bet(market_id: str, req: BetRequest, request: Request):
         option_id=req.option_id,
         token_type=req.token_type,
         stake_amount=req.stake_amount,
+        referrer_id=req.referrer_id,
     )
+
+
+@router.get("/my-referrals")
+async def my_referrals(request: Request):
+    """iter241a-share — Earnings summary for the share/earn feature.
+    Returns the total commission this user earned via their share links +
+    the list of latest commissions (last 30)."""
+    user = await get_current_user(request)
+    return await svc.list_my_referral_earnings(user["user_id"])
 
 
 @router.get("/my-bets")

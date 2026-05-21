@@ -7,6 +7,64 @@ Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + Web
 **Français** (obligatoire).
 
 
+## iter241a-share — Prédictions : Partage viral & commission affilié 10% (21/05/2026)
+
+### Demande user
+Permettre à un joueur de partager sa prédiction sur tous les réseaux (lien personnalisé). Si un follower **mise** via ce lien **et gagne**, l'upline reçoit **10% de la mise du follower gagnant** (% configurable depuis l'admin).
+
+### Backend (additif, zéro modif sur l'existant)
+- **`forecast_settings.referral_commission_percent`** NUMERIC(5,2) DEFAULT 10.0 (idempotent ALTER pour DB existante)
+- **`forecast_bets.referrer_id`** VARCHAR(80) + **`referral_commission`** NUMERIC(18,4) DEFAULT 0 (idempotent ALTER + index partiel `WHERE referrer_id IS NOT NULL`)
+- `place_bet(..., referrer_id=None)` : guards anti-self-referral + validation user_id existant (sinon NULL silencieux)
+- `admin_resolve_market` : pour chaque bet gagnant avec `referrer_id`, crédit `stake × commission_pct / 100` au wallet du referrer + mirror `transactions.type='forecast_referral_commission'` (best-effort : si referrer n'a pas de wallet, commission=0 et résolution continue)
+- **Nouvel endpoint** `GET /api/forecast/my-referrals` — stats agrégées (followers uniques, paris parrainés, paris gagnés, commission earned, top 30 derniers)
+- Settings whitelist + public endpoint exposent `referral_commission_percent`
+
+### 🐛 Bug bonus corrigé en passant
+La route `POST /markets/{market_id}/{action}` (catch-all activate/pause/resume/close/cancel) **interceptait `/resolve`** avant que la route spécifique ne soit atteinte → tout resolve renvoyait HTTP 400 "Action invalide". Réordonné : `/resolve` déclaré AVANT le wildcard.
+
+### Frontend (additif)
+- **ForecastPage** : capture `?ref=<user_id>` au mount, stocke en `localStorage` (TTL 30 jours)
+- **MarketCard** : nouvelle bannière dégradée 🎁 "Partage cette prédiction et gagne X% des mises gagnantes" + bouton **📢 Partager** (active uniquement quand marché non fermé)
+- **ShareModal** : 4 cibles natives (WhatsApp / Telegram / X·Twitter / Facebook) + Copier le lien + `navigator.share` (mobile native share sheet) — URL `/games/forecast?market=<id>&ref=<user_id>`
+- **BetModal** : injecte `referrer_id` du localStorage dans le body + affiche un encart violet "🎁 Tu paries via le lien d'un ami. Il gagnera X% si tu gagnes."
+- **MyBetsList** : nouvelle card "🎁 Mes commissions de partage" en haut (followers / paris parrainés / gagnés / commissions earned)
+- **ForecastAdminTab → Settings** : nouveau champ "Commission partage (%)"
+
+### i18n (5 langues, 15 nouvelles clés par langue)
+FR/EN/ES/AR/RU : `share`, `share_earn_banner`, `share_modal_title`, `share_modal_subtitle`, `share_message`, `bet_via_friend`, `link_copied`, `copy_failed`, `copy`, `native_share`, `my_referrals_title`, `followers`, `referrals_total`, `referrals_won`, `commission_earned`. RTL Arabic intacte.
+
+### Validation live (curl + DB inspection)
+- ✅ Self-referral détecté → `referrer_id` mis à NULL silencieusement (pas d'erreur user-visible)
+- ✅ Bet de 10$ via REF_UID `user_55d6514b8b19` → market résolu Oui gagne →
+  - Wallet REF : 0 → **1.00 USD** ✅
+  - `forecast_bets.referral_commission` = 1.0000 ✅
+  - `transactions(type='forecast_referral_commission', amount=1.00, notes='[Prédiction · commission filleul] Test referral share')` ✅
+- ✅ Bet sans referrer dans le même marché : status=won, commission=0 (pas d'impact)
+- ✅ `/resolve` route fix : HTTP 200 retourné, payload complet du marché résolu
+
+### PWA
+- `SW_VERSION = "v25-iter241a-share"`
+
+### Garanties
+- 🔒 Aucune route paiement touchée.
+- 🔒 La commission n'est payée QUE si le follower gagne (équitable).
+- ✅ Self-referral impossible (filtré silencieusement).
+- ✅ Commission % configurable instantanément depuis l'admin.
+- ✅ Lint clean (backend Python + frontend JS).
+- ✅ 5 locales JSON valides.
+
+### Fichiers
+- MOD : `backend/services/forecast_service.py` (referrer guard, ALTER idempotent, commission calc dans resolve, `list_my_referral_earnings`)
+- MOD : `backend/routes/forecast.py` (BetRequest.referrer_id, `/my-referrals` endpoint, public settings inclut le %)
+- MOD : `backend/routes/forecast_admin.py` (SettingsUpdate.referral_commission_percent, **route order fix `/resolve` avant wildcard**)
+- MOD : `frontend/src/pages/ForecastPage.js` (capture ?ref, ShareModal complet, BetModal envoie referrer_id, MyBetsList affiche earnings)
+- MOD : `frontend/src/pages/admin/ForecastAdminTab.jsx` (Num field referral_commission_percent)
+- MOD : `frontend/src/locales/{fr,en,es,ar,ru}.json` (+15 clés × 5 langues)
+- MOD : `frontend/public/sw.js` (SW_VERSION)
+
+
+
 ## iter241a-admin-ux — Prédictions Admin : Modifier / ON·OFF / Supprimer / Save explicite (21/05/2026)
 
 ### Bugs/manques signalés (3 captures Production)

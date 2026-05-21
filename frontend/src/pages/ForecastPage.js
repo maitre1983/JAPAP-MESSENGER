@@ -9,10 +9,11 @@
  * 100% additif : pas de modif d'aucun composant existant.
  */
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { useAuth } from '@/context/AuthContext';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -38,12 +39,36 @@ function fmtCountdown(iso, t) {
 export default function ForecastPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
 
   const [view, setView] = useState('markets'); // markets | my-bets
   const [category, setCategory] = useState(null);
   const [markets, setMarkets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [betModal, setBetModal] = useState(null); // { market, option }
+  const [shareModal, setShareModal] = useState(null); // { market }
+  const [referralPct, setReferralPct] = useState(10);
+
+  // iter241a-share — Capture ?ref=<user_id> on mount and stash in localStorage
+  // with a 30-day TTL. The bet payload picks it up when the user actually
+  // places a bet, so commission goes to the person who shared the link.
+  useEffect(() => {
+    const ref = searchParams.get('ref');
+    if (ref && user?.user_id && ref !== user.user_id) {
+      try {
+        localStorage.setItem('forecast_ref', JSON.stringify({
+          ref, expires: Date.now() + 30 * 24 * 3600 * 1000,
+        }));
+      } catch (_) {}
+    }
+    // Pull the public referral % so the share message stays in sync.
+    axios.get(`${API}/api/forecast/settings/public`)
+      .then(r => setReferralPct(Number(r.data?.referral_commission_percent || 10)))
+      .catch(() => {});
+    // eslint-disable-next-line
+  }, [location.search]);
 
   useEffect(() => { loadMarkets(); /* eslint-disable-next-line */ }, [category]);
 
@@ -98,7 +123,12 @@ export default function ForecastPage() {
               {t('forecast.no_markets', { defaultValue: 'Aucun marché disponible.' })}
             </div>
           ) : (
-            markets.map(m => <MarketCard key={m.market_id} t={t} market={m} onBet={(opt) => setBetModal({ market: m, option: opt })} />)
+            markets.map(m => (
+              <MarketCard key={m.market_id} t={t} market={m}
+                referralPct={referralPct}
+                onBet={(opt) => setBetModal({ market: m, option: opt })}
+                onShare={() => setShareModal({ market: m })} />
+            ))
           )}
         </>
       )}
@@ -108,8 +138,16 @@ export default function ForecastPage() {
       {betModal && (
         <BetModal t={t} navigate={navigate}
           market={betModal.market} option={betModal.option}
+          referralPct={referralPct}
           onClose={() => setBetModal(null)}
           onSuccess={() => { setBetModal(null); loadMarkets(); }} />
+      )}
+
+      {shareModal && (
+        <ShareModal t={t} user={user}
+          market={shareModal.market}
+          referralPct={referralPct}
+          onClose={() => setShareModal(null)} />
       )}
     </div>
   );
@@ -134,7 +172,7 @@ function CategoryFilter({ t, value, onChange }) {
   );
 }
 
-function MarketCard({ t, market, onBet }) {
+function MarketCard({ t, market, referralPct, onBet, onShare }) {
   const closed = market.closes_at && new Date(market.closes_at).getTime() <= Date.now();
   return (
     <div className="jp-card-elevated p-4 mb-3" data-testid={`forecast-market-${market.market_id}`}>
@@ -172,11 +210,121 @@ function MarketCard({ t, market, onBet }) {
         <span>👥 {market.unique_bettors || 0} {t('forecast.bettors', { defaultValue: 'parieurs' })}</span>
         <span>💰 {fmtUSD(market.total_staked)} {t('forecast.staked', { defaultValue: 'misés' })}</span>
       </div>
+
+      {/* iter241a-share — Share CTA + earn-banner. The banner only shows on
+          active markets (no point sharing a closed one), and the button is
+          always clickable while the market exists. */}
+      {!closed && (
+        <>
+          <div className="mt-3 px-3 py-2 rounded-lg flex items-center gap-2"
+               style={{ background: 'linear-gradient(135deg, rgba(124,58,237,0.10), rgba(15,5,107,0.06))',
+                        border: '1px dashed var(--jp-primary, #7c3aed)' }}
+               data-testid={`forecast-share-banner-${market.market_id}`}>
+            <span className="text-lg">🎁</span>
+            <div className="flex-1 text-[11px] leading-tight" style={{ color: 'var(--jp-text)' }}>
+              {t('forecast.share_earn_banner', {
+                defaultValue: 'Partage cette prédiction et gagne {{pct}}% de chaque mise gagnante de tes followers !',
+                pct: referralPct,
+              })}
+            </div>
+            <button onClick={onShare}
+                    className="jp-btn-primary jp-btn-sm whitespace-nowrap"
+                    data-testid={`forecast-share-btn-${market.market_id}`}>
+              📢 {t('forecast.share', { defaultValue: 'Partager' })}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-function BetModal({ t, navigate, market, option, onClose, onSuccess }) {
+/** iter241a-share — Native share modal: Twitter, WhatsApp, Telegram, FB,
+ * Copy link. Builds a personalised URL that the receiver lands on; once
+ * they place a bet, the upstream user earns referral_commission_percent
+ * of every winning stake.
+ */
+function ShareModal({ t, user, market, referralPct, onClose }) {
+  const myRef = user?.user_id || '';
+  const path = `/games/forecast?market=${market.market_id}&ref=${myRef}`;
+  const url = (typeof window !== 'undefined' ? window.location.origin : '') + path;
+  const shareMessage = t('forecast.share_message', {
+    defaultValue: '🔮 Je viens de parier sur "{{title}}" sur JAPAP. Rejoins-moi et gagne aussi 👇',
+    title: market.title,
+  });
+  const composed = `${shareMessage}\n${url}`;
+
+  const targets = [
+    { id: 'whatsapp', label: 'WhatsApp', emoji: '🟢',
+      href: `https://wa.me/?text=${encodeURIComponent(composed)}` },
+    { id: 'telegram', label: 'Telegram', emoji: '🔵',
+      href: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(shareMessage)}` },
+    { id: 'twitter',  label: 'X / Twitter', emoji: '⚫',
+      href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMessage)}&url=${encodeURIComponent(url)}` },
+    { id: 'facebook', label: 'Facebook', emoji: '🔷',
+      href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}` },
+  ];
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success(t('forecast.link_copied', { defaultValue: '✓ Lien copié' }));
+    } catch (_) {
+      toast.error(t('forecast.copy_failed', { defaultValue: 'Copie impossible' }));
+    }
+  };
+
+  const nativeShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: market.title, text: shareMessage, url });
+      } catch (_) {}
+    } else {
+      copy();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+         style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onClose} data-testid="forecast-share-modal">
+      <div className="jp-card-elevated p-5 w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <h3 className="font-bold text-lg mb-1">📢 {t('forecast.share_modal_title', { defaultValue: 'Partager & gagner' })}</h3>
+        <p className="text-sm mb-3" style={{ color: 'var(--jp-text-muted)' }}>
+          {t('forecast.share_modal_subtitle', {
+            defaultValue: 'Chaque follower qui parie via ton lien ET gagne te rapporte {{pct}}% de sa mise.',
+            pct: referralPct,
+          })}
+        </p>
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          {targets.map(s => (
+            <a key={s.id} href={s.href} target="_blank" rel="noopener noreferrer"
+               className="jp-btn-secondary jp-btn-sm flex items-center justify-center gap-2"
+               data-testid={`forecast-share-target-${s.id}`}>
+              <span>{s.emoji}</span> {s.label}
+            </a>
+          ))}
+        </div>
+        <div className="flex gap-2 mb-3">
+          <input className="jp-input flex-1 text-xs" value={url} readOnly
+                 data-testid="forecast-share-url" />
+          <button onClick={copy} className="jp-btn-secondary jp-btn-sm whitespace-nowrap"
+                  data-testid="forecast-share-copy">
+            📋 {t('forecast.copy', { defaultValue: 'Copier' })}
+          </button>
+        </div>
+        {typeof navigator !== 'undefined' && navigator.share && (
+          <button onClick={nativeShare} className="jp-btn-primary w-full mb-2"
+                  data-testid="forecast-share-native">
+            {t('forecast.native_share', { defaultValue: 'Partager via…' })}
+          </button>
+        )}
+        <button onClick={onClose} className="jp-btn-ghost w-full">{t('forecast.cancel', { defaultValue: 'Annuler' })}</button>
+      </div>
+    </div>
+  );
+}
+
+function BetModal({ t, navigate, market, option, referralPct, onClose, onSuccess }) {
   const [stake, setStake] = useState('');
   const [balance, setBalance] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -187,6 +335,19 @@ function BetModal({ t, navigate, market, option, onClose, onSuccess }) {
       .catch(() => setBalance(0));
   }, []);
 
+  // iter241a-share — pull the captured referrer (if any & not expired).
+  const getReferrer = () => {
+    try {
+      const raw = localStorage.getItem('forecast_ref');
+      if (!raw) return null;
+      const { ref, expires } = JSON.parse(raw);
+      if (!ref || !expires || expires < Date.now()) {
+        localStorage.removeItem('forecast_ref'); return null;
+      }
+      return ref;
+    } catch (_) { return null; }
+  };
+
   const stakeNum = Number(stake) || 0;
   const minBet = Number(market.min_bet || 1);
   const maxBet = Number(market.max_bet || 10000);
@@ -196,14 +357,16 @@ function BetModal({ t, navigate, market, option, onClose, onSuccess }) {
   const mult = Number(option.multiplier);
   const potential = netStake * mult;
   const canBet = stakeNum >= minBet && stakeNum <= maxBet && balance !== null && balance >= stakeNum;
+  const referrer = getReferrer();
 
   const submit = async () => {
     if (!canBet) return;
     setBusy(true);
     try {
+      const body = { option_id: option.option_id, token_type: 'usd', stake_amount: stakeNum };
+      if (referrer) body.referrer_id = referrer;
       const { data } = await axios.post(`${API}/api/forecast/markets/${market.market_id}/bet`,
-        { option_id: option.option_id, token_type: 'usd', stake_amount: stakeNum },
-        { withCredentials: true });
+        body, { withCredentials: true });
       toast.success(`${t('forecast.bet_placed')} ${fmtUSD(data.potential_payout)}`);
       onSuccess();
     } catch (e) {
@@ -250,6 +413,16 @@ function BetModal({ t, navigate, market, option, onClose, onSuccess }) {
           <Row label={t('forecast.potential_win')} value={<strong style={{ color: 'var(--jp-primary)' }}>{fmtUSD(potential)}</strong>} />
         </div>
 
+        {referrer && (
+          <div className="text-[11px] mb-3 p-2 rounded" data-testid="forecast-bet-ref-notice"
+               style={{ background: 'rgba(124,58,237,0.08)', color: 'var(--jp-primary)' }}>
+            🎁 {t('forecast.bet_via_friend', {
+              defaultValue: 'Tu paries via le lien d\'un ami. Il gagnera {{pct}}% si tu gagnes.',
+              pct: referralPct,
+            })}
+          </div>
+        )}
+
         <div className="flex gap-2">
           <button onClick={onClose} className="jp-btn-ghost flex-1" data-testid="forecast-bet-cancel">
             {t('forecast.cancel', { defaultValue: 'Annuler' })}
@@ -272,14 +445,28 @@ function Row({ label, value }) {
   );
 }
 
+function Stat({ label, value }) {
+  return (
+    <div className="p-2 rounded-lg" style={{ background: 'var(--jp-surface-secondary)' }}>
+      <div className="text-[10px] uppercase font-bold" style={{ color: 'var(--jp-text-muted)' }}>{label}</div>
+      <div className="text-lg font-bold mt-0.5" style={{ color: 'var(--jp-text)' }}>{value ?? '—'}</div>
+    </div>
+  );
+}
+
 function MyBetsList({ t }) {
   const [bets, setBets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [earnings, setEarnings] = useState(null);
   useEffect(() => {
-    axios.get(`${API}/api/forecast/my-bets`, { withCredentials: true })
-      .then(r => setBets(r.data?.bets || []))
-      .catch(() => setBets([]))
-      .finally(() => setLoading(false));
+    Promise.all([
+      axios.get(`${API}/api/forecast/my-bets`, { withCredentials: true })
+        .then(r => setBets(r.data?.bets || []))
+        .catch(() => setBets([])),
+      axios.get(`${API}/api/forecast/my-referrals`, { withCredentials: true })
+        .then(r => setEarnings(r.data))
+        .catch(() => {}),
+    ]).finally(() => setLoading(false));
   }, []);
   if (loading) return <div className="text-center py-12" style={{ color: 'var(--jp-text-muted)' }}>…</div>;
   if (bets.length === 0) return (
@@ -296,6 +483,21 @@ function MyBetsList({ t }) {
   };
   return (
     <div data-testid="forecast-my-bets-list">
+      {/* iter241a-share — Referral earnings summary, shown above the bet history. */}
+      {earnings && earnings.referrals_total > 0 && (
+        <div className="jp-card-elevated p-4 mb-3" data-testid="forecast-my-referrals">
+          <div className="text-xs font-bold uppercase mb-2" style={{ color: 'var(--jp-text-muted)' }}>
+            🎁 {t('forecast.my_referrals_title', { defaultValue: 'Mes commissions de partage' })}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <Stat label={t('forecast.followers', { defaultValue: 'Followers' })} value={earnings.unique_followers} />
+            <Stat label={t('forecast.referrals_total', { defaultValue: 'Paris parrainés' })} value={earnings.referrals_total} />
+            <Stat label={t('forecast.referrals_won', { defaultValue: 'Gagnés' })} value={earnings.referrals_won} />
+            <Stat label={t('forecast.commission_earned', { defaultValue: 'Commissions' })}
+                  value={<strong style={{ color: 'var(--jp-success, #15803d)' }}>{fmtUSD(earnings.commission_earned)}</strong>} />
+          </div>
+        </div>
+      )}
       {bets.map(b => {
         const s = statusLabel[b.status] || statusLabel.placed;
         return (

@@ -1594,6 +1594,21 @@
     "cat_crypto": "عملات رقمية",
     "cat_culture": "ثقافة",
     "cat_world": "العالم",
-    "cat_sport": "رياضة"
+    "cat_sport": "رياضة",
+    "share": "مشاركة",
+    "share_earn_banner": "شارك هذا التنبؤ واربح {{pct}}% من كل رهان رابح لمتابعيك!",
+    "share_modal_title": "شارك واربح",
+    "share_modal_subtitle": "كل متابع يراهن عبر رابطك ويربح يمنحك {{pct}}% من رهانه.",
+    "share_message": "🔮 لقد راهنت للتو على \"{{title}}\" على JAPAP. انضم إليّ واربح أيضًا 👇",
+    "bet_via_friend": "أنت تراهن عبر رابط صديق. سيربح {{pct}}% إذا ربحت.",
+    "link_copied": "✓ تم نسخ الرابط",
+    "copy_failed": "تعذر النسخ",
+    "copy": "نسخ",
+    "native_share": "مشاركة عبر…",
+    "my_referrals_title": "عمولات المشاركة",
+    "followers": "المتابعون",
+    "referrals_total": "الرهانات المُحالة",
+    "referrals_won": "الفائزة",
+    "commission_earned": "العمولات"
   }
 }

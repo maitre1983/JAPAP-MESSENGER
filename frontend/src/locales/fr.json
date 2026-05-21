@@ -409,6 +409,8 @@
     "loading": "Chargement…",
     "view_public": "Voir mon profil public ↗",
     "kyc_verified": "Identité vérifiée",
+    "forecast_influencer_badge": "Influenceur Prédictions",
+    "forecast_influencer_tooltip": "A attiré plus de 10 paris gagnants en 30 jours via ses partages de prédictions. Touche 15% au lieu de 10%.",
     "visibility_set_public": "Profil maintenant public.",
     "visibility_set_private": "Profil maintenant privé.",
     "visibility_failed": "Échec du changement de visibilité.",
@@ -1670,6 +1672,12 @@
     "followers": "Followers",
     "referrals_total": "Paris parrainés",
     "referrals_won": "Gagnés",
-    "commission_earned": "Commissions"
+    "commission_earned": "Commissions",
+    "tier_standard": "🎯 Tier Standard — commission {{pct}}%",
+    "tier_power_sharer": "🎁 Influenceur Prédictions — boost {{pct}}%",
+    "tier_window": "{{n}} derniers jours",
+    "tier_progress_caption": "{{won}} / {{need}} paris gagnants parrainés. Encore {{remaining}} pour débloquer le boost {{boost}}%.",
+    "tier_power_caption": "Tu touches {{boost}}% au lieu de {{base}}% sur chaque mise gagnante parrainée.",
+    "power_sharer_active": "Influenceur Prédictions — boost {{pct}}%"
   }
 }

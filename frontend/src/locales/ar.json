@@ -381,6 +381,8 @@
     "loading": "جارٍ التحميل…",
     "view_public": "عرض ملفي الشخصي العام ↗",
     "kyc_verified": "الهوية موثقة",
+    "forecast_influencer_badge": "مؤثّر التنبؤات",
+    "forecast_influencer_tooltip": "جلب أكثر من 10 رهانات رابحة خلال 30 يومًا عبر مشاركاته. يكسب 15% بدلًا من 10%.",
     "visibility_set_public": "الملف الآن عام.",
     "visibility_set_private": "الملف الآن خاص.",
     "visibility_failed": "فشل تغيير الظهور.",
@@ -1609,6 +1611,12 @@
     "followers": "المتابعون",
     "referrals_total": "الرهانات المُحالة",
     "referrals_won": "الفائزة",
-    "commission_earned": "العمولات"
+    "commission_earned": "العمولات",
+    "tier_standard": "🎯 المستوى القياسي — عمولة {{pct}}%",
+    "tier_power_sharer": "🎁 مؤثّر التنبؤات — مكافأة {{pct}}%",
+    "tier_window": "آخر {{n}} يومًا",
+    "tier_progress_caption": "{{won}} / {{need}} رهانات إحالة رابحة. تحتاج {{remaining}} لفتح مكافأة {{boost}}%.",
+    "tier_power_caption": "تكسب {{boost}}% بدلًا من {{base}}% على كل رهان إحالة رابح.",
+    "power_sharer_active": "مؤثّر التنبؤات — مكافأة {{pct}}%"
   }
 }

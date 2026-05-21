@@ -68,6 +68,16 @@ async def ensure_forecast_tables() -> None:
         ALTER TABLE forecast_settings
         ADD COLUMN IF NOT EXISTS referral_commission_percent NUMERIC(5,2) DEFAULT 10.0
         """)
+        # iter241a-share-tiers — Power-sharer reward configuration.
+        # A user who attracted more than `power_sharer_threshold` winning
+        # referrals in the trailing 30 days earns `power_sharer_commission_percent`
+        # on future winning referrals (instead of the standard `referral_commission_percent`).
+        await conn.execute("""
+        ALTER TABLE forecast_settings
+        ADD COLUMN IF NOT EXISTS power_sharer_threshold INTEGER DEFAULT 10,
+        ADD COLUMN IF NOT EXISTS power_sharer_commission_percent NUMERIC(5,2) DEFAULT 15.0,
+        ADD COLUMN IF NOT EXISTS power_sharer_window_days INTEGER DEFAULT 30
+        """)
         await conn.execute("""
         INSERT INTO forecast_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING
         """)
@@ -197,6 +207,10 @@ async def update_settings(payload: dict, admin_id: str) -> dict:
         "default_min_bet", "default_max_bet", "default_max_bet_per_user",
         "default_max_exposure", "default_platform_fee_percent",
         "referral_commission_percent",
+        # iter241a-share-tiers — power-sharer configurable knobs.
+        "power_sharer_threshold",
+        "power_sharer_commission_percent",
+        "power_sharer_window_days",
     }
     sets, args = [], []
     for k, v in (payload or {}).items():
@@ -233,6 +247,71 @@ async def _require_module_enabled():
     s = await get_settings()
     if not s.get("module_enabled"):
         raise HTTPException(status_code=503, detail="Module Prédictions désactivé.")
+
+
+# ---------------------------------------------------------------------------
+# iter241a-share-tiers — Power-sharer helpers.
+# ---------------------------------------------------------------------------
+async def _count_winning_referrals_window(conn, user_id: str, window_days: int) -> int:
+    """Count of `won` bets attributed to `user_id` as the upstream referrer
+    over the trailing `window_days` (based on `resolved_at`)."""
+    if not user_id:
+        return 0
+    row = await conn.fetchval(f"""
+        SELECT COUNT(*) FROM forecast_bets
+        WHERE referrer_id = $1
+          AND status = 'won'
+          AND resolved_at >= NOW() - INTERVAL '{int(window_days)} days'
+    """, user_id)
+    return int(row or 0)
+
+
+def _tier_for(winning_referrals: int, threshold: int,
+              standard_pct: Decimal, boosted_pct: Decimal) -> tuple[str, Decimal]:
+    """Return (tier_label, commission_pct) for a referrer."""
+    if winning_referrals > threshold:
+        return ("power_sharer", boosted_pct)
+    return ("standard", standard_pct)
+
+
+async def get_tier_status(user_id: str) -> dict:
+    """Public-facing tier summary for the current user. Used by ForecastPage
+    to render the tier banner + progress towards the boost."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        s = await conn.fetchrow("""
+            SELECT referral_commission_percent,
+                   power_sharer_threshold,
+                   power_sharer_commission_percent,
+                   power_sharer_window_days
+            FROM forecast_settings WHERE id = 1
+        """)
+        standard_pct = Decimal(str((s and s["referral_commission_percent"]) or 10))
+        boosted_pct  = Decimal(str((s and s["power_sharer_commission_percent"]) or 15))
+        threshold    = int((s and s["power_sharer_threshold"]) or 10)
+        window_days  = int((s and s["power_sharer_window_days"]) or 30)
+        won = await _count_winning_referrals_window(conn, user_id, window_days)
+    tier, commission = _tier_for(won, threshold, standard_pct, boosted_pct)
+    return {
+        "user_id": user_id,
+        "tier": tier,                          # 'standard' | 'power_sharer'
+        "commission_percent": float(commission),
+        "standard_percent": float(standard_pct),
+        "boosted_percent": float(boosted_pct),
+        "winning_referrals_window": won,
+        "threshold": threshold,
+        "window_days": window_days,
+        "is_forecast_influencer": tier == "power_sharer",
+    }
+
+
+async def is_forecast_influencer(user_id: str) -> bool:
+    """Thin helper used by the public profile endpoint to render the badge."""
+    try:
+        st = await get_tier_status(user_id)
+        return bool(st.get("is_forecast_influencer"))
+    except Exception:
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -677,13 +756,23 @@ async def admin_resolve_market(market_id: str, winning_option_id: str,
             """, now, market_id, winning_option_id)
 
             # Pay winners. We loop because each row updates a different wallet.
-            # iter241a-share — also pay 10% referral commission to each
-            # winning bettor's referrer (if any). Commission % is taken
-            # from forecast_settings.referral_commission_percent.
-            commission_pct_raw = await conn.fetchval(
-                "SELECT referral_commission_percent FROM forecast_settings WHERE id = 1",
-            )
-            commission_pct = Decimal(str(commission_pct_raw or 0))
+            # iter241a-share — also pay X% referral commission to each
+            # winning bettor's referrer (if any).
+            # iter241a-share-tiers — Power-sharer boost: if the referrer
+            # earned more than `power_sharer_threshold` winning referrals in
+            # the trailing `power_sharer_window_days`, apply
+            # `power_sharer_commission_percent` instead of the standard rate.
+            settings_row = await conn.fetchrow("""
+                SELECT referral_commission_percent,
+                       power_sharer_threshold,
+                       power_sharer_commission_percent,
+                       power_sharer_window_days
+                FROM forecast_settings WHERE id = 1
+            """)
+            standard_pct = Decimal(str((settings_row and settings_row["referral_commission_percent"]) or 0))
+            boosted_pct  = Decimal(str((settings_row and settings_row["power_sharer_commission_percent"]) or 0))
+            ps_threshold = int((settings_row and settings_row["power_sharer_threshold"]) or 10)
+            ps_window    = int((settings_row and settings_row["power_sharer_window_days"]) or 30)
             winners = await conn.fetch("""
                 SELECT bet_id, user_id, stake_amount, potential_payout, referrer_id
                 FROM forecast_bets
@@ -696,11 +785,19 @@ async def admin_resolve_market(market_id: str, winning_option_id: str,
                     "WHERE user_id = $3",
                     w["potential_payout"], now, w["user_id"],
                 )
-                # 2) Pay 10% commission to the referrer (on the original stake),
-                # if any. Skipped silently when no referrer or referrer wallet
-                # missing (we don't fail the resolution for that).
+                # 2) Pay referral commission to the referrer (on the original
+                # stake), if any. Tier is computed BEFORE this win is settled
+                # so the referrer can't tip themselves over the threshold
+                # mid-resolution (fairness + idempotency).
                 commission = Decimal("0")
-                if w["referrer_id"] and commission_pct > 0:
+                commission_pct = Decimal("0")
+                if w["referrer_id"] and (standard_pct > 0 or boosted_pct > 0):
+                    won_count = await _count_winning_referrals_window(
+                        conn, w["referrer_id"], ps_window,
+                    )
+                    _tier, commission_pct = _tier_for(
+                        won_count, ps_threshold, standard_pct, boosted_pct,
+                    )
                     commission = (Decimal(str(w["stake_amount"])) * commission_pct
                                   / Decimal("100")).quantize(Decimal("0.0001"))
                     if commission > 0:
@@ -716,7 +813,7 @@ async def admin_resolve_market(market_id: str, winning_option_id: str,
                                 VALUES ($1, $2, 'forecast_referral_commission',
                                         $3, 'USD', 'completed', $4, $5)
                             """, _new_id("tx"), w["referrer_id"], commission,
-                               f"[Prédiction · commission filleul] {m['title'][:60]}",
+                               f"[Prédiction · commission filleul {commission_pct}%] {m['title'][:50]}",
                                w["bet_id"])
                         else:
                             commission = Decimal("0")  # referrer has no wallet → no commission
@@ -946,10 +1043,30 @@ async def list_my_referral_earnings(user_id: str) -> dict:
             LIMIT 30
         """, user_id)
         settings = await conn.fetchrow(
-            "SELECT referral_commission_percent FROM forecast_settings WHERE id = 1",
+            "SELECT referral_commission_percent, power_sharer_threshold, "
+            "power_sharer_commission_percent, power_sharer_window_days "
+            "FROM forecast_settings WHERE id = 1",
         )
+        standard_pct = float((settings and settings["referral_commission_percent"]) or 10.0)
+        boosted_pct  = float((settings and settings["power_sharer_commission_percent"]) or 15.0)
+        threshold    = int((settings and settings["power_sharer_threshold"]) or 10)
+        window_days  = int((settings and settings["power_sharer_window_days"]) or 30)
+        # iter241a-share-tiers — Live tier of this user (used for the
+        # "Power-sharer" banner above the earnings card).
+        won_in_window = await _count_winning_referrals_window(
+            conn, user_id, window_days,
+        )
+    is_power = won_in_window > threshold
+    commission_percent = boosted_pct if is_power else standard_pct
     return {
-        "commission_percent": float(settings["referral_commission_percent"] or 0) if settings else 10.0,
+        "commission_percent": commission_percent,
+        "standard_percent":   standard_pct,
+        "boosted_percent":    boosted_pct,
+        "tier":               "power_sharer" if is_power else "standard",
+        "winning_referrals_window": won_in_window,
+        "threshold":          threshold,
+        "window_days":        window_days,
+        "is_forecast_influencer": is_power,
         "referrals_total":    agg["referrals_total"] or 0,
         "referrals_won":      agg["referrals_won"] or 0,
         "unique_followers":   agg["unique_followers"] or 0,

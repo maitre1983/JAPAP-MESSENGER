@@ -403,6 +403,8 @@
     "loading": "Загрузка…",
     "view_public": "Открыть мой публичный профиль ↗",
     "kyc_verified": "Личность подтверждена",
+    "forecast_influencer_badge": "Инфлюенсер прогнозов",
+    "forecast_influencer_tooltip": "Привлёк более 10 выигрышных ставок за 30 дней через прогнозы. Получает 15% вместо 10%.",
     "visibility_set_public": "Профиль теперь публичный.",
     "visibility_set_private": "Профиль теперь приватный.",
     "visibility_failed": "Не удалось изменить видимость.",
@@ -464,6 +466,12 @@
     "followers": "Фолловеры",
     "referrals_total": "Реферальные ставки",
     "referrals_won": "Выигрышные",
-    "commission_earned": "Комиссии"
+    "commission_earned": "Комиссии",
+    "tier_standard": "🎯 Стандартный уровень — комиссия {{pct}}%",
+    "tier_power_sharer": "🎁 Инфлюенсер прогнозов — буст {{pct}}%",
+    "tier_window": "Последние {{n}} дн.",
+    "tier_progress_caption": "{{won}} / {{need}} выигрышных реферальных ставок. Ещё {{remaining}}, чтобы открыть буст {{boost}}%.",
+    "tier_power_caption": "Вы получаете {{boost}}% вместо {{base}}% за каждую выигрышную реферальную ставку.",
+    "power_sharer_active": "Инфлюенсер прогнозов — буст {{pct}}%"
   }
 }

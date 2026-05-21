@@ -40,6 +40,10 @@ class SettingsUpdate(BaseModel):
     default_max_exposure: Optional[float] = None
     default_platform_fee_percent: Optional[float] = None
     referral_commission_percent: Optional[float] = None
+    # iter241a-share-tiers — Power-sharer reward configuration.
+    power_sharer_threshold: Optional[int] = None
+    power_sharer_commission_percent: Optional[float] = None
+    power_sharer_window_days: Optional[int] = None
 
 
 @router.put("/settings")

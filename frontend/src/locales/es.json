@@ -381,6 +381,8 @@
     "loading": "Cargando…",
     "view_public": "Ver mi perfil público ↗",
     "kyc_verified": "Identidad verificada",
+    "forecast_influencer_badge": "Influencer de Predicciones",
+    "forecast_influencer_tooltip": "Atrajo más de 10 apuestas ganadoras en 30 días mediante predicciones compartidas. Gana 15% en lugar de 10%.",
     "visibility_set_public": "Perfil ahora es público.",
     "visibility_set_private": "Perfil ahora es privado.",
     "visibility_failed": "Error al cambiar la visibilidad.",
@@ -1609,6 +1611,12 @@
     "followers": "Seguidores",
     "referrals_total": "Apuestas referidas",
     "referrals_won": "Ganadas",
-    "commission_earned": "Comisiones"
+    "commission_earned": "Comisiones",
+    "tier_standard": "🎯 Nivel Estándar — comisión {{pct}}%",
+    "tier_power_sharer": "🎁 Influencer de Predicciones — boost {{pct}}%",
+    "tier_window": "Últimos {{n}} días",
+    "tier_progress_caption": "{{won}} / {{need}} apuestas referidas ganadoras. Faltan {{remaining}} para desbloquear el boost {{boost}}%.",
+    "tier_power_caption": "Ganas {{boost}}% en lugar de {{base}}% por cada apuesta referida ganadora.",
+    "power_sharer_active": "Influencer de Predicciones — boost {{pct}}%"
   }
 }

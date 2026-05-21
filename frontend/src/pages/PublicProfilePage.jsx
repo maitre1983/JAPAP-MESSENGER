@@ -160,6 +160,21 @@ export default function PublicProfilePage() {
                 {profile.is_pro && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">PRO</span>
                 )}
+                {/* iter241a-share-tiers — "Forecast Influencer" badge,
+                    awarded when the user has >threshold winning referrals
+                    in the trailing 30 days. */}
+                {profile.is_forecast_influencer && (
+                  <span
+                    data-testid="public-profile-forecast-influencer-badge"
+                    title={t('profile.forecast_influencer_tooltip', { defaultValue: 'A attiré plus de 10 paris gagnants en 30 jours via ses partages de prédictions.' })}
+                    className="text-[10px] px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1"
+                    style={{
+                      background: 'linear-gradient(90deg,#7c3aed,#db2777)',
+                      color: 'white',
+                    }}>
+                    🎁 {t('profile.forecast_influencer_badge', { defaultValue: 'Influenceur Prédictions' })}
+                  </span>
+                )}
               </div>
               <p className="text-sm text-slate-600 truncate" data-testid="public-profile-username">@{profile.username}</p>
               {profile.headline && (

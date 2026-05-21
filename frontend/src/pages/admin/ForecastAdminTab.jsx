@@ -498,6 +498,14 @@ function SettingsPanel({ t }) {
       <Num k="default_max_exposure"         label={t('admin.forecast.max_exposure', { defaultValue: 'Exposition max' })} />
       <Num k="default_platform_fee_percent" label={t('admin.forecast.fee_percent', { defaultValue: 'Frais (%)' })} />
       <Num k="referral_commission_percent"  label={t('admin.forecast.referral_pct', { defaultValue: 'Commission partage (%)' })} />
+      {/* iter241a-share-tiers — Power-sharer reward knobs. */}
+      <hr className="my-2" style={{ borderColor: 'var(--jp-border)' }} />
+      <div className="text-xs font-bold mb-1" style={{ color: 'var(--jp-text-muted)' }}>
+        {t('admin.forecast.power_sharer_title', { defaultValue: 'Power-sharer (Influenceur Prédictions)' })}
+      </div>
+      <Num k="power_sharer_threshold"           label={t('admin.forecast.ps_threshold', { defaultValue: 'Seuil paris gagnants' })} />
+      <Num k="power_sharer_commission_percent"  label={t('admin.forecast.ps_pct',       { defaultValue: 'Commission boost (%)' })} />
+      <Num k="power_sharer_window_days"         label={t('admin.forecast.ps_window',    { defaultValue: 'Fenêtre (jours)' })} />
 
       {/* iter241a-fix — explicit Save / Reset buttons (sticky bottom row). */}
       <div className="flex gap-2 mt-4 pt-3 border-t" style={{ borderColor: 'var(--jp-border)' }}>

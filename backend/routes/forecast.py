@@ -35,6 +35,11 @@ async def public_settings():
         "default_min_bet":   float(s.get("default_min_bet") or 1),
         "default_max_bet":   float(s.get("default_max_bet") or 10000),
         "referral_commission_percent": float(s.get("referral_commission_percent") or 10.0),
+        # iter241a-share-tiers — exposed so the share modal can compute the
+        # right "win X% / Y%" copy without an extra round-trip.
+        "power_sharer_threshold":          int(s.get("power_sharer_threshold") or 10),
+        "power_sharer_commission_percent": float(s.get("power_sharer_commission_percent") or 15.0),
+        "power_sharer_window_days":        int(s.get("power_sharer_window_days") or 30),
         "categories":        list(svc.VALID_CATEGORIES),
     }
 
@@ -78,6 +83,15 @@ async def my_referrals(request: Request):
     the list of latest commissions (last 30)."""
     user = await get_current_user(request)
     return await svc.list_my_referral_earnings(user["user_id"])
+
+
+@router.get("/my-tier")
+async def my_tier(request: Request):
+    """iter241a-share-tiers — Returns the current user's referral tier
+    ('standard' or 'power_sharer'), live commission %, and progress
+    metrics towards the boosted tier."""
+    user = await get_current_user(request)
+    return await svc.get_tier_status(user["user_id"])
 
 
 @router.get("/my-bets")

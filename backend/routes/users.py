@@ -186,6 +186,17 @@ async def get_profile(user_id_or_username: str, request: Request):
         if visibility == "private" and not is_self:
             return _strip_for_private_view(resp)
         resp["is_private"] = False
+
+        # iter241a-share-tiers — Surface the "Power-sharer" (forecast
+        # influencer) flag so the public profile can render the badge.
+        # Calculated on the fly (no extra column) — cached implicitly per
+        # request. Defaults silently to False if the forecast module is
+        # off or any error happens (never blocks the profile page).
+        try:
+            from services import forecast_service as _fc_svc  # local import
+            resp["is_forecast_influencer"] = await _fc_svc.is_forecast_influencer(user_id)
+        except Exception:
+            resp["is_forecast_influencer"] = False
         return resp
 
 

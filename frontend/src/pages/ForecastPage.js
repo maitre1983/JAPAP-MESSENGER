@@ -50,6 +50,10 @@ export default function ForecastPage() {
   const [betModal, setBetModal] = useState(null); // { market, option }
   const [shareModal, setShareModal] = useState(null); // { market }
   const [referralPct, setReferralPct] = useState(10);
+  // iter241a-share-tiers — live tier of the current user (standard | power_sharer)
+  // so the share modal can advertise the correct % and the My-Bets view
+  // can show a "🎁 Power-sharer" banner with progress.
+  const [userTier, setUserTier] = useState(null);
 
   // iter241a-share — Capture ?ref=<user_id> on mount and stash in localStorage
   // with a 30-day TTL. The bet payload picks it up when the user actually
@@ -67,8 +71,14 @@ export default function ForecastPage() {
     axios.get(`${API}/api/forecast/settings/public`)
       .then(r => setReferralPct(Number(r.data?.referral_commission_percent || 10)))
       .catch(() => {});
+    // iter241a-share-tiers — fetch live tier (requires auth, silently skip otherwise).
+    if (user?.user_id) {
+      axios.get(`${API}/api/forecast/my-tier`, { withCredentials: true })
+        .then(r => setUserTier(r.data))
+        .catch(() => setUserTier(null));
+    }
     // eslint-disable-next-line
-  }, [location.search]);
+  }, [location.search, user?.user_id]);
 
   useEffect(() => { loadMarkets(); /* eslint-disable-next-line */ }, [category]);
 
@@ -133,7 +143,7 @@ export default function ForecastPage() {
         </>
       )}
 
-      {view === 'my-bets' && <MyBetsList t={t} />}
+      {view === 'my-bets' && <MyBetsList t={t} userTier={userTier} />}
 
       {betModal && (
         <BetModal t={t} navigate={navigate}
@@ -147,6 +157,7 @@ export default function ForecastPage() {
         <ShareModal t={t} user={user}
           market={shareModal.market}
           referralPct={referralPct}
+          userTier={userTier}
           onClose={() => setShareModal(null)} />
       )}
     </div>
@@ -244,10 +255,16 @@ function MarketCard({ t, market, referralPct, onBet, onShare }) {
  * they place a bet, the upstream user earns referral_commission_percent
  * of every winning stake.
  */
-function ShareModal({ t, user, market, referralPct, onClose }) {
+function ShareModal({ t, user, market, referralPct, userTier, onClose }) {
   const myRef = user?.user_id || '';
   const path = `/games/forecast?market=${market.market_id}&ref=${myRef}`;
   const url = (typeof window !== 'undefined' ? window.location.origin : '') + path;
+  // iter241a-share-tiers — If the user is a Power-sharer, advertise the
+  // boosted % instead of the standard %.
+  const isPowerSharer = userTier?.tier === 'power_sharer';
+  const effectivePct = isPowerSharer
+    ? Number(userTier?.commission_percent || referralPct)
+    : referralPct;
   const shareMessage = t('forecast.share_message', {
     defaultValue: '🔮 Je viens de parier sur "{{title}}" sur JAPAP. Rejoins-moi et gagne aussi 👇',
     title: market.title,
@@ -289,10 +306,21 @@ function ShareModal({ t, user, market, referralPct, onClose }) {
          style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onClose} data-testid="forecast-share-modal">
       <div className="jp-card-elevated p-5 w-full max-w-md" onClick={e => e.stopPropagation()}>
         <h3 className="font-bold text-lg mb-1">📢 {t('forecast.share_modal_title', { defaultValue: 'Partager & gagner' })}</h3>
+        {/* iter241a-share-tiers — Power-sharer trophy strip. */}
+        {isPowerSharer && (
+          <div className="mb-2 px-3 py-1.5 rounded-md text-xs font-bold inline-flex items-center gap-1.5"
+               data-testid="forecast-share-modal-power-badge"
+               style={{ background: 'linear-gradient(90deg,#7c3aed,#db2777)', color: 'white' }}>
+            🎁 {t('forecast.power_sharer_active', {
+              defaultValue: 'Influenceur Prédictions — boost {{pct}}%',
+              pct: effectivePct,
+            })}
+          </div>
+        )}
         <p className="text-sm mb-3" style={{ color: 'var(--jp-text-muted)' }}>
           {t('forecast.share_modal_subtitle', {
             defaultValue: 'Chaque follower qui parie via ton lien ET gagne te rapporte {{pct}}% de sa mise.',
-            pct: referralPct,
+            pct: effectivePct,
           })}
         </p>
         <div className="grid grid-cols-2 gap-2 mb-3">
@@ -454,7 +482,7 @@ function Stat({ label, value }) {
   );
 }
 
-function MyBetsList({ t }) {
+function MyBetsList({ t, userTier }) {
   const [bets, setBets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [earnings, setEarnings] = useState(null);
@@ -469,9 +497,70 @@ function MyBetsList({ t }) {
     ]).finally(() => setLoading(false));
   }, []);
   if (loading) return <div className="text-center py-12" style={{ color: 'var(--jp-text-muted)' }}>…</div>;
+  // iter241a-share-tiers — Tier banner shown ABOVE everything, even when
+  // the user has no bets yet, so first-timers also see the carrot.
+  const tier = userTier || earnings;
+  const hasTierData = !!(tier && (tier.threshold || tier.window_days));
+  const isPower = tier?.tier === 'power_sharer' || tier?.is_forecast_influencer;
+  const won = Number(tier?.winning_referrals_window ?? 0);
+  const threshold = Number(tier?.threshold ?? 10);
+  const windowDays = Number(tier?.window_days ?? 30);
+  const standardPct = Number(tier?.standard_percent ?? 10);
+  const boostedPct  = Number(tier?.boosted_percent ?? 15);
+  const progressPct = Math.min(100, threshold > 0 ? Math.round((won / (threshold + 1)) * 100) : 0);
+
+  const tierBanner = hasTierData ? (
+    <div
+      className="p-3 mb-3 rounded-xl border"
+      data-testid="forecast-my-tier-banner"
+      style={{
+        borderColor: isPower ? 'transparent' : 'var(--jp-border)',
+        background: isPower
+          ? 'linear-gradient(90deg,#7c3aed,#db2777)'
+          : 'var(--jp-surface-secondary)',
+        color: isPower ? 'white' : 'var(--jp-text)',
+      }}>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="text-sm font-bold">
+          {isPower
+            ? t('forecast.tier_power_sharer', { defaultValue: '🎁 Influenceur Prédictions — boost {{pct}}%', pct: boostedPct })
+            : t('forecast.tier_standard',     { defaultValue: '🎯 Tier Standard — commission {{pct}}%', pct: standardPct })}
+        </div>
+        <div className="text-[10px] font-bold uppercase opacity-80">
+          {t('forecast.tier_window', { defaultValue: '{{n}} derniers jours', n: windowDays })}
+        </div>
+      </div>
+      <div className="mt-2 h-1.5 rounded-full overflow-hidden"
+           style={{ background: isPower ? 'rgba(255,255,255,0.25)' : 'var(--jp-border)' }}>
+        <div className="h-full"
+             style={{
+               width: `${isPower ? 100 : progressPct}%`,
+               background: isPower ? 'white' : 'var(--jp-primary)',
+             }}
+             data-testid="forecast-my-tier-progress" />
+      </div>
+      <div className="text-[11px] mt-1.5 opacity-90" data-testid="forecast-my-tier-caption">
+        {isPower
+          ? t('forecast.tier_power_caption', {
+              defaultValue: 'Tu touches {{boost}}% au lieu de {{base}}% sur chaque mise gagnante parrainée.',
+              boost: boostedPct, base: standardPct,
+            })
+          : t('forecast.tier_progress_caption', {
+              defaultValue: '{{won}} / {{need}} paris gagnants parrainés. Encore {{remaining}} pour débloquer le boost {{boost}}%.',
+              won, need: threshold + 1,
+              remaining: Math.max(0, (threshold + 1) - won),
+              boost: boostedPct,
+            })}
+      </div>
+    </div>
+  ) : null;
+
   if (bets.length === 0) return (
-    <div className="jp-card p-8 text-center" style={{ color: 'var(--jp-text-muted)' }}>
-      {t('forecast.no_bets', { defaultValue: 'Aucun pari pour le moment.' })}
+    <div data-testid="forecast-my-bets-list">
+      {tierBanner}
+      <div className="jp-card p-8 text-center" style={{ color: 'var(--jp-text-muted)' }}>
+        {t('forecast.no_bets', { defaultValue: 'Aucun pari pour le moment.' })}
+      </div>
     </div>
   );
   const statusLabel = {
@@ -483,6 +572,7 @@ function MyBetsList({ t }) {
   };
   return (
     <div data-testid="forecast-my-bets-list">
+      {tierBanner}
       {/* iter241a-share — Referral earnings summary, shown above the bet history. */}
       {earnings && earnings.referrals_total > 0 && (
         <div className="jp-card-elevated p-4 mb-3" data-testid="forecast-my-referrals">

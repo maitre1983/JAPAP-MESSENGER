@@ -409,6 +409,8 @@
     "loading": "Loading…",
     "view_public": "View my public profile ↗",
     "kyc_verified": "Identity verified",
+    "forecast_influencer_badge": "Forecast Influencer",
+    "forecast_influencer_tooltip": "Brought more than 10 winning bets in 30 days via prediction shares. Earns 15% instead of 10%.",
     "visibility_set_public": "Profile is now public.",
     "visibility_set_private": "Profile is now private.",
     "visibility_failed": "Failed to change visibility.",
@@ -1667,6 +1669,12 @@
     "followers": "Followers",
     "referrals_total": "Referred bets",
     "referrals_won": "Won",
-    "commission_earned": "Earnings"
+    "commission_earned": "Earnings",
+    "tier_standard": "🎯 Standard Tier — {{pct}}% commission",
+    "tier_power_sharer": "🎁 Forecast Influencer — {{pct}}% boost",
+    "tier_window": "Last {{n}} days",
+    "tier_progress_caption": "{{won}} / {{need}} winning referred bets. {{remaining}} more to unlock the {{boost}}% boost.",
+    "tier_power_caption": "You earn {{boost}}% instead of {{base}}% on every winning referred bet.",
+    "power_sharer_active": "Forecast Influencer — {{pct}}% boost"
   }
 }

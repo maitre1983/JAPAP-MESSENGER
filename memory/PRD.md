@@ -1,10 +1,62 @@
-# JAPAP — PRD (mise à jour 12/05/2026 — iter239u)
+# JAPAP — PRD (mise à jour 21/05/2026 — iter241a-share-tiers)
 
 ## Problème initial
 Rebuild JAPAP Messenger en architecture modulaire 4-blocs (FastAPI + React + WebSocket + Workers) sur PostgreSQL.
 
 ## Langue utilisateur
 **Français** (obligatoire).
+
+
+## iter241a-share-tiers — Prédictions : Power-Sharers (boost 15%) + badge Influenceur (21/05/2026)
+
+### Demande user
+Récompenser les "power-sharers" : si un utilisateur attire **plus de 10 paris gagnants** via ses liens de partage de prédictions **dans les 30 derniers jours**, il touche **15% au lieu de 10%** sur les futurs paris parrainés gagnants ET affiche un badge **🎁 Influenceur Prédictions** sur son profil public. Seuil, % boost et fenêtre tous configurables côté admin.
+
+### Backend (additif, zéro régression)
+- **3 nouvelles colonnes** sur `forecast_settings` (idempotent ALTER) :
+  - `power_sharer_threshold INTEGER DEFAULT 10`
+  - `power_sharer_commission_percent NUMERIC(5,2) DEFAULT 15.0`
+  - `power_sharer_window_days INTEGER DEFAULT 30`
+- Helpers purs : `_tier_for(winning_referrals, threshold, standard_pct, boosted_pct) → (tier, pct)` (testable unitairement) + `_count_winning_referrals_window(conn, user_id, window_days)`.
+- `admin_resolve_market` : pour chaque bet gagnant avec referrer, calcule le tier **avant** de payer la commission → applique 15% si > seuil sinon 10%. La note de transaction inclut le % effectivement appliqué.
+- `list_my_referral_earnings` renvoie maintenant `tier`, `standard_percent`, `boosted_percent`, `threshold`, `window_days`, `winning_referrals_window`, `is_forecast_influencer`.
+- **Nouveaux endpoints** :
+  - `GET /api/forecast/my-tier` (auth) → `{user_id, tier, commission_percent, standard_percent, boosted_percent, winning_referrals_window, threshold, window_days, is_forecast_influencer}`
+- **Settings public** `/api/forecast/settings/public` expose `power_sharer_threshold`, `power_sharer_commission_percent`, `power_sharer_window_days`.
+- **Profile public** `/api/users/profile/{user_id_or_username}` injecte `is_forecast_influencer: bool` (best-effort, défaut `false` si module désactivé).
+- Settings whitelist `PUT /api/admin/forecast/settings` accepte les 3 nouveaux knobs.
+
+### Frontend (additif)
+- **ForecastPage** : nouvel état `userTier`, fetch automatique de `/api/forecast/my-tier` au mount si user authentifié.
+- **MyBetsList** : nouveau **banner tier** affiché au-dessus de tout (même sans paris) :
+  - Standard → `🎯 Tier Standard — commission 10%` + barre de progression `X / 11 paris gagnants. Encore N pour débloquer le boost 15%`.
+  - Power-sharer → gradient violet→rose `🎁 Influenceur Prédictions — boost 15%` + barre pleine + `Tu touches 15% au lieu de 10%`.
+- **ShareModal** : si user power-sharer, badge gradient + sous-titre dynamique avec le bon %.
+- **PublicProfilePage** : nouveau badge gradient violet→rose `🎁 Influenceur Prédictions` à côté de KYC/PRO (tooltip explicatif).
+- **ForecastAdminTab** : section dédiée "Power-sharer (Influenceur Prédictions)" avec 3 nouveaux inputs (seuil / % boost / fenêtre jours).
+
+### i18n (5 langues, 8 nouvelles clés par langue)
+FR/EN/ES/AR/RU : `forecast.tier_standard`, `forecast.tier_power_sharer`, `forecast.tier_window`, `forecast.tier_progress_caption`, `forecast.tier_power_caption`, `forecast.power_sharer_active`, `profile.forecast_influencer_badge`, `profile.forecast_influencer_tooltip`. RTL Arabic intacte.
+
+### Tests
+- Unitaires purs (`/app/backend/tests/test_iter241a_share_tiers.py`) : **4/4 PASS** sur `_tier_for` (under threshold, at threshold, above threshold, custom values).
+- Intégration API (`/app/backend/tests/test_iter241a_share_tiers_api.py`, créé par testing agent) : **7/7 PASS** (settings, my-tier, my-referrals, profile flag, admin update, threshold flip round-trip, regression).
+- Self-test visuel : confirmé Standard (10%) → flip threshold=-1 → Power-sharer (15% gradient violet→rose) → revert à 10.
+
+### Validation live
+- ✅ `GET /api/forecast/settings/public` expose les 3 nouveaux champs (default 10/15/30).
+- ✅ `GET /api/forecast/my-tier` retourne tier=standard pour user sans referrals.
+- ✅ Flip admin `threshold=-1` → Bob bascule tier=power_sharer, commission_percent=15.0, badge profil visible.
+- ✅ Revert `threshold=10` → Bob revient en tier=standard, badge invisible.
+- ✅ Visuels capturés : banner Standard + Power-sharer rendus exactement comme prévu.
+
+### PWA
+- `SW_VERSION = "v25-iter241a-share-tiers"`
+
+### Garanties
+- 🔒 Aucune route paiement touchée.
+- 🔒 Logique 100% additive ; tier calculé à la volée (pas de migration de données).
+- 🔒 Tier figé AVANT chaque paiement de commission lors de la résolution → impossible de "tipper" son propre seuil dans le même marché.
 
 
 ## iter241a-share — Prédictions : Partage viral & commission affilié 10% (21/05/2026)
